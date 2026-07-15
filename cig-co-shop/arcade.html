@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Arcade — CIG &amp; CO.</title>
+<meta name="description" content="CIG & CO. — play for discounts, free merch, and gifts." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="wordmark">CIG <span>&amp;</span> CO.</a>
+    <nav class="main-nav">
+      <a href="index.html#shop">Shop</a>
+      <a href="index.html#about">About</a>
+      <a href="gallery.html">Gallery</a>
+      <a href="arcade.html">Arcade</a>
+    </nav>
+    <button id="cart-toggle" class="cart-toggle" aria-label="Open cart">
+      BAG <span id="cart-count">0</span>
+    </button>
+  </div>
+</header>
+
+<section class="page-intro reveal">
+  <p class="hero-kicker">Arcade</p>
+  <p class="hero-tagline">Play for discounts, free merch, and gifts. Your first play is a guaranteed 10% or 20% off — after that, one play every 48 hours, pure luck.</p>
+</section>
+
+<!-- Email gate -->
+<section id="arcade-gate" class="arcade-gate reveal">
+  <form id="arcade-gate-form" class="arcade-gate-form">
+    <label for="arcade-email">Enter your email to unlock the Arcade</label>
+    <div class="email-gate-row">
+      <input type="email" id="arcade-email" placeholder="you@email.com" required />
+      <button type="submit" class="btn btn-gold btn-promo">Play</button>
+    </div>
+    <p id="arcade-gate-error" class="checkout-error"></p>
+    <p class="arcade-gate-note">Your first play wins 10% or 20% off, guaranteed. We'll only use your email for drops, discounts, and your prize. Unsubscribe anytime.</p>
+  </form>
+</section>
+
+<!-- Cooldown banner (shown after a play, until the 48h window is up) -->
+<section id="arcade-cooldown" class="arcade-cooldown" hidden>
+  <h2 class="section-title">Come back soon</h2>
+  <div id="cooldown-last-prize"></div>
+  <p class="cooldown-note">Next play unlocks in</p>
+  <div id="cooldown-timer" class="cooldown-timer">--:--:--</div>
+</section>
+
+<!-- Games (hidden until unlocked / off cooldown) -->
+<section id="arcade-games" class="arcade-games" hidden>
+  <p class="arcade-subtext arcade-pick-one">Pick one game — playing any one locks the Arcade for 48 hours.</p>
+
+  <div class="arcade-game-block reveal">
+    <h2 class="section-title">Spin the Wheel</h2>
+    <div class="wheel-wrap">
+      <div class="wheel-pointer"></div>
+      <div class="wheel" id="wheel"></div>
+    </div>
+    <div class="arcade-cta">
+      <button id="wheel-spin-btn" class="btn btn-gold">Spin</button>
+    </div>
+    <div id="wheel-result" class="arcade-result"></div>
+  </div>
+
+  <div class="arcade-game-block reveal">
+    <h2 class="section-title">Scratch Card</h2>
+    <div class="scratch-wrap">
+      <div id="scratch-prize" class="scratch-prize"></div>
+      <canvas id="scratch-canvas" class="scratch-canvas" width="300" height="150"></canvas>
+    </div>
+    <div id="scratch-result" class="arcade-result"></div>
+  </div>
+
+  <div class="arcade-game-block reveal">
+    <h2 class="section-title">Mystery Boxes</h2>
+    <p class="arcade-subtext">Pick one box. Only one has a prize.</p>
+    <div id="mystery-boxes" class="mystery-boxes">
+      <div class="mystery-box"><span>?</span></div>
+      <div class="mystery-box"><span>?</span></div>
+      <div class="mystery-box"><span>?</span></div>
+    </div>
+    <div id="boxes-result" class="arcade-result"></div>
+  </div>
+
+</section>
+
+<footer class="site-footer">
+  <p>&copy; <span id="year"></span> CIG &amp; CO. All rights reserved.</p>
+</footer>
+
+<!-- Cart drawer -->
+<div id="cart-drawer" class="cart-drawer" aria-hidden="true">
+  <div class="cart-drawer-header">
+    <h3>Your Bag</h3>
+    <button id="cart-close" aria-label="Close cart">&times;</button>
+  </div>
+  <div id="cart-items" class="cart-items"></div>
+  <div class="cart-footer">
+    <div class="cart-subtotal">
+      <span>Subtotal</span>
+      <span id="cart-subtotal-amount">$0.00</span>
+    </div>
+    <button id="checkout-btn" class="btn btn-gold btn-full">Checkout</button>
+  </div>
+</div>
+<div id="cart-backdrop" class="backdrop"></div>
+
+<!-- Checkout modal -->
+<div id="checkout-modal" class="modal" aria-hidden="true">
+  <div class="modal-inner">
+    <button class="modal-close" id="checkout-close" aria-label="Close">&times;</button>
+    <div class="checkout-content">
+      <h3>Checkout</h3>
+      <div id="checkout-summary" class="checkout-summary"></div>
+
+      <div class="promo-row">
+        <input type="text" id="promo-input" placeholder="Promo code" />
+        <button class="btn btn-outline btn-promo" id="promo-apply">Apply</button>
+      </div>
+      <p id="promo-message" class="promo-message"></p>
+
+      <div class="checkout-fields">
+        <input type="email" id="checkout-email" placeholder="Email" required />
+        <input type="text" id="checkout-name" placeholder="Full name" required />
+        <input type="text" id="checkout-address" placeholder="Shipping address" required />
+        <input type="text" id="checkout-city" placeholder="City, State, ZIP" required />
+        <label class="checkbox-row">
+          <input type="checkbox" id="checkout-optin" />
+          <span>Keep me posted on drops &amp; discounts (optional)</span>
+        </label>
+      </div>
+
+      <h4>Choose payment method</h4>
+      <div class="payment-options">
+        <button class="btn btn-outline pay-btn" data-method="stripe">Pay with Card</button>
+        <button class="btn btn-outline pay-btn" data-method="paypal">Pay with PayPal</button>
+        <button class="btn btn-outline pay-btn pay-crypto" data-method="crypto">Pay with Crypto (20% off)</button>
+      </div>
+      <p id="checkout-error" class="checkout-error"></p>
+      <p id="checkout-loading" class="checkout-loading" hidden>Redirecting to secure checkout&hellip;</p>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden form so Netlify's build-time crawler registers the "email-list" form. -->
+<form name="email-list" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  <input type="email" name="email" />
+  <input type="text" name="source" />
+  <input type="text" name="bot-field" />
+</form>
+
+<script src="products.js"></script>
+<script src="promo.js"></script>
+<script src="email-list.js"></script>
+<script src="cart.js"></script>
+<script src="app.js"></script>
+<script src="arcade.js"></script>
+<script src="effects.js"></script>
+</body>
+</html>
