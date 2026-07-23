@@ -134,55 +134,51 @@ const PRODUCTS = [
     id: "0011",
     sku: "0011",
     name: "CIG Paisley Bikini",
-    price: 45.00,
-    salePrice: null,
     image: "assets/products/bandana-top-red-front.jpg",
     colors: ["Red", "Pink", "Green"],
     sizes: ["XS", "S", "M", "L", "XL"],
-    colorImages: {
-      "Red": "assets/products/bandana-top-red-front.jpg",
-      "Pink": "assets/products/bandana-top-pink-front.jpg",
-      "Green": "assets/products/bandana-top-green-back.jpg",
+    // Shoppers pick Top, Bottom, or the full Set — price changes with the choice.
+    styles: [
+      { name: "Set", price: 45.00 },
+      { name: "Top", price: 30.00 },
+      { name: "Bottom", price: 20.00 },
+    ],
+    // Main photo shown for each Style + Color.
+    styleImages: {
+      "Set":    { "Red": "assets/products/bandana-top-red-front.jpg", "Pink": "assets/products/bandana-top-pink-front.jpg", "Green": "assets/products/bandana-top-green-back.jpg" },
+      "Top":    { "Red": "assets/products/bandana-top-red-front.jpg", "Pink": "assets/products/bandana-top-pink-front.jpg", "Green": "assets/products/bandana-top-green-back.jpg" },
+      "Bottom": { "Red": "assets/products/bandana-thong-red.jpg",     "Pink": "assets/products/bandana-thong-pink.jpg",     "Green": "assets/products/bandana-thong-green.jpg" },
     },
-    gallery: {
-      "Red": ["assets/products/bandana-thong-red.jpg", "assets/products/bandana-top-red-back.jpg", "assets/products/bandana-label-red.jpg"],
-      "Pink": ["assets/products/bandana-thong-pink.jpg", "assets/products/bandana-top-pink-back.jpg", "assets/products/bandana-top-pink-alt.jpg"],
-      "Green": ["assets/products/bandana-thong-green.jpg"],
+    // Extra angle photos in the slider for each Style + Color.
+    styleGallery: {
+      "Set": {
+        "Red":   ["assets/products/bandana-thong-red.jpg", "assets/products/bandana-top-red-back.jpg", "assets/products/bandana-label-red.jpg"],
+        "Pink":  ["assets/products/bandana-thong-pink.jpg", "assets/products/bandana-top-pink-back.jpg", "assets/products/bandana-top-pink-alt.jpg"],
+        "Green": ["assets/products/bandana-thong-green.jpg"],
+      },
+      "Top": {
+        "Red":  ["assets/products/bandana-top-red-back.jpg", "assets/products/bandana-label-red.jpg"],
+        "Pink": ["assets/products/bandana-top-pink-alt.jpg", "assets/products/bandana-top-pink-back.jpg"],
+      },
+      "Bottom": {},
     },
-  },
-  {
-    id: "0012",
-    sku: "0012",
-    name: "CIG Paisley Bandana Top",
-    price: 30.00,
-    salePrice: null,
-    image: "assets/products/bandana-top-red-front.jpg",
-    colors: ["Red", "Pink", "Green"],
-    sizes: ["XS", "S", "M", "L", "XL"],
-    colorImages: {
-      "Red": "assets/products/bandana-top-red-front.jpg",
-      "Pink": "assets/products/bandana-top-pink-front.jpg",
-      "Green": "assets/products/bandana-top-green-back.jpg",
-    },
-    gallery: {
-      "Red": ["assets/products/bandana-top-red-back.jpg", "assets/products/bandana-label-red.jpg"],
-      "Pink": ["assets/products/bandana-top-pink-alt.jpg", "assets/products/bandana-top-pink-back.jpg"],
-    },
-  },
-  {
-    id: "0013",
-    sku: "0013",
-    name: "CIG Paisley Bottom",
-    price: 20.00,
-    salePrice: null,
-    image: "assets/products/bandana-thong-red.jpg",
-    colors: ["Red", "Pink", "Green"],
-    sizes: ["XS", "S", "M", "L", "XL"],
-    colorImages: {
-      "Red": "assets/products/bandana-thong-red.jpg",
-      "Pink": "assets/products/bandana-thong-pink.jpg",
-      "Green": "assets/products/bandana-thong-green.jpg",
+    // STOCK — how many you have. Set to 0 when sold out. Keyed by Style > Color > Size.
+    stock: {
+      "Set": {
+        "Red":   { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
+        "Pink":  { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
+        "Green": { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
+      },
+      "Top": {
+        "Red":   { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
+        "Pink":  { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
+        "Green": { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
+      },
+      "Bottom": {
+        "Red":   { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
+        "Pink":  { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
+        "Green": { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
+      },
     },
   },
 ];
-

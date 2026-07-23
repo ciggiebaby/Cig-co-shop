@@ -6,12 +6,15 @@ function renderProductGrid() {
   const grid = document.getElementById("product-grid");
   if (!grid) return;
   grid.innerHTML = PRODUCTS.map((p) => {
-    const price = p.salePrice
+    const price = p.styles
+      ? `From $${minPrice(p).toFixed(2)}`
+      : p.salePrice
       ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${p.salePrice.toFixed(2)}</span>`
       : `$${p.price.toFixed(2)}`;
     return `
     <div class="product-card reveal" data-id="${p.id}">
       <div class="product-card-image-wrap">
+        ${productTotalStock(p) <= 0 ? `<div class="soldout-badge">Sold Out</div>` : ""}
         <div class="product-card-parallax">
           <img src="${p.image}" alt="${p.name}" />
         </div>
@@ -32,22 +35,53 @@ function renderProductGrid() {
 }
 
 // ---------- Product modal ----------
-let modalState = { color: null, size: null, qty: 1, slide: 0 };
+let modalState = { style: null, color: null, size: null, qty: 1, slide: 0 };
 
-function productImageForColor(p, color, size) {
+// ---------- Inventory helpers ----------
+function variantStock(p, style, color, size) {
+  if (!p.stock) return Infinity;              // products without a stock block are always available
+  let node = p.stock;
+  if (p.styles) { node = node[style]; if (node == null) return 0; }
+  const c = node[color];
+  if (c == null) return 0;
+  if (typeof c === "number") return c;        // color-only stock (no sizes)
+  if (!size) return Object.keys(c).reduce((a, k) => a + (c[k] || 0), 0);
+  return c[size] || 0;
+}
+function colorStock(p, style, color) { return variantStock(p, style, color, null); }
+function productTotalStock(p) {
+  if (!p.stock) return Infinity;
+  if (p.styles) return p.styles.reduce((sum, st) => sum + p.colors.reduce((a, c) => a + colorStock(p, st.name, c), 0), 0);
+  return p.colors.reduce((a, c) => a + colorStock(p, null, c), 0);
+}
+function styleObj(p, name) { return (p.styles || []).find((s) => s.name === name) || null; }
+function currentPrice(p, style) {
+  if (p.styles) { const s = styleObj(p, style); return s ? s.price : p.styles[0].price; }
+  return p.salePrice != null ? p.salePrice : p.price;
+}
+function minPrice(p) {
+  if (p.styles) return Math.min.apply(null, p.styles.map((s) => s.price));
+  return p.salePrice != null ? p.salePrice : p.price;
+}
+
+function productImageForColor(p, color, size, style) {
+  if (p.styleImages && style && p.styleImages[style]) {
+    return p.styleImages[style][color] || p.image;
+  }
   const entry = p.colorImages && p.colorImages[color];
   if (!entry) return p.image;
   if (typeof entry === "string") return entry;
-  // entry is an object keyed by style/size (e.g. ski mask colors that also vary by style)
   return entry[size] || entry[Object.keys(entry)[0]] || p.image;
 }
 
 // Returns the full ordered list of images to show in the slider for the
 // currently selected color/style: the primary shot first, then any extra
 // angle photos defined in p.gallery[color].
-function productGalleryImages(p, color, size) {
-  const primary = productImageForColor(p, color, size);
-  const extra = (p.gallery && p.gallery[color]) || [];
+function productGalleryImages(p, color, size, style) {
+  const primary = productImageForColor(p, color, size, style);
+  let extra = [];
+  if (p.styleGallery && style && p.styleGallery[style]) extra = p.styleGallery[style][color] || [];
+  else extra = (p.gallery && p.gallery[color]) || [];
   const seen = new Set([primary]);
   const rest = extra.filter((img) => {
     if (seen.has(img)) return false;
@@ -60,7 +94,7 @@ function productGalleryImages(p, color, size) {
 function renderCarousel(p) {
   const wrap = document.getElementById("pd-carousel");
   if (!wrap) return;
-  const images = productGalleryImages(p, modalState.color, modalState.size);
+  const images = productGalleryImages(p, modalState.color, modalState.size, modalState.style);
   if (modalState.slide >= images.length) modalState.slide = 0;
   const showArrows = images.length > 1;
   wrap.innerHTML = `
@@ -90,30 +124,32 @@ function renderCarousel(p) {
 function openProductModal(id) {
   const p = PRODUCTS.find((x) => x.id === id);
   if (!p) return;
-  modalState = { color: p.colors[0] || null, size: p.sizes[0] || null, qty: 1, slide: 0 };
-
-  const price = p.salePrice ? p.salePrice : p.price;
-  const priceHtml = p.salePrice
-    ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${p.salePrice.toFixed(2)}</span>`
-    : `$${p.price.toFixed(2)}`;
+  modalState = { style: (p.styles && p.styles[0].name) || null, color: p.colors[0] || null, size: p.sizes[0] || null, qty: 1, slide: 0 };
 
   document.getElementById("modal-content").innerHTML = `
     <div class="pd-carousel" id="pd-carousel"></div>
     <div class="pd-sku">SKU: ${p.sku}</div>
     <h3 class="pd-name">${p.name}</h3>
-    <div class="pd-price">${priceHtml}</div>
+    <div class="pd-price" id="pd-price"></div>
+    ${p.styles ? `
+      <div class="pd-field">
+        <label>Style</label>
+        <div class="pd-options" id="pd-styles">
+          ${p.styles.map((st) => `<button class="pd-option${st.name === modalState.style ? " selected" : ""}" data-style="${st.name}">${st.name} \u00b7 $${st.price.toFixed(2)}</button>`).join("")}
+        </div>
+      </div>` : ""}
     ${p.colors.length ? `
       <div class="pd-field">
         <label>Color</label>
         <div class="pd-options" id="pd-colors">
-          ${p.colors.map((c) => `<button class="pd-option${c === modalState.color ? " selected" : ""}" data-color="${c}">${c}</button>`).join("")}
+          ${p.colors.map((c) => `<button class="pd-option${c === modalState.color ? " selected" : ""}${colorStock(p, modalState.style, c) <= 0 ? " soldout" : ""}" data-color="${c}">${c}</button>`).join("")}
         </div>
       </div>` : ""}
     ${p.sizes.length ? `
       <div class="pd-field">
         <label>Size</label>
         <div class="pd-options" id="pd-sizes">
-          ${p.sizes.map((s) => `<button class="pd-option${s === modalState.size ? " selected" : ""}" data-size="${s}">${s}</button>`).join("")}
+          ${p.sizes.map((s) => `<button class="pd-option${s === modalState.size ? " selected" : ""}${variantStock(p, modalState.style, modalState.color, s) <= 0 ? " soldout" : ""}" data-size="${s}">${s}</button>`).join("")}
         </div>
       </div>` : ""}
     <div class="pd-field">
@@ -129,6 +165,41 @@ function openProductModal(id) {
 
   renderCarousel(p);
 
+  function refreshAvailability() {
+    document.querySelectorAll("#pd-sizes .pd-option").forEach((b) => {
+      b.classList.toggle("soldout", variantStock(p, modalState.style, modalState.color, b.dataset.size) <= 0);
+    });
+    document.querySelectorAll("#pd-colors .pd-option").forEach((b) => {
+      b.classList.toggle("soldout", colorStock(p, modalState.style, b.dataset.color) <= 0);
+    });
+    const priceEl = document.getElementById("pd-price");
+    if (priceEl) priceEl.textContent = `$${currentPrice(p, modalState.style).toFixed(2)}`;
+    const avail = variantStock(p, modalState.style, modalState.color, modalState.size);
+    const addBtn = document.getElementById("add-to-cart-btn");
+    const qtyVal = document.getElementById("qty-value");
+    if (avail <= 0) {
+      addBtn.textContent = "Sold Out";
+      addBtn.disabled = true;
+      addBtn.classList.add("btn-disabled");
+    } else {
+      addBtn.textContent = "Add to Bag";
+      addBtn.disabled = false;
+      addBtn.classList.remove("btn-disabled");
+      if (modalState.qty > avail) { modalState.qty = avail; qtyVal.textContent = avail; }
+    }
+  }
+
+  document.querySelectorAll("#pd-styles .pd-option").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      modalState.style = btn.dataset.style;
+      modalState.slide = 0;
+      document.querySelectorAll("#pd-styles .pd-option").forEach((b) => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      renderCarousel(p);
+      refreshAvailability();
+    });
+  });
+
   document.querySelectorAll("#pd-colors .pd-option").forEach((btn) => {
     btn.addEventListener("click", () => {
       modalState.color = btn.dataset.color;
@@ -136,6 +207,7 @@ function openProductModal(id) {
       document.querySelectorAll("#pd-colors .pd-option").forEach((b) => b.classList.remove("selected"));
       btn.classList.add("selected");
       renderCarousel(p);
+      refreshAvailability();
     });
   });
   document.querySelectorAll("#pd-sizes .pd-option").forEach((btn) => {
@@ -145,6 +217,7 @@ function openProductModal(id) {
       document.querySelectorAll("#pd-sizes .pd-option").forEach((b) => b.classList.remove("selected"));
       btn.classList.add("selected");
       renderCarousel(p);
+      refreshAvailability();
     });
   });
   document.getElementById("qty-minus").addEventListener("click", () => {
@@ -152,16 +225,18 @@ function openProductModal(id) {
     document.getElementById("qty-value").textContent = modalState.qty;
   });
   document.getElementById("qty-plus").addEventListener("click", () => {
-    modalState.qty += 1;
+    const avail = variantStock(p, modalState.style, modalState.color, modalState.size);
+    modalState.qty = Math.min(avail, modalState.qty + 1);
     document.getElementById("qty-value").textContent = modalState.qty;
   });
   document.getElementById("add-to-cart-btn").addEventListener("click", () => {
+    if (variantStock(p, modalState.style, modalState.color, modalState.size) <= 0) return;
     addToCart({
       productId: p.id,
       sku: p.sku,
-      name: p.name,
-      price: price,
-      image: productImageForColor(p, modalState.color, modalState.size),
+      name: p.styles ? `${p.name} (${modalState.style})` : p.name,
+      price: currentPrice(p, modalState.style),
+      image: productImageForColor(p, modalState.color, modalState.size, modalState.style),
       color: modalState.color,
       size: modalState.size,
       qty: modalState.qty,
@@ -169,6 +244,7 @@ function openProductModal(id) {
     closeModal("product-modal");
   });
 
+  refreshAvailability();
   document.getElementById("product-modal").setAttribute("aria-hidden", "false");
 }
 
