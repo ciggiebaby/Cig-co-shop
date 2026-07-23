@@ -9,9 +9,6 @@ function renderGalleryGrid() {
           <img src="${a.image}" alt="${a.title}" />
         </div>
       </div>
-      <div class="product-card-body">
-        <div class="product-card-name">${a.title}</div>
-      </div>
     </div>`).join("");
 
   grid.querySelectorAll(".product-card").forEach((card) => {
@@ -28,8 +25,6 @@ function openGalleryModal(id) {
   if (!content) return;
   content.innerHTML = `
     <img class="pd-image" src="${a.image}" alt="${a.title}" />
-    <h3 class="pd-name">${a.title}</h3>
-    <p class="gallery-description">${a.description || ""}</p>
   `;
   const modal = document.getElementById("gallery-modal");
   if (modal) modal.setAttribute("aria-hidden", "false");

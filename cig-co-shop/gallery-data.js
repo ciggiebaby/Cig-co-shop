@@ -11,5 +11,4 @@ const ART = [
   { id: "a6", title: "Belt Stack",        image: "assets/gallery/gallery-belt-stack.jpg",  description: "" },
   { id: "a7", title: "Buckle Detail",     image: "assets/gallery/gallery-belt-buckles.jpg",description: "" },
   { id: "a8", title: "Blue Paisley Belt", image: "assets/gallery/gallery-blue-belt.jpg",   description: "" },
-  { id: "a9", title: "Green Paisley Top", image: "assets/gallery/gallery-green-top.jpg",   description: "" },
 ];
