@@ -7,7 +7,7 @@ const PRODUCTS = [
   {
     id: "0003",
     sku: "0003",
-    stock: { "Red": 67, "Blue": 58, "Purple": 67, "Teal": 74, "Black": 18 },
+    stock: { "Red": 67, "Blue": 58, "Purple": 67, "Teal": 74, "Black": 0 },
     name: "CIG Pillow Case",
     price: 20.00,
     salePrice: 10.00,
@@ -103,6 +103,7 @@ const PRODUCTS = [
   {
     id: "0009",
     sku: "0009",
+    comingSoon: true,
     name: "CIG Metallic Puffer Jacket",
     price: 150.00,
     salePrice: null,

@@ -14,7 +14,7 @@ function renderProductGrid() {
     return `
     <div class="product-card reveal" data-id="${p.id}">
       <div class="product-card-image-wrap">
-        ${productTotalStock(p) <= 0 ? `<div class="soldout-badge">Sold Out</div>` : ""}
+        ${p.comingSoon ? `<div class="soldout-badge">Coming Soon</div>` : productTotalStock(p) <= 0 ? `<div class="soldout-badge">Sold Out</div>` : ""}
         <div class="product-card-parallax">
           <img src="${p.image}" alt="${p.name}" />
         </div>
@@ -177,7 +177,11 @@ function openProductModal(id) {
     const avail = variantStock(p, modalState.style, modalState.color, modalState.size);
     const addBtn = document.getElementById("add-to-cart-btn");
     const qtyVal = document.getElementById("qty-value");
-    if (avail <= 0) {
+    if (p.comingSoon) {
+      addBtn.textContent = "Coming Soon";
+      addBtn.disabled = true;
+      addBtn.classList.add("btn-disabled");
+    } else if (avail <= 0) {
       addBtn.textContent = "Sold Out";
       addBtn.disabled = true;
       addBtn.classList.add("btn-disabled");
@@ -230,7 +234,7 @@ function openProductModal(id) {
     document.getElementById("qty-value").textContent = modalState.qty;
   });
   document.getElementById("add-to-cart-btn").addEventListener("click", () => {
-    if (variantStock(p, modalState.style, modalState.color, modalState.size) <= 0) return;
+    if (p.comingSoon || variantStock(p, modalState.style, modalState.color, modalState.size) <= 0) return;
     addToCart({
       productId: p.id,
       sku: p.sku,
