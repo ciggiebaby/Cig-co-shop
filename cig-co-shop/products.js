@@ -133,7 +133,7 @@ const PRODUCTS = [
   {
     id: "0011",
     sku: "0011",
-    name: "CIG Paisley Bandana Set",
+    name: "CIG Paisley Bikini",
     price: 45.00,
     salePrice: null,
     image: "assets/products/bandana-top-red-front.jpg",
@@ -172,7 +172,7 @@ const PRODUCTS = [
   {
     id: "0013",
     sku: "0013",
-    name: "CIG Paisley Bandana Thong",
+    name: "CIG Paisley Bottom",
     price: 20.00,
     salePrice: null,
     image: "assets/products/bandana-thong-red.jpg",
