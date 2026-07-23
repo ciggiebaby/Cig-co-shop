@@ -7,6 +7,7 @@ const PRODUCTS = [
   {
     id: "0003",
     sku: "0003",
+    stock: { "Red": 67, "Blue": 58, "Purple": 67, "Teal": 74, "Black": 18 },
     name: "CIG Pillow Case",
     price: 20.00,
     salePrice: 10.00,
@@ -41,6 +42,7 @@ const PRODUCTS = [
   {
     id: "0005",
     sku: "0005",
+    stock: { "Black": 0, "Blue": 68, "Red": 70 },
     name: "CIG Paisley Balaclava",
     price: 50.00,
     salePrice: null,
@@ -56,6 +58,12 @@ const PRODUCTS = [
   {
     id: "0008",
     sku: "0008",
+    stock: {
+      "Blue":  { "1-Hole": 51, "3-Hole": 62, "Skully": 0 },
+      "Red":   { "1-Hole": 58, "3-Hole": 79, "Skully": 0 },
+      "Green": { "1-Hole": 70, "3-Hole": 74, "Skully": 0 },
+      "Gold":  { "1-Hole": 70, "3-Hole": 80, "Skully": 0 },
+    },
     name: "CIG Acrylic Ski Mask",
     price: 50.00,
     salePrice: null,
@@ -111,6 +119,7 @@ const PRODUCTS = [
   {
     id: "0010",
     sku: "0010",
+    stock: { "Blue": 2, "Green": 0, "Red": 2, "Rainbow": 6 },
     name: "CIG Toile Umbrella",
     price: 35.00,
     salePrice: null,
