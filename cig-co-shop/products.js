@@ -181,19 +181,19 @@ const PRODUCTS = [
     // STOCK — how many you have. Set to 0 when sold out. Keyed by Style > Color > Size.
     stock: {
       "Set": {
-        "Red":   { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
-        "Pink":  { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
-        "Green": { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
+        "Red":   { "XS": 0, "S": 0, "M": 0, "L": 3, "XL": 6 },
+        "Pink":  { "XS": 0, "S": 0, "M": 1, "L": 2, "XL": 8 },
+        "Green": { "XS": 0, "S": 0, "M": 0, "L": 4, "XL": 6 },
       },
       "Top": {
-        "Red":   { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
-        "Pink":  { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
-        "Green": { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
+        "Red":   { "XS": 0, "S": 0, "M": 0, "L": 3, "XL": 6 },
+        "Pink":  { "XS": 0, "S": 0, "M": 1, "L": 2, "XL": 8 },
+        "Green": { "XS": 0, "S": 0, "M": 0, "L": 4, "XL": 6 },
       },
       "Bottom": {
-        "Red":   { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
-        "Pink":  { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
-        "Green": { "XS": 5, "S": 5, "M": 5, "L": 5, "XL": 5 },
+        "Red":   { "XS": 0, "S": 0, "M": 0, "L": 3, "XL": 6 },
+        "Pink":  { "XS": 0, "S": 0, "M": 1, "L": 2, "XL": 8 },
+        "Green": { "XS": 0, "S": 0, "M": 0, "L": 4, "XL": 6 },
       },
     },
   },
