@@ -243,6 +243,7 @@ function openProductModal(id) {
       image: productImageForColor(p, modalState.color, modalState.size, modalState.style),
       color: modalState.color,
       size: modalState.size,
+      style: modalState.style,
       qty: modalState.qty,
     });
     closeModal("product-modal");
