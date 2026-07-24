@@ -48,17 +48,22 @@ const PRODUCTS = [
   {
     id: "0005",
     sku: "0005",
-    stock: { "Black": 0, "Blue": 68, "Red": 70 },
+    stock: { "Blue": 68, "Red": 70, "Gold": 0 },
     name: "CIG Paisley Balaclava",
     price: 50.00,
     salePrice: null,
-    image: "assets/products/balaclava-black.jpg",
-    colors: ["Black", "Blue", "Red"],
+    image: "assets/products/balaclava-blue-front.jpg",
+    colors: ["Blue", "Red", "Gold"],
     sizes: [],
     colorImages: {
-      "Black": "assets/products/balaclava-black.jpg",
-      "Blue": "assets/products/balaclava-blue.jpg",
-      "Red": "assets/products/balaclava-red.jpg",
+      "Blue": "assets/products/balaclava-blue-front.jpg",
+      "Red": "assets/products/balaclava-red-front.jpg",
+      "Gold": "assets/products/balaclava-gold-front.jpg",
+    },
+    gallery: {
+      "Blue": ["assets/products/balaclava-blue-back.jpg"],
+      "Red": ["assets/products/balaclava-red-back.jpg"],
+      "Gold": ["assets/products/balaclava-gold-back.jpg"],
     },
   },
   {
@@ -102,8 +107,8 @@ const PRODUCTS = [
     gallery: {
       "Blue": ["assets/products/skimask-blue-back.jpg"],
       "Red": ["assets/products/skimask-red-back.jpg"],
-      "Green": ["assets/products/skimask-green-back.jpg"],
       "Gold": ["assets/products/skimask-gold-back.jpg"],
+      "Green": ["assets/products/skimask-green-back.jpg"],
     },
   },
   {
