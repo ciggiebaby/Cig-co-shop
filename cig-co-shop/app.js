@@ -363,6 +363,14 @@ class StripeCartCompatibilityError extends Error {
   }
 }
 
+class CheckoutFingerprintError extends Error {
+  constructor(cause) {
+    super("Checkout fingerprint generation failed.");
+    this.name = "CheckoutFingerprintError";
+    this.cause = cause;
+  }
+}
+
 function stripeStyleForItem(item, product) {
   const productStyles =
     product && Array.isArray(product.styles) ? product.styles : [];
@@ -409,6 +417,40 @@ function buildCheckoutRequestBody(
   };
 }
 
+async function addCheckoutFingerprint(
+  requestBody,
+  promoCode,
+  fingerprintApi =
+    typeof window !== "undefined"
+      ? window.CIGCheckoutFingerprint
+      : null,
+) {
+  try {
+    if (
+      !fingerprintApi ||
+      typeof fingerprintApi.createCheckoutFingerprint !== "function"
+    ) {
+      throw new Error("Checkout fingerprint utility is unavailable.");
+    }
+
+    const checkoutFingerprint =
+      await fingerprintApi.createCheckoutFingerprint(
+        requestBody.items,
+        promoCode,
+      );
+    if (!/^v1:[a-f0-9]{64}$/.test(checkoutFingerprint)) {
+      throw new Error("Checkout fingerprint utility returned an invalid value.");
+    }
+
+    return {
+      ...requestBody,
+      checkoutFingerprint,
+    };
+  } catch (error) {
+    throw new CheckoutFingerprintError(error);
+  }
+}
+
 function handleCheckoutResult({
   location = typeof window !== "undefined" ? window.location : null,
   history = typeof window !== "undefined" ? window.history : null,
@@ -440,9 +482,14 @@ function handleCheckoutResult({
 
 // The three payment functions below call your deployed serverless functions
 // (see netlify/functions/). Each returns a hosted checkout URL to redirect to.
-document.querySelectorAll(".pay-btn").forEach((btn) => {
+const paymentButtons = Array.from(document.querySelectorAll(".pay-btn"));
+let checkoutSubmissionPending = false;
+
+paymentButtons.forEach((btn) => {
   btn.addEventListener("click", async () => {
     const method = btn.dataset.method;
+    if (checkoutSubmissionPending) return;
+
     const fields = getCheckoutFields();
     const errorEl = document.getElementById("checkout-error");
     const loadingEl = document.getElementById("checkout-loading");
@@ -459,33 +506,47 @@ document.querySelectorAll(".pay-btn").forEach((btn) => {
       return;
     }
 
-    const optinEl = document.getElementById("checkout-optin");
-    if (optinEl && optinEl.checked && fields.email && typeof submitEmail === "function") {
-      submitEmail(fields.email, "checkout");
-    }
-
+    checkoutSubmissionPending = true;
+    const previousDisabledStates = paymentButtons.map(
+      (paymentButton) => paymentButton.disabled,
+    );
+    paymentButtons.forEach((paymentButton) => {
+      paymentButton.disabled = true;
+    });
     loadingEl.hidden = false;
 
-    const endpoint =
-      method === "stripe"
-        ? "/.netlify/functions/create-stripe-session"
-        : method === "paypal"
-        ? "/.netlify/functions/create-paypal-order"
-        : "/.netlify/functions/create-coinbase-charge";
-
-    const discountFraction = promoState && typeof PROMO_CODES !== "undefined" && PROMO_CODES[promoState] ? PROMO_CODES[promoState].discount : 0;
-    const cartToCharge = discountFraction > 0
-      ? cart.map((item) => ({ ...item, price: Math.round(item.price * (1 - discountFraction) * 100) / 100 }))
-      : cart;
-
     try {
-      const requestBody = buildCheckoutRequestBody(
+      const optinEl = document.getElementById("checkout-optin");
+      if (optinEl && optinEl.checked && fields.email && typeof submitEmail === "function") {
+        submitEmail(fields.email, "checkout");
+      }
+
+      const endpoint =
+        method === "stripe"
+          ? "/.netlify/functions/create-stripe-session"
+          : method === "paypal"
+          ? "/.netlify/functions/create-paypal-order"
+          : "/.netlify/functions/create-coinbase-charge";
+
+      const discountFraction = promoState && typeof PROMO_CODES !== "undefined" && PROMO_CODES[promoState] ? PROMO_CODES[promoState].discount : 0;
+      const cartToCharge = discountFraction > 0
+        ? cart.map((item) => ({ ...item, price: Math.round(item.price * (1 - discountFraction) * 100) / 100 }))
+        : cart;
+
+      let requestBody = buildCheckoutRequestBody(
         method,
         cart,
         cartToCharge,
         fields,
         promoState,
       );
+      if (method === "stripe") {
+        requestBody = await addCheckoutFingerprint(
+          requestBody,
+          promoState,
+        );
+      }
+
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -499,11 +560,25 @@ document.querySelectorAll(".pay-btn").forEach((btn) => {
       window.location.href = data.url;
     } catch (err) {
       loadingEl.hidden = true;
-      errorEl.textContent = err instanceof StripeCartCompatibilityError
-        ? err.message
-        : "Checkout isn't wired up yet on this deployment — add your API keys per the README, then this button will work. (" +
-          err.message +
-          ")";
+      if (err instanceof CheckoutFingerprintError) {
+        console.error(
+          "Checkout fingerprint generation failed.",
+          err.cause,
+        );
+        errorEl.textContent =
+          "Checkout could not be prepared. Please refresh and try again.";
+      } else {
+        errorEl.textContent = err instanceof StripeCartCompatibilityError
+          ? err.message
+          : "Checkout isn't wired up yet on this deployment — add your API keys per the README, then this button will work. (" +
+            err.message +
+            ")";
+      }
+    } finally {
+      checkoutSubmissionPending = false;
+      paymentButtons.forEach((paymentButton, index) => {
+        paymentButton.disabled = previousDisabledStates[index];
+      });
     }
   });
 });
@@ -515,7 +590,9 @@ if (typeof renderCart === "function") renderCart();
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    CheckoutFingerprintError,
     StripeCartCompatibilityError,
+    addCheckoutFingerprint,
     buildCheckoutRequestBody,
     handleCheckoutResult,
   };
