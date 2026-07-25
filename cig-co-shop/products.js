@@ -57,13 +57,13 @@ const PRODUCTS = [
     sizes: [],
     colorImages: {
       "Blue": "assets/products/balaclava-blue-front.jpg",
-      "Red": "assets/products/balaclava-red-front.jpg",
-      "Gold": "assets/products/balaclava-gold-front.jpg",
+      "Red": "assets/products/balaclava-red-front-upright.jpg",
+      "Gold": "assets/products/balaclava-gold-front-upright.jpg",
     },
     gallery: {
       "Blue": ["assets/products/balaclava-blue-back.jpg"],
-      "Red": ["assets/products/balaclava-red-back.jpg"],
-      "Gold": ["assets/products/balaclava-gold-back.jpg"],
+      "Red": ["assets/products/balaclava-red-back-upright.jpg"],
+      "Gold": ["assets/products/balaclava-gold-back-upright.jpg"],
     },
   },
   {
