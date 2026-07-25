@@ -48,7 +48,7 @@ const PRODUCTS = [
   {
     id: "0005",
     sku: "0005",
-    stock: { "Blue": 68, "Red": 70, "Gold": 0 },
+    stock: { "Blue": 30, "Red": 34, "Gold": 22 },
     name: "CIG Paisley Balaclava",
     price: 50.00,
     salePrice: null,
