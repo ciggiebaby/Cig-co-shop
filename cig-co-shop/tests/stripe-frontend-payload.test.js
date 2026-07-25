@@ -6,20 +6,42 @@ const vm = require("node:vm");
 
 const { PRODUCTS } = require("../products.js");
 
-function loadFrontendHelpers() {
+function loadFrontend({
+  href,
+  storedCart,
+} = {}) {
+  const statusElement = { hidden: true, textContent: "" };
+  const storage = new Map();
+  if (storedCart) {
+    storage.set("cig_co_cart_v1", JSON.stringify(storedCart));
+  }
+  let storageWrites = 0;
+  const historyCalls = [];
+  const history = {
+    state: { existing: true },
+    replaceState(state, title, url) {
+      this.state = state;
+      historyCalls.push({ state, title, url });
+    },
+  };
   const context = vm.createContext({
     PRODUCTS,
+    URL,
     console,
     document: {
-      getElementById: () => null,
+      getElementById: (id) =>
+        id === "checkout-status" ? statusElement : null,
       querySelectorAll: () => [],
     },
     localStorage: {
-      getItem: () => null,
-      setItem() {},
+      getItem: (key) => storage.get(key) || null,
+      setItem(key, value) {
+        storageWrites += 1;
+        storage.set(key, value);
+      },
     },
     module: { exports: {} },
-    window: {},
+    window: href ? { history, location: { href } } : {},
   });
 
   for (const filename of ["cart.js", "app.js"]) {
@@ -27,10 +49,16 @@ function loadFrontendHelpers() {
     vm.runInContext(source, context, { filename });
   }
 
-  return context.module.exports;
+  return {
+    helpers: context.module.exports,
+    historyCalls,
+    statusElement,
+    storage,
+    storageWrites: () => storageWrites,
+  };
 }
 
-const { buildCheckoutRequestBody } = loadFrontendHelpers();
+const { buildCheckoutRequestBody } = loadFrontend().helpers;
 const customer = {
   email: "customer@example.com",
   name: "Customer",
@@ -168,5 +196,86 @@ test("preserves PayPal and Coinbase request bodies", () => {
     );
     assert.deepEqual(JSON.parse(JSON.stringify(payload)), expected);
     assert.equal(payload.cart, cartToCharge);
+  }
+});
+
+test("shows cancelled wording, preserves the cart, and cleans only checkout", () => {
+  const cart = [
+    {
+      productId: "0003",
+      name: "CIG Pillow Case",
+      price: 10,
+      color: "Red",
+      size: null,
+      style: null,
+      qty: 2,
+    },
+  ];
+  const frontend = loadFrontend({
+    href:
+      "https://shop.test/?campaign=archive&checkout=cancelled&source=email#shop",
+    storedCart: cart,
+  });
+
+  assert.equal(
+    frontend.statusElement.textContent,
+    "Checkout was cancelled. Your bag is still saved whenever you’re ready.",
+  );
+  assert.equal(frontend.statusElement.hidden, false);
+  assert.deepEqual(frontend.historyCalls, [
+    {
+      state: { existing: true },
+      title: "",
+      url: "/?campaign=archive&source=email#shop",
+    },
+  ]);
+  assert.equal(frontend.storageWrites(), 0);
+  assert.deepEqual(
+    JSON.parse(frontend.storage.get("cig_co_cart_v1")),
+    cart,
+  );
+});
+
+test("shows pending wording after an unverified success and keeps the cart", () => {
+  const cart = [
+    {
+      productId: "0011",
+      name: "CIG Paisley Bikini (Set)",
+      price: 45,
+      color: "Red",
+      size: "L",
+      style: "Set",
+      qty: 1,
+    },
+  ];
+  const frontend = loadFrontend({
+    href: "https://shop.test/?checkout=success#top",
+    storedCart: cart,
+  });
+
+  assert.equal(
+    frontend.statusElement.textContent,
+    "You returned from checkout. Payment confirmation is still pending, so your bag has been kept for now.",
+  );
+  assert.equal(frontend.statusElement.hidden, false);
+  assert.equal(frontend.historyCalls[0].url, "/#top");
+  assert.equal(frontend.storageWrites(), 0);
+  assert.deepEqual(
+    JSON.parse(frontend.storage.get("cig_co_cart_v1")),
+    cart,
+  );
+});
+
+test("unknown or missing checkout values leave the banner and URL untouched", () => {
+  for (const href of [
+    "https://shop.test/?checkout=unknown&campaign=archive#shop",
+    "https://shop.test/?campaign=archive#shop",
+  ]) {
+    const frontend = loadFrontend({ href });
+
+    assert.equal(frontend.statusElement.hidden, true);
+    assert.equal(frontend.statusElement.textContent, "");
+    assert.deepEqual(frontend.historyCalls, []);
+    assert.equal(frontend.storageWrites(), 0);
   }
 });

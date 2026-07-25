@@ -409,6 +409,35 @@ function buildCheckoutRequestBody(
   };
 }
 
+function handleCheckoutResult({
+  location = typeof window !== "undefined" ? window.location : null,
+  history = typeof window !== "undefined" ? window.history : null,
+  statusElement = document.getElementById("checkout-status"),
+} = {}) {
+  if (!location || !history || !statusElement) return;
+
+  const url = new URL(location.href);
+  const result = url.searchParams.get("checkout");
+  const messages = {
+    cancelled:
+      "Checkout was cancelled. Your bag is still saved whenever you’re ready.",
+    success:
+      "You returned from checkout. Payment confirmation is still pending, so your bag has been kept for now.",
+  };
+  const message = messages[result];
+  if (!message) return;
+
+  statusElement.textContent = message;
+  statusElement.hidden = false;
+
+  url.searchParams.delete("checkout");
+  history.replaceState(
+    history.state,
+    "",
+    `${url.pathname}${url.search}${url.hash}`,
+  );
+}
+
 // The three payment functions below call your deployed serverless functions
 // (see netlify/functions/). Each returns a hosted checkout URL to redirect to.
 document.querySelectorAll(".pay-btn").forEach((btn) => {
@@ -480,6 +509,7 @@ document.querySelectorAll(".pay-btn").forEach((btn) => {
 });
 
 // ---------- Init ----------
+handleCheckoutResult();
 renderProductGrid();
 if (typeof renderCart === "function") renderCart();
 
@@ -487,5 +517,6 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     StripeCartCompatibilityError,
     buildCheckoutRequestBody,
+    handleCheckoutResult,
   };
 }
