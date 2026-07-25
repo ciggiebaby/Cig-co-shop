@@ -356,6 +356,59 @@ function validateCheckoutFields(fields) {
   return fields.email && fields.name && fields.address && fields.city;
 }
 
+class StripeCartCompatibilityError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "StripeCartCompatibilityError";
+  }
+}
+
+function stripeStyleForItem(item, product) {
+  const productStyles =
+    product && Array.isArray(product.styles) ? product.styles : [];
+  if (productStyles.length === 0) return null;
+
+  const style =
+    typeof itemStyleKey === "function" ? itemStyleKey(item) : item.style;
+  if (!productStyles.some((entry) => entry.name === style)) {
+    throw new StripeCartCompatibilityError(
+      `Your saved ${product.name} selection is missing a valid style. Please remove it from your bag and re-add it before checking out.`,
+    );
+  }
+  return style;
+}
+
+function buildCheckoutRequestBody(
+  method,
+  cart,
+  cartToCharge,
+  customer,
+  promoCode,
+) {
+  if (method !== "stripe") {
+    return {
+      cart: cartToCharge,
+      customer,
+      promoCode: promoCode || null,
+    };
+  }
+
+  return {
+    items: cart.map((item) => {
+      const product = PRODUCTS.find((entry) => entry.id === item.productId);
+      return {
+        productId: item.productId,
+        color: item.color ?? null,
+        size: item.size ?? null,
+        style: stripeStyleForItem(item, product),
+        quantity: item.qty,
+      };
+    }),
+    promoCode: promoCode || null,
+    customer,
+  };
+}
+
 // The three payment functions below call your deployed serverless functions
 // (see netlify/functions/). Each returns a hosted checkout URL to redirect to.
 document.querySelectorAll(".pay-btn").forEach((btn) => {
@@ -397,10 +450,17 @@ document.querySelectorAll(".pay-btn").forEach((btn) => {
       : cart;
 
     try {
+      const requestBody = buildCheckoutRequestBody(
+        method,
+        cart,
+        cartToCharge,
+        fields,
+        promoState,
+      );
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cart: cartToCharge, customer: fields, promoCode: promoState || null }),
+        body: JSON.stringify(requestBody),
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
@@ -410,10 +470,11 @@ document.querySelectorAll(".pay-btn").forEach((btn) => {
       window.location.href = data.url;
     } catch (err) {
       loadingEl.hidden = true;
-      errorEl.textContent =
-        "Checkout isn't wired up yet on this deployment — add your API keys per the README, then this button will work. (" +
-        err.message +
-        ")";
+      errorEl.textContent = err instanceof StripeCartCompatibilityError
+        ? err.message
+        : "Checkout isn't wired up yet on this deployment — add your API keys per the README, then this button will work. (" +
+          err.message +
+          ")";
     }
   });
 });
@@ -421,3 +482,10 @@ document.querySelectorAll(".pay-btn").forEach((btn) => {
 // ---------- Init ----------
 renderProductGrid();
 if (typeof renderCart === "function") renderCart();
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    StripeCartCompatibilityError,
+    buildCheckoutRequestBody,
+  };
+}
