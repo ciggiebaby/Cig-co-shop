@@ -39,5 +39,5 @@ function prizeById(id) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { PROMO_CODES };
+  module.exports = { PROMO_CODES, PRIZES };
 }

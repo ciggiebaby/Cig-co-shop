@@ -473,6 +473,7 @@ function handleCheckoutResult({
   statusElement.hidden = false;
 
   url.searchParams.delete("checkout");
+  url.searchParams.delete("session_id");
   history.replaceState(
     history.state,
     "",
@@ -517,7 +518,13 @@ paymentButtons.forEach((btn) => {
 
     try {
       const optinEl = document.getElementById("checkout-optin");
-      if (optinEl && optinEl.checked && fields.email && typeof submitEmail === "function") {
+      const marketingConsent = !!(optinEl && optinEl.checked);
+      if (
+        method !== "stripe"
+        && marketingConsent
+        && fields.email
+        && typeof submitEmail === "function"
+      ) {
         submitEmail(fields.email, "checkout");
       }
 
@@ -541,6 +548,13 @@ paymentButtons.forEach((btn) => {
         promoState,
       );
       if (method === "stripe") {
+        requestBody = {
+          ...requestBody,
+          customer: {
+            ...requestBody.customer,
+            marketingConsent,
+          },
+        };
         requestBody = await addCheckoutFingerprint(
           requestBody,
           promoState,

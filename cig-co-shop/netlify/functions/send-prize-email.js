@@ -1,66 +1,59 @@
-// Emails an Arcade winner their prize code immediately, using Resend
-// (https://resend.com — free tier, no credit card needed for testing).
-// Requires env vars:
-//   RESEND_API_KEY — from https://resend.com/api-keys
-//   FROM_EMAIL     — e.g. "CIG & CO. <rewards@cigcompany.com>". Until you
-//                    verify your own domain with Resend, sending is limited
-//                    to your own Resend account email (fine for testing —
-//                    see README for the domain verification step).
-// If RESEND_API_KEY isn't set yet, this quietly no-ops so the Arcade still
-// works end-to-end while you finish setting up email.
+// Compatibility endpoint for retrying a server-confirmed Arcade prize email.
+// The browser cannot supply email copy, recipients, prize labels, or codes.
+// Delivery uses RESEND_FROM_EMAIL through netlify/lib/resend.js.
+const {
+  RequestValidationError,
+  jsonResponse,
+  optionalTrimmedString,
+  parseJsonBody,
+  safeIdentifier,
+} = require("../lib/customer-utils.js");
+const { createCustomerStore } = require("../lib/customer-store.js");
+const { sendPrizeTransaction } = require("../lib/integrations.js");
 
-exports.handler = async (event) => {
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
-  }
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-  try {
-    const { email, label, code, detail } = JSON.parse(event.body || "{}");
-    if (!email || !label) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Missing email or prize label." }) };
+function createHandler({
+  storeFactory = createCustomerStore,
+  sendPrize = sendPrizeTransaction,
+  logger = console,
+} = {}) {
+  return async (event) => {
+    if (event.httpMethod !== "POST") {
+      return jsonResponse(405, { error: "Method not allowed." }, { Allow: "POST" });
     }
 
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      return { statusCode: 200, body: JSON.stringify({ skipped: true, reason: "RESEND_API_KEY not set yet" }) };
+    try {
+      const body = parseJsonBody(event);
+      const playId = optionalTrimmedString(body.playId, 36);
+      if (!playId || !UUID_PATTERN.test(playId)) {
+        throw new RequestValidationError("Prize delivery request is invalid.");
+      }
+      const store = storeFactory();
+      const claim = await store.getArcadePlayDelivery(playId);
+      if (!claim) {
+        return jsonResponse(404, { error: "Confirmed Arcade play was not found." });
+      }
+      const result = await sendPrize({ store, claim, logger });
+      return jsonResponse(200, {
+        sent: !!result.succeeded,
+        alreadyHandled: !!result.skipped,
+      });
+    } catch (error) {
+      if (error instanceof RequestValidationError) {
+        return jsonResponse(400, { error: error.message });
+      }
+      logger.error("Prize email retry failed.", {
+        request: safeIdentifier(event.body),
+        error: error && error.name,
+      });
+      return jsonResponse(500, {
+        error: "Prize email could not be processed.",
+      });
     }
+  };
+}
 
-    const from = process.env.FROM_EMAIL || "CIG & CO. <onboarding@resend.dev>";
+const handler = createHandler();
 
-    const codeBlock = code
-      ? `<p style="font-size:26px;letter-spacing:3px;font-weight:bold;color:#D4AF37;margin:16px 0;">${code}</p>
-         <p style="color:#ccc;">Enter this code at checkout to redeem your discount right away.</p>`
-      : `<p style="color:#ccc;">${detail || "Reply to this email or DM us to claim your prize."}</p>`;
-
-    const html = `
-      <div style="font-family:Georgia,serif;background:#0a0a0a;color:#fff;padding:32px;max-width:480px;margin:0 auto;">
-        <h1 style="color:#D4AF37;letter-spacing:2px;font-size:20px;margin:0 0 24px;">CIG &amp; CO.</h1>
-        <h2 style="font-size:22px;margin:0 0 8px;">You won: ${label}</h2>
-        ${codeBlock}
-        <p style="margin-top:28px;color:#666;font-size:12px;">This prize is yours to use right away — no waiting.</p>
-      </div>`;
-
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: email,
-        subject: `You won: ${label} — CIG & CO. Arcade`,
-        html,
-      }),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      return { statusCode: 502, body: JSON.stringify({ error: errText }) };
-    }
-
-    return { statusCode: 200, body: JSON.stringify({ sent: true }) };
-  } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
-  }
-};
+module.exports = { createHandler, handler };

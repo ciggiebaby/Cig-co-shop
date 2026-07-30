@@ -11,11 +11,13 @@ per-transaction processing fees from whichever payment method the customer picks
 - `gallery.html`, `gallery-data.js`, `gallery.js` — the Gallery page.
 - `arcade.html`, `arcade.js` — the Arcade page (email-gated games).
 - `promo.js` — discount codes and Arcade prizes, shared by checkout and the Arcade.
-- `email-list.js` — sends emails (Arcade unlock + optional checkout opt-in) to Netlify Forms.
+- `email-list.js` — legacy Netlify Forms capture retained for non-Stripe checkout compatibility.
 - `products.js` — **edit this to add/change backstock.** Plain English, no code experience needed beyond copy-pasting the pattern.
 - `assets/logo-spin.mp4` — your spinning logo, used in the hero section.
 - `assets/products/placeholder.svg` — shows until you add real photos.
-- `netlify/functions/` — backend functions: Stripe, PayPal, and Coinbase Commerce checkout, plus `send-prize-email.js` for the Arcade.
+- `netlify/functions/` — checkout, signed Stripe webhook, Arcade, Kit/Resend, shipment, and protected export endpoints.
+- `supabase/migrations/` — the unified customer, order, Arcade, and integration schema.
+- `docs/customer-system-setup.md` — Supabase, Stripe webhook, Kit, Resend, and protected export setup.
 - `.env.example` — list of the secret keys you'll need (see below). Never put real keys directly in this file.
 
 ## Gallery page
@@ -33,7 +35,7 @@ card, and mystery boxes. **Every visitor's first play is a guaranteed 10% or
 20% off** (picked randomly between the two) — a hook to get people playing.
 Every play after that is pure chance across the full prize pool, including a
 "try again" outcome. **Playing any one of the three counts as your play**
-and locks the whole Arcade for 48 hours — a live countdown shows on the page
+and locks the whole Arcade for seven days — a live countdown shows on the page
 until the next play unlocks. Prizes are
 defined in `promo.js` under `PRIZES`: 5%, 10%, and 20% off codes (the same
 codes usable at checkout — nothing higher, by design), plus "Free Merch" and
@@ -41,21 +43,18 @@ codes usable at checkout — nothing higher, by design), plus "Free Merch" and
 to screenshot their result and email or DM you to claim it, so keep an eye
 out for those.
 
-**Winners get their code by email immediately** — no waiting for you to send
-it. That part needs one more free account (see below). Every email — from the
-Arcade gate and from the optional "keep me posted" checkbox at checkout — is
-also captured via **Netlify Forms**, a free feature of the same Netlify
-account you're already deploying to. No extra signup or API key needed for
-that part. Once deployed, submissions appear under **Site settings > Forms**
-in your Netlify dashboard, where you can view them, export a CSV, or turn on
-an email notification for new signups.
+**Winners get their code by email immediately** after Supabase confirms the
+play. Supabase is authoritative for Arcade identity, first-play eligibility,
+the seven-day cooldown, and prize history. Kit receives only contacts who
+explicitly select the optional promotional-email checkbox. See
+`docs/customer-system-setup.md` for setup.
 
 ### Turning on automatic prize emails
 
 1. Go to [resend.com](https://resend.com) and sign up (free — 3,000 emails/month on the free tier).
 2. Go to **API Keys** and create one, then copy it.
 3. In Netlify, go to **Site settings > Environment variables** and add `RESEND_API_KEY` with that value.
-4. To send from your own address instead of Resend's shared test address, go to **Domains** in Resend, add `cigcompany.com`, and add the DNS records it gives you at GoDaddy (same place you'll already be adding DNS records in Step 4 below). Once verified, set the `FROM_EMAIL` environment variable to something like `CIG & CO. <rewards@cigcompany.com>`.
+4. To send from your own address instead of Resend's shared test address, go to **Domains** in Resend, add `cigcompany.com`, and add the DNS records it gives you at GoDaddy (same place you'll already be adding DNS records in Step 4 below). Once verified, set the `RESEND_FROM_EMAIL` environment variable to something like `CIG & CO. <rewards@cigcompany.com>`.
 5. Until your domain is verified, Resend only lets you send to the email address you signed up with — that's a Resend limit for anti-spam, not something in this code. Real customers won't receive prize emails until you finish the domain verification step, so do that before promoting the Arcade.
 
 ## Step 1 — Add your real product photos
@@ -81,7 +80,7 @@ The easiest free host for this setup is **Netlify**, since it also runs the paym
 
 1. Go to [app.netlify.com](https://app.netlify.com) and sign up (free).
 2. Click **Add new site > Deploy manually**, then drag this entire `cig-co-shop` folder onto the page. Netlify will give you a temporary URL like `random-name-123.netlify.app` — that's normal, you'll connect your real domain next.
-3. Go to **Site settings > Environment variables** and add each key from `.env.example` with your real values from Step 2 (STRIPE_SECRET_KEY, PAYPAL_CLIENT_ID, PAYPAL_SECRET, COINBASE_COMMERCE_API_KEY, RESEND_API_KEY, FROM_EMAIL, and SITE_URL set to `https://cigcompany.com`).
+3. Go to **Site settings > Environment variables** and add every server-side key from `.env.example`. Keep `SITE_URL` set to `https://cigcompany.com`.
 4. Trigger a redeploy (Netlify does this automatically after saving environment variables, or click **Deploys > Trigger deploy**).
 
 ## Step 4 — Point cigcompany.com at it (GoDaddy)

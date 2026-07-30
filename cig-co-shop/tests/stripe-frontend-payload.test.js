@@ -426,7 +426,10 @@ test("the Stripe click flow sends the fingerprinted existing payload", async () 
       },
     ],
     promoCode: "CIG10",
-    customer,
+    customer: {
+      ...customer,
+      marketingConsent: false,
+    },
     checkoutFingerprint:
       "v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   });
@@ -576,7 +579,7 @@ test("shows cancelled wording, preserves the cart, and cleans only checkout", ()
   );
 });
 
-test("shows pending wording after an unverified success and keeps the cart", () => {
+test("shows pending wording, keeps the cart, and removes the returned session ID", () => {
   const cart = [
     {
       productId: "0011",
@@ -589,7 +592,8 @@ test("shows pending wording after an unverified success and keeps the cart", () 
     },
   ];
   const frontend = loadFrontend({
-    href: "https://shop.test/?checkout=success#top",
+    href:
+      "https://shop.test/?campaign=archive&checkout=success&session_id=cs_test_123#top",
     storedCart: cart,
   });
 
@@ -598,7 +602,7 @@ test("shows pending wording after an unverified success and keeps the cart", () 
     "You returned from checkout. Payment confirmation is still pending, so your bag has been kept for now.",
   );
   assert.equal(frontend.statusElement.hidden, false);
-  assert.equal(frontend.historyCalls[0].url, "/#top");
+  assert.equal(frontend.historyCalls[0].url, "/?campaign=archive#top");
   assert.equal(frontend.storageWrites(), 0);
   assert.deepEqual(
     JSON.parse(frontend.storage.get("cig_co_cart_v1")),

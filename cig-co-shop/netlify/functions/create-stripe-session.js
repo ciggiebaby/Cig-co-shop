@@ -4,6 +4,12 @@ const {
   PricingValidationError,
   priceCartForStripe,
 } = require("../lib/stripe-pricing.js");
+const {
+  RequestValidationError,
+  normalizeEmail,
+} = require("../lib/customer-utils.js");
+
+const CHECKOUT_FINGERPRINT_PATTERN = /^v1:[a-f0-9]{64}$/;
 
 function defaultStripeFactory(secretKey) {
   const Stripe = require("stripe");
@@ -24,9 +30,27 @@ function getTrustedItemFields(item) {
   };
 }
 
+function checkoutSiteUrl(value) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("SITE_URL is not configured.");
+  }
+  const url = new URL(value);
+  if (
+    url.protocol !== "https:"
+    || url.username
+    || url.password
+    || url.search
+    || url.hash
+  ) {
+    throw new Error("SITE_URL is invalid.");
+  }
+  return url.href.replace(/\/+$/, "");
+}
+
 function createHandler({
   stripeFactory = defaultStripeFactory,
   siteUrl,
+  environment = process.env,
   logger = console,
 } = {}) {
   return async (event) => {
@@ -51,19 +75,34 @@ function createHandler({
         ? submittedItems.map(getTrustedItemFields)
         : submittedItems;
       const pricing = priceCartForStripe(trustedItems, body.promoCode);
-      const stripe = stripeFactory(process.env.STRIPE_SECRET_KEY);
-      const resolvedSiteUrl =
-        siteUrl || process.env.SITE_URL || `https://${event.headers.host}`;
+      const stripe = stripeFactory(environment.STRIPE_SECRET_KEY);
+      const resolvedSiteUrl = checkoutSiteUrl(siteUrl || environment.SITE_URL);
+      const customerEmail =
+        body.customer && body.customer.email
+          ? normalizeEmail(body.customer.email)
+          : undefined;
+      const marketingConsent =
+        !!(body.customer && body.customer.marketingConsent === true);
+      const checkoutFingerprint =
+        typeof body.checkoutFingerprint === "string"
+          && CHECKOUT_FINGERPRINT_PATTERN.test(body.checkoutFingerprint)
+          ? body.checkoutFingerprint
+          : null;
+      if (body.checkoutFingerprint != null && !checkoutFingerprint) {
+        throw new RequestValidationError("Checkout fingerprint is invalid.");
+      }
 
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         line_items: pricing.lineItems,
-        customer_email:
-          body.customer && body.customer.email
-            ? body.customer.email
-            : undefined,
+        customer_email: customerEmail,
+        metadata: {
+          cart_fingerprint: checkoutFingerprint || "",
+          marketing_consent: marketingConsent ? "true" : "false",
+          promo_code: pricing.promoCode || "",
+        },
         shipping_address_collection: { allowed_countries: ["US"] },
-        success_url: `${resolvedSiteUrl}/?checkout=success`,
+        success_url: `${resolvedSiteUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${resolvedSiteUrl}/?checkout=cancelled`,
       });
 
@@ -72,7 +111,10 @@ function createHandler({
         body: JSON.stringify({ url: session.url }),
       };
     } catch (err) {
-      if (err instanceof PricingValidationError) {
+      if (
+        err instanceof PricingValidationError
+        || err instanceof RequestValidationError
+      ) {
         return {
           statusCode: 400,
           body: JSON.stringify({ error: err.message }),
@@ -91,6 +133,7 @@ function createHandler({
 const handler = createHandler();
 
 module.exports = {
+  checkoutSiteUrl,
   createHandler,
   handler,
 };

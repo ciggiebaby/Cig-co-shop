@@ -1,36 +1,15 @@
 // ---------- Arcade: email gate + three casino-style games ----------
-// Playing ANY one of the three games (wheel, scratch, boxes) counts as your
-// play and locks the whole Arcade for 48 hours — pure luck, one shot per
-// visitor per window. A live countdown shows until the next play unlocks.
-// Winning a "discount" prize saves the code via savePromoWin() (ready to use
-// at checkout) and also emails the code to the visitor right away via the
-// send-prize-email Netlify function.
+// Supabase is authoritative for identity, first play, prizes, and cooldowns.
+// localStorage is retained only as a convenience cache for the last email and
+// the most recent server-confirmed play.
 
 const ARCADE_UNLOCK_KEY = "cig_co_arcade_unlocked_v1";
 const ARCADE_PLAY_KEY = "cig_co_arcade_last_play_v2";
-const COOLDOWN_MS = 48 * 60 * 60 * 1000; // 48 hours
+const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // Seven days
 
 let cooldownInterval = null;
-
-function pickRandomPrize() {
-  return PRIZES[Math.floor(Math.random() * PRIZES.length)];
-}
-
-// A visitor's very first play is a guaranteed 10% or 20% off — every other
-// play afterward is pure chance across the full PRIZES pool.
-const GUARANTEED_FIRST_PLAY_IDS = ["p10", "p20"];
-
-function isFirstPlay() {
-  return !getLastPlay();
-}
-
-function pickPrizeForPlay() {
-  if (isFirstPlay()) {
-    const id = GUARANTEED_FIRST_PLAY_IDS[Math.floor(Math.random() * GUARANTEED_FIRST_PLAY_IDS.length)];
-    return prizeById(id) || pickRandomPrize();
-  }
-  return pickRandomPrize();
-}
+let arcadeEmail = null;
+let activeClaimPromise = null;
 
 function renderPrizeBanner(prize) {
   if (!prize) return "";
@@ -43,19 +22,13 @@ function renderPrizeBanner(prize) {
     </div>`;
 }
 
-function handlePrizeWon(prize) {
+function saveConfirmedPrize(prize) {
   if (prize.type === "discount" && typeof savePromoWin === "function") {
     savePromoWin(prize.code);
   }
-  // Only email on an actual win — no "sorry, try again" emails.
-  if (prize.type === "none") return;
-  const email = localStorage.getItem(ARCADE_UNLOCK_KEY);
-  if (email && typeof sendPrizeEmail === "function") {
-    sendPrizeEmail(email, prize);
-  }
 }
 
-// ---------- Shared 48h play lock ----------
+// ---------- Shared seven-day play lock (server-confirmed cache only) ----------
 function getLastPlay() {
   try {
     const raw = localStorage.getItem(ARCADE_PLAY_KEY);
@@ -65,28 +38,37 @@ function getLastPlay() {
   }
 }
 
-function recordPlay(prize, game) {
-  localStorage.setItem(ARCADE_PLAY_KEY, JSON.stringify({
-    playedAt: Date.now(),
-    prizeId: prize.id,
+function cacheConfirmedPlay(claim, game) {
+  const record = {
+    playedAt: new Date(claim.playedAt).getTime(),
+    nextEligibleAt: claim.nextEligibleAt,
+    prizeId: claim.prize.id,
+    prize: claim.prize,
     game,
-  }));
-  handlePrizeWon(prize);
-  checkPlayState();
+  };
+  localStorage.setItem(ARCADE_PLAY_KEY, JSON.stringify(record));
+  saveConfirmedPrize(claim.prize);
+  return record;
 }
 
 function msRemaining(lastPlay) {
   if (!lastPlay) return 0;
+  if (lastPlay.nextEligibleAt) {
+    return Math.max(0, new Date(lastPlay.nextEligibleAt).getTime() - Date.now());
+  }
   return Math.max(0, COOLDOWN_MS - (Date.now() - lastPlay.playedAt));
 }
 
 function formatCountdown(ms) {
   const totalSeconds = Math.ceil(ms / 1000);
-  const h = Math.floor(totalSeconds / 3600);
+  const d = Math.floor(totalSeconds / 86400);
+  const h = Math.floor((totalSeconds % 86400) / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;
   const pad = (n) => String(n).padStart(2, "0");
-  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  return d > 0
+    ? `${d}D ${pad(h)}:${pad(m)}:${pad(s)}`
+    : `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
 function startCooldownUI(lastPlay) {
@@ -99,14 +81,15 @@ function startCooldownUI(lastPlay) {
 
   const prizeEl = document.getElementById("cooldown-last-prize");
   const timerEl = document.getElementById("cooldown-timer");
-  if (prizeEl) prizeEl.innerHTML = renderPrizeBanner(prizeById(lastPlay.prizeId));
+  const prize = lastPlay.prize || prizeById(lastPlay.prizeId);
+  if (prizeEl) prizeEl.innerHTML = renderPrizeBanner(prize);
 
   if (cooldownInterval) clearInterval(cooldownInterval);
   const tick = () => {
     const remaining = msRemaining(lastPlay);
     if (remaining <= 0) {
       clearInterval(cooldownInterval);
-      checkPlayState();
+      refreshArcadeState();
       return;
     }
     if (timerEl) timerEl.textContent = formatCountdown(remaining);
@@ -129,8 +112,7 @@ function showGamesUI() {
   if (window.initScrollEffects) window.initScrollEffects();
 }
 
-function checkPlayState() {
-  const lastPlay = getLastPlay();
+function checkPlayState(lastPlay = getLastPlay()) {
   const remaining = msRemaining(lastPlay);
   if (lastPlay && remaining > 0) {
     startCooldownUI(lastPlay);
@@ -139,23 +121,122 @@ function checkPlayState() {
   }
 }
 
-// ---------- Email gate ----------
-function isArcadeUnlocked() {
-  return !!localStorage.getItem(ARCADE_UNLOCK_KEY);
+function uuidForPlay() {
+  if (!window.crypto || typeof window.crypto.randomUUID !== "function") {
+    throw new Error("Secure Arcade request IDs are unavailable.");
+  }
+  return window.crypto.randomUUID();
 }
 
+async function arcadeRequest(path, body) {
+  const response = await fetch(`/.netlify/functions/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "The Arcade is temporarily unavailable.");
+  }
+  return data;
+}
+
+function registrationPlayRecord(registration) {
+  if (!registration.lastPlay) return null;
+  const play = registration.lastPlay;
+  return {
+    playedAt: new Date(play.playedAt).getTime(),
+    nextEligibleAt: play.nextEligibleAt,
+    prizeId: play.prize && play.prize.id,
+    prize: play.prize,
+  };
+}
+
+async function registerArcadeIdentity(
+  email,
+  marketingConsent,
+  consentProvided,
+) {
+  const registration = await arcadeRequest("arcade-register", {
+    email,
+    marketingConsent,
+    consentProvided,
+  });
+  arcadeEmail = registration.email;
+  localStorage.setItem(ARCADE_UNLOCK_KEY, registration.email);
+  const lastPlay = registrationPlayRecord(registration);
+  if (lastPlay) {
+    localStorage.setItem(ARCADE_PLAY_KEY, JSON.stringify(lastPlay));
+  } else {
+    localStorage.removeItem(ARCADE_PLAY_KEY);
+  }
+  checkPlayState(lastPlay);
+  return registration;
+}
+
+async function refreshArcadeState() {
+  const email = arcadeEmail || localStorage.getItem(ARCADE_UNLOCK_KEY);
+  if (!email) return;
+  try {
+    await registerArcadeIdentity(email, false, false);
+  } catch (error) {
+    const errorEl = document.getElementById("arcade-gate-error");
+    if (errorEl) errorEl.textContent =
+      "We couldn’t confirm your Arcade access. Please try again.";
+  }
+}
+
+async function claimArcadePrize(game) {
+  if (activeClaimPromise) return activeClaimPromise;
+  if (!arcadeEmail) {
+    throw new Error("Arcade identity has not been confirmed.");
+  }
+  activeClaimPromise = arcadeRequest("arcade-claim", {
+    email: arcadeEmail,
+    game,
+    requestId: uuidForPlay(),
+  }).finally(() => {
+    activeClaimPromise = null;
+  });
+  return activeClaimPromise;
+}
+
+function handleConfirmedClaim(claim, game) {
+  if (!claim.claimed) {
+    const cooldownRecord = {
+      playedAt: new Date(claim.playedAt).getTime(),
+      nextEligibleAt: claim.nextEligibleAt,
+      prizeId: claim.prize && claim.prize.id,
+      prize: claim.prize,
+      game,
+    };
+    localStorage.setItem(ARCADE_PLAY_KEY, JSON.stringify(cooldownRecord));
+    startCooldownUI(cooldownRecord);
+    return false;
+  }
+  const record = cacheConfirmedPlay(claim, game);
+  startCooldownUI(record);
+  return true;
+}
+
+// ---------- Email gate ----------
 function setupGate() {
   const form = document.getElementById("arcade-gate-form");
   const input = document.getElementById("arcade-email");
+  const consent = document.getElementById("arcade-marketing-consent");
   const errorEl = document.getElementById("arcade-gate-error");
 
-  if (isArcadeUnlocked()) {
-    checkPlayState();
-    return;
+  const cachedEmail = localStorage.getItem(ARCADE_UNLOCK_KEY);
+  if (cachedEmail) {
+    registerArcadeIdentity(cachedEmail, false, false).catch(() => {
+      localStorage.removeItem(ARCADE_UNLOCK_KEY);
+      if (errorEl) errorEl.textContent =
+        "Enter your email again so we can confirm your Arcade access.";
+    });
   }
 
   if (!form || !input) return;
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = input.value;
     if (!isValidEmail(email)) {
@@ -163,13 +244,35 @@ function setupGate() {
       return;
     }
     if (errorEl) errorEl.textContent = "";
-    if (typeof submitEmail === "function") submitEmail(email, "arcade");
-    localStorage.setItem(ARCADE_UNLOCK_KEY, email.trim());
-    checkPlayState();
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
+    try {
+      await registerArcadeIdentity(email, !!(consent && consent.checked), true);
+    } catch (error) {
+      if (errorEl) errorEl.textContent =
+        error.message || "The Arcade could not be unlocked. Please try again.";
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
   });
 }
 
 // ---------- Game 1: Spin wheel ----------
+function wheelLabelLayout(index, count, radius = 75) {
+  const sliceAngle = 360 / count;
+  const midAngle = index * sliceAngle + sliceAngle / 2;
+  const radians = midAngle * Math.PI / 180;
+  const rotation = midAngle > 90 && midAngle < 270
+    ? midAngle + 180
+    : midAngle;
+  return {
+    midAngle,
+    x: Math.sin(radians) * radius,
+    y: -Math.cos(radians) * radius,
+    rotation,
+  };
+}
+
 function initWheel() {
   const wheel = document.getElementById("wheel");
   const spinBtn = document.getElementById("wheel-spin-btn");
@@ -193,17 +296,30 @@ function initWheel() {
   }).join(", ");
   wheel.style.background = `conic-gradient(from 0deg, ${stops})`;
   wheel.innerHTML = PRIZES.map((p, i) => {
-    const mid = i * sliceAngle + sliceAngle / 2;
-    return `<span class="wheel-label" style="transform: rotate(${mid}deg) translateY(-108px)">${p.label.toUpperCase()}</span>`;
+    const label = wheelLabelLayout(i, n);
+    const contrastClass = i % 2 === 1 ? " wheel-label-dark" : "";
+    return `<span class="wheel-label${contrastClass}" style="left:calc(50% + ${label.x.toFixed(2)}px);top:calc(50% + ${label.y.toFixed(2)}px);transform:translate(-50%,-50%) rotate(${label.rotation.toFixed(2)}deg)">${p.label.toUpperCase()}</span>`;
   }).join("");
   // Force reflow so the next transform change animates.
   void wheel.offsetWidth;
   wheel.style.transition = "";
 
   let currentRotation = 0;
-  spinBtn.addEventListener("click", () => {
+  spinBtn.addEventListener("click", async () => {
     spinBtn.disabled = true;
-    const prize = pickPrizeForPlay();
+    let claim;
+    try {
+      claim = await claimArcadePrize("wheel");
+    } catch (error) {
+      resultEl.textContent = error.message;
+      spinBtn.disabled = false;
+      return;
+    }
+    if (!claim.claimed) {
+      handleConfirmedClaim(claim, "wheel");
+      return;
+    }
+    const prize = claim.prize;
     const index = PRIZES.findIndex((p) => p.id === prize.id);
     const midAngle = index * sliceAngle + sliceAngle / 2;
     const extraSpins = 5 * 360;
@@ -212,8 +328,8 @@ function initWheel() {
 
     setTimeout(() => {
       resultEl.innerHTML = renderPrizeBanner(prize);
-      spinBtn.textContent = "Locked for 48h";
-      recordPlay(prize, "wheel");
+      spinBtn.textContent = "Locked for 7 days";
+      handleConfirmedClaim(claim, "wheel");
     }, 4200);
   });
 }
@@ -225,8 +341,9 @@ function initScratch() {
   const resultEl = document.getElementById("scratch-result");
   if (!canvas || !prizeLayer || !resultEl) return;
 
-  const prize = pickPrizeForPlay();
-  prizeLayer.innerHTML = renderPrizeBanner(prize);
+  let claim = null;
+  let claimPromise = null;
+  prizeLayer.innerHTML = '<p class="arcade-subtext">Scratch to reveal your prize.</p>';
   resultEl.innerHTML = "";
   canvas.style.display = "";
   canvas.style.opacity = "1";
@@ -241,6 +358,7 @@ function initScratch() {
   ctx.fillText("SCRATCH HERE", w / 2, h / 2 + 6);
 
   let scratching = false;
+  let pointerDown = false;
   let revealed = false;
 
   function scratchAt(x, y) {
@@ -270,11 +388,37 @@ function initScratch() {
       canvas.style.transition = "opacity 0.4s ease";
       canvas.style.opacity = "0";
       setTimeout(() => { canvas.style.display = "none"; }, 400);
-      recordPlay(prize, "scratch");
+      handleConfirmedClaim(claim, "scratch");
     }
   }
 
-  function start(e) { scratching = true; const p = pointerPos(e); scratchAt(p.x, p.y); }
+  async function ensureClaim() {
+    if (!claimPromise) {
+      claimPromise = claimArcadePrize("scratch").then((result) => {
+        claim = result;
+        if (!claim.claimed) {
+          handleConfirmedClaim(claim, "scratch");
+          return null;
+        }
+        prizeLayer.innerHTML = renderPrizeBanner(claim.prize);
+        return claim;
+      });
+    }
+    return claimPromise;
+  }
+
+  async function start(e) {
+    pointerDown = true;
+    try {
+      const confirmed = await ensureClaim();
+      if (!confirmed || !pointerDown) return;
+      scratching = true;
+      const p = pointerPos(e);
+      scratchAt(p.x, p.y);
+    } catch (error) {
+      resultEl.textContent = error.message;
+    }
+  }
   function move(e) {
     if (!scratching) return;
     e.preventDefault();
@@ -282,7 +426,10 @@ function initScratch() {
     scratchAt(p.x, p.y);
     checkCleared();
   }
-  function end() { scratching = false; }
+  function end() {
+    pointerDown = false;
+    scratching = false;
+  }
 
   canvas.addEventListener("mousedown", start);
   canvas.addEventListener("mousemove", move);
@@ -299,31 +446,48 @@ function initBoxes() {
   if (!container || !resultEl) return;
 
   resultEl.innerHTML = "";
-  // On a guaranteed first play, every box wins — otherwise only one of three does.
-  const guaranteed = isFirstPlay();
-  const prizeIndex = guaranteed ? -1 : Math.floor(Math.random() * 3);
-  const prize = pickPrizeForPlay();
   const boxes = container.querySelectorAll(".mystery-box");
   boxes.forEach((b) => {
     b.style.pointerEvents = "";
     b.classList.remove("mystery-box-win", "mystery-box-empty");
   });
 
-  boxes.forEach((box, i) => {
-    box.addEventListener("click", () => {
+  boxes.forEach((box) => {
+    box.onclick = async () => {
       boxes.forEach((b) => (b.style.pointerEvents = "none"));
-      if (guaranteed || i === prizeIndex) {
-        box.classList.add("mystery-box-win");
+      try {
+        const claim = await claimArcadePrize("boxes");
+        if (!claim.claimed) {
+          handleConfirmedClaim(claim, "boxes");
+          return;
+        }
+        const prize = claim.prize;
+        if (prize.type !== "none") {
+          box.classList.add("mystery-box-win");
+        } else {
+          box.classList.add("mystery-box-empty");
+        }
         resultEl.innerHTML = renderPrizeBanner(prize);
-        recordPlay(prize, "boxes");
-      } else {
-        box.classList.add("mystery-box-empty");
-        const noneprize = { id: "again1", type: "none", label: "Empty Box", detail: "No luck this time — come back soon." };
-        resultEl.innerHTML = renderPrizeBanner(noneprize);
-        recordPlay(noneprize, "boxes");
+        handleConfirmedClaim(claim, "boxes");
+      } catch (error) {
+        resultEl.textContent = error.message;
+        boxes.forEach((b) => (b.style.pointerEvents = ""));
       }
-    }, { once: true });
+    };
   });
 }
 
-setupGate();
+if (typeof document !== "undefined") {
+  setupGate();
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    COOLDOWN_MS,
+    formatCountdown,
+    msRemaining,
+    registrationPlayRecord,
+    renderPrizeBanner,
+    wheelLabelLayout,
+  };
+}
