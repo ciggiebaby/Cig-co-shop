@@ -2,6 +2,11 @@
 // Edit this file to add/remove/update backstock. Each product needs a unique id.
 // image: put your real product photo in /assets/products/ and reference it here.
 // colors/sizes are optional — leave the array empty ([]) if a product has none.
+//
+// hidden: true  — backstock you hold off-site. The product never renders in the
+//   shop grid and the server refuses to price it, so it can't be bought online.
+//   Keep it here anyway so all inventory lives in one file. Flip to false (or
+//   delete the line) when you're ready to put it on the site.
 
 const PRODUCTS = [
   {
@@ -232,6 +237,22 @@ const PRODUCTS = [
         "Green": { "XS": 0, "S": 0, "M": 0, "L": 4, "XL": 6 },
       },
     },
+  },
+  {
+    id: "0012",
+    sku: "0012",
+    // Off-site backstock — held ready, not sold on the site.
+    // BEFORE setting hidden to false: fill in price and add photos to
+    // assets/products/. Both are blank below, and the grid needs them.
+    hidden: true,
+    stock: { "Blue": 17, "Red": 27, "Black/Rainbow": 7, "White/Rainbow": 20 },
+    name: "CIG Corona Masks",
+    price: null,
+    salePrice: null,
+    image: "",
+    colors: ["Blue", "Red", "Black/Rainbow", "White/Rainbow"],
+    sizes: [],
+    colorImages: {},
   },
 ];
 

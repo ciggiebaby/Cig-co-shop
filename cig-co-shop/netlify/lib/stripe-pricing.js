@@ -131,7 +131,7 @@ function resolveRequestedItem(rawItem) {
   const productId = normalizeRequiredString(rawItem.productId, "Product ID");
   const product = PRODUCTS.find((entry) => entry.id === productId);
   if (!product) validationError(`Unknown product ID: ${productId}.`);
-  if (product.comingSoon) validationError(`Product ${productId} is not available for purchase.`);
+  if (product.hidden || product.comingSoon) validationError(`Product ${productId} is not available for purchase.`);
 
   const styles = product.styles || [];
   const style = validateSelection(product, "style", rawItem.style, styles.map((entry) => entry.name));

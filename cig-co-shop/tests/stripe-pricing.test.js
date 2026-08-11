@@ -129,6 +129,8 @@ test("rejects missing, unknown, and unexpected options", () => {
 
 test("rejects unavailable products and variants", () => {
   assertValidationError(() => priceCartForStripe([item("0009", "Blue")]), /not available for purchase/);
+  // 0012 is off-site backstock: in the catalog, in stock, but never purchasable.
+  assertValidationError(() => priceCartForStripe([item("0012", "Red")]), /not available for purchase/);
   assertValidationError(() => priceCartForStripe([item("0003", "Black")]), /quantity is unavailable/);
   assertValidationError(() => priceCartForStripe([item("0004", "Gold", null, "Bonnet")]), /quantity is unavailable/);
   assertValidationError(() => priceCartForStripe([item("0004", "Gold", null, "Set")]), /quantity is unavailable/);

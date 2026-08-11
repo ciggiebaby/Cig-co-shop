@@ -5,7 +5,7 @@ if (yearEl) yearEl.textContent = new Date().getFullYear();
 function renderProductGrid() {
   const grid = document.getElementById("product-grid");
   if (!grid) return;
-  grid.innerHTML = PRODUCTS.map((p) => {
+  grid.innerHTML = PRODUCTS.filter((p) => !p.hidden).map((p) => {
     const price = p.styles
       ? `From $${minPrice(p).toFixed(2)}`
       : p.salePrice
@@ -143,7 +143,7 @@ function renderCarousel(p) {
 
 function openProductModal(id) {
   const p = PRODUCTS.find((x) => x.id === id);
-  if (!p) return;
+  if (!p || p.hidden) return;
   modalState = { style: (p.styles && p.styles[0].name) || null, color: p.colors[0] || null, size: p.sizes[0] || null, qty: 1, slide: 0 };
 
   document.getElementById("modal-content").innerHTML = `
