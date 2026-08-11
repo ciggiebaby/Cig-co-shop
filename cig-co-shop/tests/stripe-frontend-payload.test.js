@@ -136,8 +136,9 @@ test("frontend availability derives Set stock from shared Bonnet and Durag count
   assert.equal(variantStock(product, "Set", "Gold", null), 0);
   assert.equal(variantStock(product, "Bonnet", "Gold", null), 0);
   assert.equal(variantStock(product, "Durag", "Gold", null), 1);
-  assert.equal(variantStock(product, "Set", "Red", null), 0);
-  assert.equal(productTotalStock(product), 8);
+  assert.equal(variantStock(product, "Durag", "Red", null), 2);
+  assert.equal(variantStock(product, "Set", "Red", null), 0); // 2 durags, but no bonnet to pair
+  assert.equal(productTotalStock(product), 10);
 });
 
 test("Stripe receives identifier-only items with quantity and Bikini style", () => {

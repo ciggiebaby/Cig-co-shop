@@ -41,7 +41,7 @@ const PRODUCTS = [
     ],
     // Bonnets, Durags, and Sets share these physical component counts.
     componentStock: {
-      "Red":   { "Bonnet": 0, "Durag": 0 },
+      "Red":   { "Bonnet": 0, "Durag": 2 },
       "Gold":  { "Bonnet": 0, "Durag": 1 },
       "Black": { "Bonnet": 0, "Durag": 0 },
       "Pink":  { "Bonnet": 3, "Durag": 2 },

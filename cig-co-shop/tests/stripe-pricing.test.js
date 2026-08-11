@@ -134,7 +134,7 @@ test("rejects unavailable products and variants", () => {
   assertValidationError(() => priceCartForStripe([item("0003", "Black")]), /quantity is unavailable/);
   assertValidationError(() => priceCartForStripe([item("0004", "Gold", null, "Bonnet")]), /quantity is unavailable/);
   assertValidationError(() => priceCartForStripe([item("0004", "Gold", null, "Set")]), /quantity is unavailable/);
-  assertValidationError(() => priceCartForStripe([item("0004", "Red", null, "Durag")]), /quantity is unavailable/);
+  assertValidationError(() => priceCartForStripe([item("0004", "Red", null, "Bonnet")]), /quantity is unavailable/);
   assertValidationError(() => priceCartForStripe([item("0008", "Blue", "Skully")]), /quantity is unavailable/);
   assertValidationError(() => priceCartForStripe([item("0011", "Red", "M", "Set")]), /quantity is unavailable/);
 });
