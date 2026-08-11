@@ -266,11 +266,12 @@ function openProductModal(id) {
       style: modalState.style,
       qty: modalState.qty,
     });
-    closeModal("product-modal");
+    dismissProductModal();
   });
 
   refreshAvailability();
   document.getElementById("product-modal").setAttribute("aria-hidden", "false");
+  pushProductModalHistory();
 }
 
 function closeModal(id) {
@@ -278,8 +279,53 @@ function closeModal(id) {
   if (el) el.setAttribute("aria-hidden", "true");
 }
 
+// ---------- Product modal dismissal ----------
+// On a phone the modal reads as its own screen, so people dismiss it with the
+// system Back gesture. Giving it a history entry makes Back close the sheet
+// instead of leaving the shop. Every other dismissal unwinds that same entry, so
+// the modal and the history stack can't drift apart.
+let productModalHasHistoryEntry = false;
+
+function productModalIsOpen() {
+  const el = document.getElementById("product-modal");
+  return !!el && el.getAttribute("aria-hidden") === "false";
+}
+
+function pushProductModalHistory() {
+  const nav = typeof window !== "undefined" ? window.history : null;
+  if (productModalHasHistoryEntry || !nav) return;
+  nav.pushState({ ...nav.state, cigProductModal: true }, "");
+  productModalHasHistoryEntry = true;
+}
+
+function dismissProductModal() {
+  const nav = typeof window !== "undefined" ? window.history : null;
+  if (productModalHasHistoryEntry && nav) {
+    nav.back();   // the popstate handler below performs the actual close
+    return;
+  }
+  closeModal("product-modal");
+}
+
+window.addEventListener("popstate", () => {
+  productModalHasHistoryEntry = false;
+  if (productModalIsOpen()) closeModal("product-modal");
+});
+
 const modalCloseBtn = document.getElementById("modal-close");
-if (modalCloseBtn) modalCloseBtn.addEventListener("click", () => closeModal("product-modal"));
+if (modalCloseBtn) modalCloseBtn.addEventListener("click", dismissProductModal);
+
+// Tapping the dimmed area outside the sheet closes it, matching the cart drawer.
+const productModalEl = document.getElementById("product-modal");
+if (productModalEl) {
+  productModalEl.addEventListener("click", (e) => {
+    if (e.target === productModalEl) dismissProductModal();
+  });
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && productModalIsOpen()) dismissProductModal();
+});
 
 // ---------- Cart drawer wiring ----------
 const cartToggleBtn = document.getElementById("cart-toggle");

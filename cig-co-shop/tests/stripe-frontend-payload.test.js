@@ -19,6 +19,18 @@ function loadFrontend({
   const errorElement = { textContent: "" };
   const loadingElement = { hidden: true };
   const optinElement = { checked: false };
+  // Minimal stand-in for the product sheet: only the aria-hidden flag matters,
+  // since that is what actually shows and hides it.
+  const productModalElement = {
+    attributes: { "aria-hidden": "true" },
+    getAttribute(name) {
+      return this.attributes[name];
+    },
+    setAttribute(name, value) {
+      this.attributes[name] = value;
+    },
+    addEventListener() {},
+  };
   const checkoutFields = {
     "checkout-email": { value: "customer@example.com" },
     "checkout-name": { value: "Customer" },
@@ -46,16 +58,32 @@ function loadFrontend({
   }
   let storageWrites = 0;
   const historyCalls = [];
+  const historyStack = [];
   const history = {
     state: { existing: true },
     replaceState(state, title, url) {
       this.state = state;
       historyCalls.push({ state, title, url });
     },
+    pushState(state, title, url) {
+      historyStack.push(this.state);
+      this.state = state;
+    },
+    // Stands in for the phone's Back gesture: unwind one entry and notify.
+    back() {
+      this.state = historyStack.pop() || null;
+      const handler = windowListeners.get("popstate");
+      if (handler) handler({ state: this.state });
+    },
   };
+  const windowListeners = new Map();
+  const documentListeners = new Map();
   const windowObject = {
     history,
     location: { href: href || "https://shop.test/" },
+    addEventListener(type, listener) {
+      windowListeners.set(type, listener);
+    },
   };
   if (fingerprintApi) {
     windowObject.CIGCheckoutFingerprint = fingerprintApi;
@@ -77,10 +105,14 @@ function loadFrontend({
         if (id === "checkout-error") return errorElement;
         if (id === "checkout-loading") return loadingElement;
         if (id === "checkout-optin") return optinElement;
+        if (id === "product-modal") return productModalElement;
         return checkoutFields[id] || null;
       },
       querySelectorAll: (selector) =>
         selector === ".pay-btn" ? paymentButtons : [],
+      addEventListener(type, listener) {
+        documentListeners.set(type, listener);
+      },
     },
     fetch: fetchImpl,
     getSavedPromo: () => promoCode,
@@ -101,12 +133,14 @@ function loadFrontend({
   }
 
   return {
+    context,
     developerErrors,
     errorElement,
     helpers: context.module.exports,
     historyCalls,
     loadingElement,
     paymentButtons,
+    productModalElement,
     statusElement,
     storage,
     storageWrites: () => storageWrites,
@@ -139,6 +173,32 @@ test("frontend availability derives Set stock from shared Bonnet and Durag count
   assert.equal(variantStock(product, "Durag", "Red", null), 2);
   assert.equal(variantStock(product, "Set", "Red", null), 0); // 2 durags, but no bonnet to pair
   assert.equal(productTotalStock(product), 10);
+});
+
+test("the phone Back gesture closes the product sheet instead of leaving the shop", () => {
+  const { context, productModalElement, window: win } = loadFrontend();
+
+  // Open the sheet the way openProductModal does.
+  productModalElement.setAttribute("aria-hidden", "false");
+  context.pushProductModalHistory();
+
+  win.history.back();
+
+  assert.equal(productModalElement.getAttribute("aria-hidden"), "true");
+  // Back consumed only the sheet's own entry, so the shop page is still here.
+  assert.deepEqual(win.history.state, { existing: true });
+});
+
+test("closing the sheet any other way unwinds its history entry too", () => {
+  const { context, productModalElement, window: win } = loadFrontend();
+
+  productModalElement.setAttribute("aria-hidden", "false");
+  context.pushProductModalHistory();
+  context.dismissProductModal();
+
+  assert.equal(productModalElement.getAttribute("aria-hidden"), "true");
+  // Without this the entry is orphaned and the next Back appears to do nothing.
+  assert.deepEqual(win.history.state, { existing: true });
 });
 
 test("Stripe receives identifier-only items with quantity and Bikini style", () => {
