@@ -322,7 +322,8 @@ test("wheel labels share one centered ring and remain readable", () => {
     wheelLabelLayout(index, PRIZES.length));
 
   layouts.forEach((layout) => {
-    assert.ok(Math.abs(Math.hypot(layout.x, layout.y) - 75) < 0.001);
+    // Percent of the wheel's box, not pixels — see wheelLabelLayout.
+    assert.ok(Math.abs(Math.hypot(layout.x, layout.y) - 31.25) < 0.001);
     const readableRotation = ((layout.rotation % 360) + 360) % 360;
     assert.ok(readableRotation <= 90 || readableRotation >= 270);
   });

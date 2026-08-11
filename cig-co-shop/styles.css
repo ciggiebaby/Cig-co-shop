@@ -8,7 +8,13 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  /* Stop iOS Safari auto-inflating small text. Without this the 9px wheel
+     labels get boosted on phones and spill outside the wheel. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 
 body {
   margin: 0;
@@ -451,7 +457,16 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* Spin wheel */
-.wheel-wrap { position: relative; width: 240px; height: 240px; margin: 0 auto; }
+/* Every wheel dimension derives from --wheel-size, and the labels are placed in
+   percentages (see wheelLabelLayout), so the ring stays locked to the geometry
+   at any screen width instead of drifting off the circle. */
+.wheel-wrap {
+  --wheel-size: min(240px, 76vw);
+  position: relative;
+  width: var(--wheel-size);
+  height: var(--wheel-size);
+  margin: 0 auto;
+}
 .wheel-pointer {
   position: absolute;
   top: -6px;
@@ -479,8 +494,10 @@ a { color: inherit; text-decoration: none; }
 }
 .wheel-label {
   position: absolute;
-  width: 70px;
-  font-size: 9px;
+  /* A slice spans ~28% of the wheel's width at the label ring (7 prizes), so
+     26% keeps each label inside its own slice with room to spare. */
+  width: 26%;
+  font-size: calc(var(--wheel-size) * 0.0375); /* 9px at the 240px desktop size */
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: 0.35px;

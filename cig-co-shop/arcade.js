@@ -258,7 +258,10 @@ function setupGate() {
 }
 
 // ---------- Game 1: Spin wheel ----------
-function wheelLabelLayout(index, count, radius = 75) {
+// x/y come back as percentages of the wheel's own box rather than pixels, so the
+// label ring scales with --wheel-size. A hardcoded pixel radius silently detaches
+// the labels from the circle as soon as the wheel is any size but 240px.
+function wheelLabelLayout(index, count, radiusPercent = 31.25) {
   const sliceAngle = 360 / count;
   const midAngle = index * sliceAngle + sliceAngle / 2;
   const radians = midAngle * Math.PI / 180;
@@ -267,8 +270,8 @@ function wheelLabelLayout(index, count, radius = 75) {
     : midAngle;
   return {
     midAngle,
-    x: Math.sin(radians) * radius,
-    y: -Math.cos(radians) * radius,
+    x: Math.sin(radians) * radiusPercent,
+    y: -Math.cos(radians) * radiusPercent,
     rotation,
   };
 }
@@ -298,7 +301,7 @@ function initWheel() {
   wheel.innerHTML = PRIZES.map((p, i) => {
     const label = wheelLabelLayout(i, n);
     const contrastClass = i % 2 === 1 ? " wheel-label-dark" : "";
-    return `<span class="wheel-label${contrastClass}" style="left:calc(50% + ${label.x.toFixed(2)}px);top:calc(50% + ${label.y.toFixed(2)}px);transform:translate(-50%,-50%) rotate(${label.rotation.toFixed(2)}deg)">${p.label.toUpperCase()}</span>`;
+    return `<span class="wheel-label${contrastClass}" style="left:calc(50% + ${label.x.toFixed(2)}%);top:calc(50% + ${label.y.toFixed(2)}%);transform:translate(-50%,-50%) rotate(${label.rotation.toFixed(2)}deg)">${p.label.toUpperCase()}</span>`;
   }).join("");
   // Force reflow so the next transform change animates.
   void wheel.offsetWidth;
