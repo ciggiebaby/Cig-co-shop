@@ -25,9 +25,9 @@ test("uses sale price before regular price", () => {
   assert.equal(priced.totalCents, 2000);
 });
 
-test("uses regular prices for valid color-only and sized products", () => {
+test("uses style, regular, and sized-product prices", () => {
   const priced = priceCartForStripe([
-    item("0004", "Gold"),
+    item("0004", "Gold", null, "Durag"),
     item("0005", "Blue"),
     item("0008", "Blue", "1-Hole"),
     item("0010", "Blue"),
@@ -35,6 +35,26 @@ test("uses regular prices for valid color-only and sized products", () => {
   assert.deepEqual(
     priced.lineItems.map((line) => line.price_data.unit_amount),
     [1200, 5000, 5000, 3500]
+  );
+});
+
+test("prices Bonnet, Durag, and Set options independently", () => {
+  const priced = priceCartForStripe([
+    item("0004", "Pink", null, "Set"),
+    item("0004", "Pink", null, "Bonnet"),
+    item("0004", "Pink", null, "Durag"),
+  ]);
+  assert.deepEqual(
+    priced.lineItems.map((line) => line.price_data.unit_amount),
+    [2000, 1200, 1200],
+  );
+  assert.deepEqual(
+    priced.lineItems.map((line) => line.price_data.product_data.name),
+    [
+      "CIG Silky Bonnet & Durag (Set) — Pink",
+      "CIG Silky Bonnet & Durag (Bonnet) — Pink",
+      "CIG Silky Bonnet & Durag (Durag) — Pink",
+    ],
   );
 });
 
@@ -110,19 +130,45 @@ test("rejects missing, unknown, and unexpected options", () => {
 test("rejects unavailable products and variants", () => {
   assertValidationError(() => priceCartForStripe([item("0009", "Blue")]), /not available for purchase/);
   assertValidationError(() => priceCartForStripe([item("0003", "Black")]), /quantity is unavailable/);
+  assertValidationError(() => priceCartForStripe([item("0004", "Gold", null, "Bonnet")]), /quantity is unavailable/);
+  assertValidationError(() => priceCartForStripe([item("0004", "Gold", null, "Set")]), /quantity is unavailable/);
+  assertValidationError(() => priceCartForStripe([item("0004", "Red", null, "Durag")]), /quantity is unavailable/);
   assertValidationError(() => priceCartForStripe([item("0008", "Blue", "Skully")]), /quantity is unavailable/);
   assertValidationError(() => priceCartForStripe([item("0011", "Red", "M", "Set")]), /quantity is unavailable/);
+});
+
+test("shares Bonnet and Durag component stock across Set and single lines", () => {
+  const valid = priceCartForStripe([
+    item("0004", "Pink", null, "Set", 2),
+    item("0004", "Pink", null, "Bonnet", 1),
+  ]);
+  assert.equal(valid.lineItems.length, 2);
+
+  assertValidationError(
+    () => priceCartForStripe([
+      item("0004", "Pink", null, "Set", 2),
+      item("0004", "Pink", null, "Bonnet", 2),
+    ]),
+    /quantity is unavailable/,
+  );
+  assertValidationError(
+    () => priceCartForStripe([
+      item("0004", "Blue", null, "Set"),
+      item("0004", "Blue", null, "Durag"),
+    ]),
+    /quantity is unavailable/,
+  );
 });
 
 test("rejects malformed and excessive quantities", () => {
   for (const quantity of [0, -1, 1.5, "1", null, NaN]) {
     assertValidationError(
-      () => priceCartForStripe([item("0004", "Red", null, null, quantity)]),
+      () => priceCartForStripe([item("0004", "Pink", null, "Bonnet", quantity)]),
       /Quantity must be a positive integer/
     );
   }
   assertValidationError(
-    () => priceCartForStripe([item("0004", "Red", null, null, MAX_QUANTITY_PER_VARIANT + 1)]),
+    () => priceCartForStripe([item("0004", "Pink", null, "Bonnet", MAX_QUANTITY_PER_VARIANT + 1)]),
     /cannot exceed/
   );
 });
@@ -156,15 +202,15 @@ test("keeps different variants separate during aggregation", () => {
 
 test("enforces cart line and aggregate quantity limits", () => {
   assertValidationError(
-    () => priceCartForStripe(Array.from({ length: MAX_CART_LINES + 1 }, () => item("0004", "Red"))),
+    () => priceCartForStripe(Array.from({ length: MAX_CART_LINES + 1 }, () => item("0004", "Pink", null, "Bonnet"))),
     /more than/
   );
   assertValidationError(
     () =>
       priceCartForStripe([
-        item("0004", "Red", null, null, 99),
-        item("0004", "Gold", null, null, 99),
-        item("0004", "Black", null, null, MAX_TOTAL_QUANTITY - 197),
+        item("0004", "Pink", null, "Bonnet", 99),
+        item("0004", "Gold", null, "Durag", 99),
+        item("0004", "Blue", null, "Set", MAX_TOTAL_QUANTITY - 197),
       ]),
     /Cart quantity cannot exceed/
   );

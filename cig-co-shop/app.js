@@ -38,7 +38,21 @@ function renderProductGrid() {
 let modalState = { style: null, color: null, size: null, qty: 1, slide: 0 };
 
 // ---------- Inventory helpers ----------
+function componentVariantStock(p, style, color) {
+  const selectedStyle = styleObj(p, style);
+  const requirements = selectedStyle && selectedStyle.components;
+  const colorComponents = p.componentStock && p.componentStock[color];
+  if (!requirements || !colorComponents) return 0;
+  const availability = Object.keys(requirements).map((component) => {
+    const required = requirements[component];
+    const inStock = colorComponents[component] || 0;
+    return required > 0 ? Math.floor(inStock / required) : 0;
+  });
+  return availability.length ? Math.min.apply(null, availability) : 0;
+}
+
 function variantStock(p, style, color, size) {
+  if (p.componentStock) return componentVariantStock(p, style, color);
   if (!p.stock) return Infinity;              // products without a stock block are always available
   let node = p.stock;
   if (p.styles) { node = node[style]; if (node == null) return 0; }
@@ -50,6 +64,12 @@ function variantStock(p, style, color, size) {
 }
 function colorStock(p, style, color) { return variantStock(p, style, color, null); }
 function productTotalStock(p) {
+  if (p.componentStock) {
+    return Object.values(p.componentStock).reduce(
+      (total, components) => total + Object.values(components).reduce((sum, count) => sum + count, 0),
+      0,
+    );
+  }
   if (!p.stock) return Infinity;
   if (p.styles) return p.styles.reduce((sum, st) => sum + p.colors.reduce((a, c) => a + colorStock(p, st.name, c), 0), 0);
   return p.colors.reduce((a, c) => a + colorStock(p, null, c), 0);
@@ -608,6 +628,9 @@ if (typeof module !== "undefined" && module.exports) {
     StripeCartCompatibilityError,
     addCheckoutFingerprint,
     buildCheckoutRequestBody,
+    componentVariantStock,
     handleCheckoutResult,
+    productTotalStock,
+    variantStock,
   };
 }

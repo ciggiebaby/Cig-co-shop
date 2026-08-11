@@ -25,24 +25,55 @@ const PRODUCTS = [
   {
     id: "0004",
     sku: "0004",
-    name: "His and Hers Silky & Bonnet (Single)",
-    price: 12.00,
-    salePrice: null,
+    name: "CIG Silky Bonnet & Durag",
     image: "assets/products/bonnet-set-red.jpg",
     colors: ["Red", "Gold", "Black", "Pink", "Blue"],
     sizes: [],
-    colorImages: {
-      "Red": "assets/products/bonnet-set-red.jpg",
-      "Gold": "assets/products/bonnet-set-gold.jpg",
-      "Black": "assets/products/bonnet-set-black.jpg",
-      "Pink": "assets/products/bonnet-set-pink.jpg",
-      "Blue": "assets/products/bonnet-blue.jpg",
+    styles: [
+      { name: "Set", price: 20.00, components: { "Bonnet": 1, "Durag": 1 } },
+      { name: "Bonnet", price: 12.00, components: { "Bonnet": 1 } },
+      { name: "Durag", price: 12.00, components: { "Durag": 1 } },
+    ],
+    // Bonnets, Durags, and Sets share these physical component counts.
+    componentStock: {
+      "Red":   { "Bonnet": 0, "Durag": 0 },
+      "Gold":  { "Bonnet": 0, "Durag": 1 },
+      "Black": { "Bonnet": 0, "Durag": 0 },
+      "Pink":  { "Bonnet": 3, "Durag": 2 },
+      "Blue":  { "Bonnet": 1, "Durag": 1 },
     },
-    gallery: {
-      "Red": ["assets/products/bonnet-solo-red.jpg", "assets/products/durag-folded-red.jpg"],
-      "Gold": ["assets/products/bonnet-solo-gold.jpg"],
-      "Black": ["assets/products/bonnet-solo-black.jpg"],
-      "Pink": ["assets/products/bonnet-solo-pink.jpg"],
+    styleImages: {
+      "Set": {
+        "Red": "assets/products/bonnet-set-red.jpg",
+        "Gold": "assets/products/bonnet-set-gold.jpg",
+        "Black": "assets/products/bonnet-set-black.jpg",
+        "Pink": "assets/products/bonnet-set-pink.jpg",
+        "Blue": "assets/products/bonnet-blue.jpg",
+      },
+      "Bonnet": {
+        "Red": "assets/products/bonnet-solo-red.jpg",
+        "Gold": "assets/products/bonnet-solo-gold.jpg",
+        "Black": "assets/products/bonnet-solo-black.jpg",
+        "Pink": "assets/products/bonnet-solo-pink.jpg",
+        "Blue": "assets/products/bonnet-blue.jpg",
+      },
+      "Durag": {
+        "Red": "assets/products/durag-folded-red.jpg",
+        "Gold": "assets/products/bonnet-set-gold.jpg",
+        "Black": "assets/products/bonnet-set-black.jpg",
+        "Pink": "assets/products/bonnet-set-pink.jpg",
+        "Blue": "assets/products/bonnet-blue.jpg",
+      },
+    },
+    styleGallery: {
+      "Set": {
+        "Red": ["assets/products/bonnet-solo-red.jpg", "assets/products/durag-folded-red.jpg"],
+        "Gold": ["assets/products/bonnet-solo-gold.jpg"],
+        "Black": ["assets/products/bonnet-solo-black.jpg"],
+        "Pink": ["assets/products/bonnet-solo-pink.jpg"],
+      },
+      "Bonnet": {},
+      "Durag": {},
     },
   },
   {

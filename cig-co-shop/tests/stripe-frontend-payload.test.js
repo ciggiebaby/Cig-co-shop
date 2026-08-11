@@ -117,6 +117,8 @@ function loadFrontend({
 const {
   addCheckoutFingerprint,
   buildCheckoutRequestBody,
+  productTotalStock,
+  variantStock,
 } = loadFrontend().helpers;
 const customer = {
   email: "customer@example.com",
@@ -124,6 +126,19 @@ const customer = {
   address: "1 Test Street",
   city: "Test City",
 };
+
+test("frontend availability derives Set stock from shared Bonnet and Durag counts", () => {
+  const product = PRODUCTS.find((entry) => entry.id === "0004");
+  assert.equal(variantStock(product, "Set", "Pink", null), 2);
+  assert.equal(variantStock(product, "Bonnet", "Pink", null), 3);
+  assert.equal(variantStock(product, "Durag", "Pink", null), 2);
+  assert.equal(variantStock(product, "Set", "Blue", null), 1);
+  assert.equal(variantStock(product, "Set", "Gold", null), 0);
+  assert.equal(variantStock(product, "Bonnet", "Gold", null), 0);
+  assert.equal(variantStock(product, "Durag", "Gold", null), 1);
+  assert.equal(variantStock(product, "Set", "Red", null), 0);
+  assert.equal(productTotalStock(product), 8);
+});
 
 test("Stripe receives identifier-only items with quantity and Bikini style", () => {
   const payload = buildCheckoutRequestBody(
@@ -236,11 +251,11 @@ test("integrated fingerprints remain stable across line order and duplicates", a
     },
     {
       productId: "0004",
-      name: "His and Hers Silky & Bonnet (Single)",
+      name: "CIG Silky Bonnet & Durag (Durag)",
       price: 12,
       color: "Gold",
       size: null,
-      style: null,
+      style: "Durag",
       qty: 1,
     },
     {
@@ -299,13 +314,13 @@ test("recovers a legacy Bikini style through the existing cart fallback", () => 
   assert.equal(payload.items[0].style, "Top");
 });
 
-test("does not derive a style from a non-styled product name", () => {
+test("does not derive a style from parentheses on a non-styled product", () => {
   const payload = buildCheckoutRequestBody(
     "stripe",
     [
       {
-        productId: "0004",
-        name: "His and Hers Silky & Bonnet (Single)",
+        productId: "0003",
+        name: "CIG Pillow Case (Limited)",
         color: "Red",
         size: null,
         qty: 1,
@@ -317,6 +332,27 @@ test("does not derive a style from a non-styled product name", () => {
   );
 
   assert.equal(payload.items[0].style, null);
+});
+
+test("requires legacy Bonnet and Durag carts to be re-added when style is ambiguous", () => {
+  assert.throws(
+    () => buildCheckoutRequestBody(
+      "stripe",
+      [
+        {
+          productId: "0004",
+          name: "His and Hers Silky & Bonnet (Single)",
+          color: "Gold",
+          size: null,
+          qty: 1,
+        },
+      ],
+      [],
+      customer,
+      null,
+    ),
+    /remove it from your bag and re-add it/i,
+  );
 });
 
 test("rejects a styled legacy item with no recoverable catalog style", () => {

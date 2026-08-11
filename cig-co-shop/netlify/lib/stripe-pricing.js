@@ -71,6 +71,20 @@ function priceToCents(value, productId) {
 }
 
 function variantStock(product, style, color, size) {
+  if (product.componentStock) {
+    const selectedStyle = (product.styles || []).find((entry) => entry.name === style);
+    const requirements = selectedStyle && selectedStyle.components;
+    const colorComponents = product.componentStock[color];
+    if (!requirements || !colorComponents) return 0;
+    const availability = Object.entries(requirements).map(([component, required]) => {
+      const inStock = colorComponents[component];
+      if (!Number.isInteger(required) || required < 1 || !Number.isInteger(inStock) || inStock < 0) {
+        throw new Error(`Invalid component stock configuration for product ${product.id}.`);
+      }
+      return Math.floor(inStock / required);
+    });
+    return availability.length ? Math.min(...availability) : 0;
+  }
   if (!product.stock) return Infinity;
 
   let stock = product.stock;
@@ -133,6 +147,12 @@ function resolveRequestedItem(rawItem) {
     : product.price;
   const unitAmount = priceToCents(catalogPrice, productId);
   const availableStock = variantStock(product, style, color, size);
+  const componentRequirements = product.componentStock && selectedStyle
+    ? selectedStyle.components
+    : null;
+  const componentAvailability = componentRequirements
+    ? product.componentStock[color]
+    : null;
   const productName = selectedStyle ? `${product.name} (${selectedStyle.name})` : product.name;
   const stripeName = [productName, color, size].filter(Boolean).join(" — ");
 
@@ -145,6 +165,8 @@ function resolveRequestedItem(rawItem) {
     quantity,
     unitAmount,
     availableStock,
+    componentRequirements,
+    componentAvailability,
     stripeName,
   };
 }
@@ -179,9 +201,23 @@ function priceCartForStripe(rawItems, rawPromoCode) {
     }
   });
 
+  const resolvedItems = Array.from(variants.values());
+  const componentUsage = new Map();
+  resolvedItems.forEach((item) => {
+    if (!item.componentRequirements) return;
+    Object.entries(item.componentRequirements).forEach(([component, required]) => {
+      const key = JSON.stringify([item.productId, item.color, component]);
+      const used = (componentUsage.get(key) || 0) + required * item.quantity;
+      componentUsage.set(key, used);
+      if (used > item.componentAvailability[component]) {
+        validationError(`Requested quantity is unavailable for product ${item.productId}.`);
+      }
+    });
+  });
+
   let subtotalCents = 0;
   let totalCents = 0;
-  const lineItems = Array.from(variants.values()).map((item) => {
+  const lineItems = resolvedItems.map((item) => {
     if (item.quantity > item.availableStock) {
       validationError(`Requested quantity is unavailable for product ${item.productId}.`);
     }
