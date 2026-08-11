@@ -68,7 +68,7 @@ reactivated.
 1. Verify `cigcompany.com` in Resend.
 2. Add the DNS records supplied by Resend.
 3. Add `RESEND_API_KEY` and a verified sender such as
-   `CIG & CO. <orders@cigcompany.com>` as `RESEND_FROM_EMAIL`.
+   `CIG & CO. <info@cigcompany.com>` as `RESEND_FROM_EMAIL`.
 4. Send a test order and verify the branded order-received email.
 
 Transactional order, prize, and shipment emails do not require marketing

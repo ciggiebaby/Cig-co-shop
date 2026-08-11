@@ -54,7 +54,7 @@ explicitly select the optional promotional-email checkbox. See
 1. Go to [resend.com](https://resend.com) and sign up (free — 3,000 emails/month on the free tier).
 2. Go to **API Keys** and create one, then copy it.
 3. In Netlify, go to **Site settings > Environment variables** and add `RESEND_API_KEY` with that value.
-4. To send from your own address instead of Resend's shared test address, go to **Domains** in Resend, add `cigcompany.com`, and add the DNS records it gives you at GoDaddy (same place you'll already be adding DNS records in Step 4 below). Once verified, set the `RESEND_FROM_EMAIL` environment variable to something like `CIG & CO. <rewards@cigcompany.com>`.
+4. To send from your own address instead of Resend's shared test address, go to **Domains** in Resend, add `cigcompany.com`, and add the DNS records it gives you at GoDaddy (same place you'll already be adding DNS records in Step 4 below). Once verified, set `RESEND_FROM_EMAIL` to `CIG & CO. <info@cigcompany.com>`.
 5. Until your domain is verified, Resend only lets you send to the email address you signed up with — that's a Resend limit for anti-spam, not something in this code. Real customers won't receive prize emails until you finish the domain verification step, so do that before promoting the Arcade.
 
 ## Step 1 — Add your real product photos
