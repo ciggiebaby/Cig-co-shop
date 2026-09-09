@@ -37,3 +37,7 @@ const PRIZES = [
 function prizeById(id) {
   return PRIZES.find((p) => p.id === id) || null;
 }
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { PROMO_CODES, PRIZES };
+}

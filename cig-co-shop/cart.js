@@ -1,5 +1,5 @@
 // Simple localStorage-backed cart.
-// Line item shape: { productId, name, price, image, color, size, qty, sku }
+// Line item shape: { productId, name, price, image, color, size, style, qty, sku }
 
 const CART_KEY = "cig_co_cart_v1";
 
@@ -16,8 +16,15 @@ function saveCart(cart) {
   renderCart();
 }
 
+function itemStyleKey(item) {
+  if (item.style) return item.style;
+  // Legacy carts embedded the selected style in "Product Name (Style)".
+  const legacyStyle = typeof item.name === "string" ? item.name.match(/\s\(([^()]*)\)$/) : null;
+  return legacyStyle ? legacyStyle[1] : "";
+}
+
 function lineKey(item) {
-  return [item.productId, item.color || "", item.size || ""].join("::");
+  return [item.productId, item.color || "", item.size || "", itemStyleKey(item)].join("::");
 }
 
 function addToCart(item) {

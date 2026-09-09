@@ -42,7 +42,7 @@
 
 <section class="page-intro reveal">
   <p class="hero-kicker">Arcade</p>
-  <p class="hero-tagline">Play for discounts, free merch, and gifts. Your first play is a guaranteed 10% or 20% off — after that, one play every 48 hours, pure luck.</p>
+  <p class="hero-tagline">Play for discounts, free merch, and gifts. Your first play is a guaranteed 10% or 20% off — after that, one play every seven days, pure luck.</p>
 </section>
 
 <!-- Email gate -->
@@ -53,12 +53,16 @@
       <input type="email" id="arcade-email" placeholder="you@email.com" required />
       <button type="submit" class="btn btn-gold btn-promo">Play</button>
     </div>
+    <label class="checkbox-row arcade-consent">
+      <input type="checkbox" id="arcade-marketing-consent" />
+      <span>Email me about future CIG &amp; CO. drops and promotions (optional)</span>
+    </label>
     <p id="arcade-gate-error" class="checkout-error"></p>
-    <p class="arcade-gate-note">Your first play wins 10% or 20% off, guaranteed. We'll only use your email for drops, discounts, and your prize. Unsubscribe anytime.</p>
+    <p class="arcade-gate-note">Your email is required to identify your Arcade plays and deliver prizes. Promotional email is optional and requires the checkbox above. Your first play wins 10% or 20% off, guaranteed.</p>
   </form>
 </section>
 
-<!-- Cooldown banner (shown after a play, until the 48h window is up) -->
+<!-- Cooldown banner (shown after a play, until the seven-day window is up) -->
 <section id="arcade-cooldown" class="arcade-cooldown" hidden>
   <h2 class="section-title">Come back soon</h2>
   <div id="cooldown-last-prize"></div>
@@ -68,7 +72,7 @@
 
 <!-- Games (hidden until unlocked / off cooldown) -->
 <section id="arcade-games" class="arcade-games" hidden>
-  <p class="arcade-subtext arcade-pick-one">Pick one game — playing any one locks the Arcade for 48 hours.</p>
+  <p class="arcade-subtext arcade-pick-one">Pick one game — playing any one locks the Arcade for seven days.</p>
 
   <div class="arcade-game-block reveal">
     <h2 class="section-title">Spin the Wheel</h2>

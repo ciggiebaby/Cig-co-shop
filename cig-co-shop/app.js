@@ -5,7 +5,7 @@ if (yearEl) yearEl.textContent = new Date().getFullYear();
 function renderProductGrid() {
   const grid = document.getElementById("product-grid");
   if (!grid) return;
-  grid.innerHTML = PRODUCTS.map((p) => {
+  grid.innerHTML = PRODUCTS.filter((p) => !p.hidden).map((p) => {
     const price = p.styles
       ? `From $${minPrice(p).toFixed(2)}`
       : p.salePrice
@@ -38,7 +38,21 @@ function renderProductGrid() {
 let modalState = { style: null, color: null, size: null, qty: 1, slide: 0 };
 
 // ---------- Inventory helpers ----------
+function componentVariantStock(p, style, color) {
+  const selectedStyle = styleObj(p, style);
+  const requirements = selectedStyle && selectedStyle.components;
+  const colorComponents = p.componentStock && p.componentStock[color];
+  if (!requirements || !colorComponents) return 0;
+  const availability = Object.keys(requirements).map((component) => {
+    const required = requirements[component];
+    const inStock = colorComponents[component] || 0;
+    return required > 0 ? Math.floor(inStock / required) : 0;
+  });
+  return availability.length ? Math.min.apply(null, availability) : 0;
+}
+
 function variantStock(p, style, color, size) {
+  if (p.componentStock) return componentVariantStock(p, style, color);
   if (!p.stock) return Infinity;              // products without a stock block are always available
   let node = p.stock;
   if (p.styles) { node = node[style]; if (node == null) return 0; }
@@ -50,6 +64,12 @@ function variantStock(p, style, color, size) {
 }
 function colorStock(p, style, color) { return variantStock(p, style, color, null); }
 function productTotalStock(p) {
+  if (p.componentStock) {
+    return Object.values(p.componentStock).reduce(
+      (total, components) => total + Object.values(components).reduce((sum, count) => sum + count, 0),
+      0,
+    );
+  }
   if (!p.stock) return Infinity;
   if (p.styles) return p.styles.reduce((sum, st) => sum + p.colors.reduce((a, c) => a + colorStock(p, st.name, c), 0), 0);
   return p.colors.reduce((a, c) => a + colorStock(p, null, c), 0);
@@ -123,7 +143,7 @@ function renderCarousel(p) {
 
 function openProductModal(id) {
   const p = PRODUCTS.find((x) => x.id === id);
-  if (!p) return;
+  if (!p || p.hidden) return;
   modalState = { style: (p.styles && p.styles[0].name) || null, color: p.colors[0] || null, size: p.sizes[0] || null, qty: 1, slide: 0 };
 
   document.getElementById("modal-content").innerHTML = `
@@ -243,13 +263,15 @@ function openProductModal(id) {
       image: productImageForColor(p, modalState.color, modalState.size, modalState.style),
       color: modalState.color,
       size: modalState.size,
+      style: modalState.style,
       qty: modalState.qty,
     });
-    closeModal("product-modal");
+    dismissProductModal();
   });
 
   refreshAvailability();
   document.getElementById("product-modal").setAttribute("aria-hidden", "false");
+  pushProductModalHistory();
 }
 
 function closeModal(id) {
@@ -257,8 +279,53 @@ function closeModal(id) {
   if (el) el.setAttribute("aria-hidden", "true");
 }
 
+// ---------- Product modal dismissal ----------
+// On a phone the modal reads as its own screen, so people dismiss it with the
+// system Back gesture. Giving it a history entry makes Back close the sheet
+// instead of leaving the shop. Every other dismissal unwinds that same entry, so
+// the modal and the history stack can't drift apart.
+let productModalHasHistoryEntry = false;
+
+function productModalIsOpen() {
+  const el = document.getElementById("product-modal");
+  return !!el && el.getAttribute("aria-hidden") === "false";
+}
+
+function pushProductModalHistory() {
+  const nav = typeof window !== "undefined" ? window.history : null;
+  if (productModalHasHistoryEntry || !nav) return;
+  nav.pushState({ ...nav.state, cigProductModal: true }, "");
+  productModalHasHistoryEntry = true;
+}
+
+function dismissProductModal() {
+  const nav = typeof window !== "undefined" ? window.history : null;
+  if (productModalHasHistoryEntry && nav) {
+    nav.back();   // the popstate handler below performs the actual close
+    return;
+  }
+  closeModal("product-modal");
+}
+
+window.addEventListener("popstate", () => {
+  productModalHasHistoryEntry = false;
+  if (productModalIsOpen()) closeModal("product-modal");
+});
+
 const modalCloseBtn = document.getElementById("modal-close");
-if (modalCloseBtn) modalCloseBtn.addEventListener("click", () => closeModal("product-modal"));
+if (modalCloseBtn) modalCloseBtn.addEventListener("click", dismissProductModal);
+
+// Tapping the dimmed area outside the sheet closes it, matching the cart drawer.
+const productModalEl = document.getElementById("product-modal");
+if (productModalEl) {
+  productModalEl.addEventListener("click", (e) => {
+    if (e.target === productModalEl) dismissProductModal();
+  });
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && productModalIsOpen()) dismissProductModal();
+});
 
 // ---------- Cart drawer wiring ----------
 const cartToggleBtn = document.getElementById("cart-toggle");
@@ -355,11 +422,141 @@ function validateCheckoutFields(fields) {
   return fields.email && fields.name && fields.address && fields.city;
 }
 
+class StripeCartCompatibilityError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "StripeCartCompatibilityError";
+  }
+}
+
+class CheckoutFingerprintError extends Error {
+  constructor(cause) {
+    super("Checkout fingerprint generation failed.");
+    this.name = "CheckoutFingerprintError";
+    this.cause = cause;
+  }
+}
+
+function stripeStyleForItem(item, product) {
+  const productStyles =
+    product && Array.isArray(product.styles) ? product.styles : [];
+  if (productStyles.length === 0) return null;
+
+  const style =
+    typeof itemStyleKey === "function" ? itemStyleKey(item) : item.style;
+  if (!productStyles.some((entry) => entry.name === style)) {
+    throw new StripeCartCompatibilityError(
+      `Your saved ${product.name} selection is missing a valid style. Please remove it from your bag and re-add it before checking out.`,
+    );
+  }
+  return style;
+}
+
+function buildCheckoutRequestBody(
+  method,
+  cart,
+  cartToCharge,
+  customer,
+  promoCode,
+) {
+  if (method !== "stripe") {
+    return {
+      cart: cartToCharge,
+      customer,
+      promoCode: promoCode || null,
+    };
+  }
+
+  return {
+    items: cart.map((item) => {
+      const product = PRODUCTS.find((entry) => entry.id === item.productId);
+      return {
+        productId: item.productId,
+        color: item.color ?? null,
+        size: item.size ?? null,
+        style: stripeStyleForItem(item, product),
+        quantity: item.qty,
+      };
+    }),
+    promoCode: promoCode || null,
+    customer,
+  };
+}
+
+async function addCheckoutFingerprint(
+  requestBody,
+  promoCode,
+  fingerprintApi =
+    typeof window !== "undefined"
+      ? window.CIGCheckoutFingerprint
+      : null,
+) {
+  try {
+    if (
+      !fingerprintApi ||
+      typeof fingerprintApi.createCheckoutFingerprint !== "function"
+    ) {
+      throw new Error("Checkout fingerprint utility is unavailable.");
+    }
+
+    const checkoutFingerprint =
+      await fingerprintApi.createCheckoutFingerprint(
+        requestBody.items,
+        promoCode,
+      );
+    if (!/^v1:[a-f0-9]{64}$/.test(checkoutFingerprint)) {
+      throw new Error("Checkout fingerprint utility returned an invalid value.");
+    }
+
+    return {
+      ...requestBody,
+      checkoutFingerprint,
+    };
+  } catch (error) {
+    throw new CheckoutFingerprintError(error);
+  }
+}
+
+function handleCheckoutResult({
+  location = typeof window !== "undefined" ? window.location : null,
+  history = typeof window !== "undefined" ? window.history : null,
+  statusElement = document.getElementById("checkout-status"),
+} = {}) {
+  if (!location || !history || !statusElement) return;
+
+  const url = new URL(location.href);
+  const result = url.searchParams.get("checkout");
+  const messages = {
+    cancelled:
+      "Checkout was cancelled. Your bag is still saved whenever you’re ready.",
+    success:
+      "You returned from checkout. Payment confirmation is still pending, so your bag has been kept for now.",
+  };
+  const message = messages[result];
+  if (!message) return;
+
+  statusElement.textContent = message;
+  statusElement.hidden = false;
+
+  url.searchParams.delete("checkout");
+  url.searchParams.delete("session_id");
+  history.replaceState(
+    history.state,
+    "",
+    `${url.pathname}${url.search}${url.hash}`,
+  );
+}
+
 // The three payment functions below call your deployed serverless functions
 // (see netlify/functions/). Each returns a hosted checkout URL to redirect to.
-document.querySelectorAll(".pay-btn").forEach((btn) => {
+const paymentButtons = Array.from(document.querySelectorAll(".pay-btn"));
+let checkoutSubmissionPending = false;
+
+paymentButtons.forEach((btn) => {
   btn.addEventListener("click", async () => {
     const method = btn.dataset.method;
+    if (checkoutSubmissionPending) return;
+
     const fields = getCheckoutFields();
     const errorEl = document.getElementById("checkout-error");
     const loadingEl = document.getElementById("checkout-loading");
@@ -376,30 +573,64 @@ document.querySelectorAll(".pay-btn").forEach((btn) => {
       return;
     }
 
-    const optinEl = document.getElementById("checkout-optin");
-    if (optinEl && optinEl.checked && fields.email && typeof submitEmail === "function") {
-      submitEmail(fields.email, "checkout");
-    }
-
+    checkoutSubmissionPending = true;
+    const previousDisabledStates = paymentButtons.map(
+      (paymentButton) => paymentButton.disabled,
+    );
+    paymentButtons.forEach((paymentButton) => {
+      paymentButton.disabled = true;
+    });
     loadingEl.hidden = false;
 
-    const endpoint =
-      method === "stripe"
-        ? "/.netlify/functions/create-stripe-session"
-        : method === "paypal"
-        ? "/.netlify/functions/create-paypal-order"
-        : "/.netlify/functions/create-coinbase-charge";
-
-    const discountFraction = promoState && typeof PROMO_CODES !== "undefined" && PROMO_CODES[promoState] ? PROMO_CODES[promoState].discount : 0;
-    const cartToCharge = discountFraction > 0
-      ? cart.map((item) => ({ ...item, price: Math.round(item.price * (1 - discountFraction) * 100) / 100 }))
-      : cart;
-
     try {
+      const optinEl = document.getElementById("checkout-optin");
+      const marketingConsent = !!(optinEl && optinEl.checked);
+      if (
+        method !== "stripe"
+        && marketingConsent
+        && fields.email
+        && typeof submitEmail === "function"
+      ) {
+        submitEmail(fields.email, "checkout");
+      }
+
+      const endpoint =
+        method === "stripe"
+          ? "/.netlify/functions/create-stripe-session"
+          : method === "paypal"
+          ? "/.netlify/functions/create-paypal-order"
+          : "/.netlify/functions/create-coinbase-charge";
+
+      const discountFraction = promoState && typeof PROMO_CODES !== "undefined" && PROMO_CODES[promoState] ? PROMO_CODES[promoState].discount : 0;
+      const cartToCharge = discountFraction > 0
+        ? cart.map((item) => ({ ...item, price: Math.round(item.price * (1 - discountFraction) * 100) / 100 }))
+        : cart;
+
+      let requestBody = buildCheckoutRequestBody(
+        method,
+        cart,
+        cartToCharge,
+        fields,
+        promoState,
+      );
+      if (method === "stripe") {
+        requestBody = {
+          ...requestBody,
+          customer: {
+            ...requestBody.customer,
+            marketingConsent,
+          },
+        };
+        requestBody = await addCheckoutFingerprint(
+          requestBody,
+          promoState,
+        );
+      }
+
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cart: cartToCharge, customer: fields, promoCode: promoState || null }),
+        body: JSON.stringify(requestBody),
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
@@ -409,14 +640,43 @@ document.querySelectorAll(".pay-btn").forEach((btn) => {
       window.location.href = data.url;
     } catch (err) {
       loadingEl.hidden = true;
-      errorEl.textContent =
-        "Checkout isn't wired up yet on this deployment — add your API keys per the README, then this button will work. (" +
-        err.message +
-        ")";
+      if (err instanceof CheckoutFingerprintError) {
+        console.error(
+          "Checkout fingerprint generation failed.",
+          err.cause,
+        );
+        errorEl.textContent =
+          "Checkout could not be prepared. Please refresh and try again.";
+      } else {
+        errorEl.textContent = err instanceof StripeCartCompatibilityError
+          ? err.message
+          : "Checkout isn't wired up yet on this deployment — add your API keys per the README, then this button will work. (" +
+            err.message +
+            ")";
+      }
+    } finally {
+      checkoutSubmissionPending = false;
+      paymentButtons.forEach((paymentButton, index) => {
+        paymentButton.disabled = previousDisabledStates[index];
+      });
     }
   });
 });
 
 // ---------- Init ----------
+handleCheckoutResult();
 renderProductGrid();
 if (typeof renderCart === "function") renderCart();
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    CheckoutFingerprintError,
+    StripeCartCompatibilityError,
+    addCheckoutFingerprint,
+    buildCheckoutRequestBody,
+    componentVariantStock,
+    handleCheckoutResult,
+    productTotalStock,
+    variantStock,
+  };
+}

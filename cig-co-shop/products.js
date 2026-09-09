@@ -2,6 +2,11 @@
 // Edit this file to add/remove/update backstock. Each product needs a unique id.
 // image: put your real product photo in /assets/products/ and reference it here.
 // colors/sizes are optional — leave the array empty ([]) if a product has none.
+//
+// hidden: true  — backstock you hold off-site. The product never renders in the
+//   shop grid and the server refuses to price it, so it can't be bought online.
+//   Keep it here anyway so all inventory lives in one file. Flip to false (or
+//   delete the line) when you're ready to put it on the site.
 
 const PRODUCTS = [
   {
@@ -25,30 +30,61 @@ const PRODUCTS = [
   {
     id: "0004",
     sku: "0004",
-    name: "His and Hers Silky & Bonnet (Single)",
-    price: 12.00,
-    salePrice: null,
+    name: "CIG Silky Bonnet & Durag",
     image: "assets/products/bonnet-set-red.jpg",
     colors: ["Red", "Gold", "Black", "Pink", "Blue"],
     sizes: [],
-    colorImages: {
-      "Red": "assets/products/bonnet-set-red.jpg",
-      "Gold": "assets/products/bonnet-set-gold.jpg",
-      "Black": "assets/products/bonnet-set-black.jpg",
-      "Pink": "assets/products/bonnet-set-pink.jpg",
-      "Blue": "assets/products/bonnet-blue.jpg",
+    styles: [
+      { name: "Set", price: 20.00, components: { "Bonnet": 1, "Durag": 1 } },
+      { name: "Bonnet", price: 12.00, components: { "Bonnet": 1 } },
+      { name: "Durag", price: 12.00, components: { "Durag": 1 } },
+    ],
+    // Bonnets, Durags, and Sets share these physical component counts.
+    componentStock: {
+      "Red":   { "Bonnet": 0, "Durag": 2 },
+      "Gold":  { "Bonnet": 0, "Durag": 1 },
+      "Black": { "Bonnet": 0, "Durag": 0 },
+      "Pink":  { "Bonnet": 3, "Durag": 2 },
+      "Blue":  { "Bonnet": 1, "Durag": 1 },
     },
-    gallery: {
-      "Red": ["assets/products/bonnet-solo-red.jpg", "assets/products/durag-folded-red.jpg"],
-      "Gold": ["assets/products/bonnet-solo-gold.jpg"],
-      "Black": ["assets/products/bonnet-solo-black.jpg"],
-      "Pink": ["assets/products/bonnet-solo-pink.jpg"],
+    styleImages: {
+      "Set": {
+        "Red": "assets/products/bonnet-set-red.jpg",
+        "Gold": "assets/products/bonnet-set-gold.jpg",
+        "Black": "assets/products/bonnet-set-black.jpg",
+        "Pink": "assets/products/bonnet-set-pink.jpg",
+        "Blue": "assets/products/bonnet-blue.jpg",
+      },
+      "Bonnet": {
+        "Red": "assets/products/bonnet-solo-red.jpg",
+        "Gold": "assets/products/bonnet-solo-gold.jpg",
+        "Black": "assets/products/bonnet-solo-black.jpg",
+        "Pink": "assets/products/bonnet-solo-pink.jpg",
+        "Blue": "assets/products/bonnet-blue.jpg",
+      },
+      "Durag": {
+        "Red": "assets/products/durag-folded-red.jpg",
+        "Gold": "assets/products/bonnet-set-gold.jpg",
+        "Black": "assets/products/bonnet-set-black.jpg",
+        "Pink": "assets/products/bonnet-set-pink.jpg",
+        "Blue": "assets/products/bonnet-blue.jpg",
+      },
+    },
+    styleGallery: {
+      "Set": {
+        "Red": ["assets/products/bonnet-solo-red.jpg", "assets/products/durag-folded-red.jpg"],
+        "Gold": ["assets/products/bonnet-solo-gold.jpg"],
+        "Black": ["assets/products/bonnet-solo-black.jpg"],
+        "Pink": ["assets/products/bonnet-solo-pink.jpg"],
+      },
+      "Bonnet": {},
+      "Durag": {},
     },
   },
   {
     id: "0005",
     sku: "0005",
-    stock: { "Blue": 68, "Red": 70, "Gold": 0 },
+    stock: { "Blue": 30, "Red": 34, "Gold": 22 },
     name: "CIG Paisley Balaclava",
     price: 50.00,
     salePrice: null,
@@ -57,13 +93,13 @@ const PRODUCTS = [
     sizes: [],
     colorImages: {
       "Blue": "assets/products/balaclava-blue-front.jpg",
-      "Red": "assets/products/balaclava-red-front.jpg",
-      "Gold": "assets/products/balaclava-gold-front.jpg",
+      "Red": "assets/products/balaclava-red-front-upright.jpg",
+      "Gold": "assets/products/balaclava-gold-front-upright.jpg",
     },
     gallery: {
       "Blue": ["assets/products/balaclava-blue-back.jpg"],
-      "Red": ["assets/products/balaclava-red-back.jpg"],
-      "Gold": ["assets/products/balaclava-gold-back.jpg"],
+      "Red": ["assets/products/balaclava-red-back-upright.jpg"],
+      "Gold": ["assets/products/balaclava-gold-back-upright.jpg"],
     },
   },
   {
@@ -202,4 +238,24 @@ const PRODUCTS = [
       },
     },
   },
+  {
+    id: "0012",
+    sku: "0012",
+    // Off-site backstock — held ready, not sold on the site.
+    // BEFORE setting hidden to false: fill in price and add photos to
+    // assets/products/. Both are blank below, and the grid needs them.
+    hidden: true,
+    stock: { "Blue": 17, "Red": 27, "Black/Rainbow": 7, "White/Rainbow": 20 },
+    name: "CIG Corona Masks",
+    price: null,
+    salePrice: null,
+    image: "",
+    colors: ["Blue", "Red", "Black/Rainbow", "White/Rainbow"],
+    sizes: [],
+    colorImages: {},
+  },
 ];
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { PRODUCTS };
+}

@@ -27,21 +27,5 @@ function submitEmail(email, source) {
   });
 }
 
-// Sends an Arcade winner their prize (code, if any) right away via the
-// send-prize-email Netlify function (see netlify/functions/send-prize-email.js).
-// Requires RESEND_API_KEY to be set in Netlify — see README. Fails silently
-// if not configured yet, so the Arcade still works while you set that up.
-function sendPrizeEmail(email, prize) {
-  return fetch("/.netlify/functions/send-prize-email", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email: (email || "").trim(),
-      label: prize.label,
-      code: prize.code || null,
-      detail: prize.detail,
-    }),
-  }).catch((err) => {
-    console.warn("Prize email send failed (expected until deployed + RESEND_API_KEY is set):", err);
-  });
-}
+// Arcade prize email is intentionally not sent from the browser. A confirmed
+// server-side Arcade claim reserves and sends the transactional email.
