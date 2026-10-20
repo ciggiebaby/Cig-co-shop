@@ -459,14 +459,8 @@ function buildCheckoutRequestBody(
   customer,
   promoCode,
 ) {
-  if (method !== "stripe") {
-    return {
-      cart: cartToCharge,
-      customer,
-      promoCode: promoCode || null,
-    };
-  }
-
+  // Every payment method sends only the catalog selection; the server looks up
+  // names and prices in products.js. (cartToCharge is no longer used.)
   return {
     items: cart.map((item) => {
       const product = PRODUCTS.find((entry) => entry.id === item.productId);
@@ -531,6 +525,8 @@ function handleCheckoutResult({
       "Checkout was cancelled. Your bag is still saved whenever you’re ready.",
     success:
       "You returned from checkout. Payment confirmation is still pending, so your bag has been kept for now.",
+    failed:
+      "Your payment didn’t go through, so nothing was charged. Your bag is still saved.",
   };
   const message = messages[result];
   if (!message) return;
@@ -601,26 +597,21 @@ paymentButtons.forEach((btn) => {
           ? "/.netlify/functions/create-paypal-order"
           : "/.netlify/functions/create-coinbase-charge";
 
-      const discountFraction = promoState && typeof PROMO_CODES !== "undefined" && PROMO_CODES[promoState] ? PROMO_CODES[promoState].discount : 0;
-      const cartToCharge = discountFraction > 0
-        ? cart.map((item) => ({ ...item, price: Math.round(item.price * (1 - discountFraction) * 100) / 100 }))
-        : cart;
-
       let requestBody = buildCheckoutRequestBody(
         method,
         cart,
-        cartToCharge,
+        cart,
         fields,
         promoState,
       );
+      requestBody = {
+        ...requestBody,
+        customer: {
+          ...requestBody.customer,
+          marketingConsent,
+        },
+      };
       if (method === "stripe") {
-        requestBody = {
-          ...requestBody,
-          customer: {
-            ...requestBody.customer,
-            marketingConsent,
-          },
-        };
         requestBody = await addCheckoutFingerprint(
           requestBody,
           promoState,

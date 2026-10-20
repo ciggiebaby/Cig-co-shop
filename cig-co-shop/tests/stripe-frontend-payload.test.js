@@ -438,7 +438,7 @@ test("rejects a styled legacy item with no recoverable catalog style", () => {
   );
 });
 
-test("preserves PayPal and Coinbase request bodies", () => {
+test("PayPal and Coinbase send the same catalog-only payload as Stripe (no prices)", () => {
   const cart = [
     {
       productId: "0003",
@@ -451,11 +451,13 @@ test("preserves PayPal and Coinbase request bodies", () => {
       qty: 2,
     },
   ];
-  const cartToCharge = [{ ...cart[0], price: 9 }];
+  const cartToCharge = [{ ...cart[0], price: 0.01 }];
   const expected = {
-    cart: cartToCharge,
-    customer,
+    items: [
+      { productId: "0003", color: "Red", size: null, style: null, quantity: 2 },
+    ],
     promoCode: "CIG10",
+    customer,
   };
 
   for (const method of ["paypal", "coinbase"]) {
@@ -467,7 +469,6 @@ test("preserves PayPal and Coinbase request bodies", () => {
       "CIG10",
     );
     assert.deepEqual(JSON.parse(JSON.stringify(payload)), expected);
-    assert.equal(payload.cart, cartToCharge);
   }
 });
 
