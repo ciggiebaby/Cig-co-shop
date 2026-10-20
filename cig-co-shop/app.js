@@ -573,6 +573,18 @@ paymentButtons.forEach((btn) => {
       return;
     }
 
+    // Print-on-demand items are only sent to Printful from a confirmed card payment.
+    if (
+      method !== "stripe"
+      && cart.some((item) => {
+        const product = PRODUCTS.find((entry) => entry.id === item.productId);
+        return product && product.pod;
+      })
+    ) {
+      errorEl.textContent = "Made-to-order items can only be paid by card for now.";
+      return;
+    }
+
     checkoutSubmissionPending = true;
     const previousDisabledStates = paymentButtons.map(
       (paymentButton) => paymentButton.disabled,

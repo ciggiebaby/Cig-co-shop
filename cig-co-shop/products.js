@@ -7,6 +7,21 @@
 //   shop grid and the server refuses to price it, so it can't be bought online.
 //   Keep it here anyway so all inventory lives in one file. Flip to false (or
 //   delete the line) when you're ready to put it on the site.
+//
+// pod: { ... } — print-on-demand (made to order by Printful, no stock to track).
+//   Leave out `stock` so it never sells out. Paid card orders are sent to
+//   Printful automatically (see "Print-on-demand (Printful)" in README.md).
+//   Each `variants` key is the buyer's choices joined with " / " — style, then
+//   color, then size (e.g. "Black / M"), or "default" if the product has none.
+//   The value is either a Printful catalog variant id (printed with `files`)
+//   or { syncVariantId: 123 } for a product already designed inside Printful.
+//   `options` is only needed for products Printful requires it on (all-over prints).
+//
+//   pod: {
+//     files: [{ type: "default", url: "https://cigcompany.com/assets/pod/paisley-hoodie.png" }],
+//     options: { stitch_color: "black" },
+//     variants: { "M": 10871, "L": 10872, "XL": { syncVariantId: 1234567890 } },
+//   },
 
 const PRODUCTS = [
   {
