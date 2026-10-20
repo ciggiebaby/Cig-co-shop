@@ -208,6 +208,15 @@ test("webhook rejects invalid signatures", async () => {
   assert.equal(orders.length, 0);
 });
 
+test("webhook fails closed when its signing secret is missing", async () => {
+  const handler = createHandler({
+    stripeFactory: () => { throw new Error("should not be called"); },
+    environment: {},
+    logger: { log() {}, error() {} },
+  });
+  assert.equal((await handler(webhookEvent())).statusCode, 500);
+});
+
 test("webhook ignores orders without POD items", async () => {
   const { handler, orders } = handlerWith({ session: PAID_SESSION, lineItems: [ARCHIVE_LINE] });
   const response = await handler(webhookEvent());

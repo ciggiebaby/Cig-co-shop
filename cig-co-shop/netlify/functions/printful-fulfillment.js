@@ -88,6 +88,11 @@ function createHandler({
       return { statusCode: 405, body: "Method Not Allowed" };
     }
 
+    if (!environment.STRIPE_PRINTFUL_WEBHOOK_SECRET) {
+      logger.error("STRIPE_PRINTFUL_WEBHOOK_SECRET is not configured.");
+      return json(500, { error: "Webhook is not configured." });
+    }
+
     let stripeEvent;
     try {
       const stripe = stripeFactory(environment.STRIPE_SECRET_KEY);

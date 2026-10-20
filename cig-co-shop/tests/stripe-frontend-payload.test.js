@@ -720,3 +720,37 @@ test("unknown or missing checkout values leave the banner and URL untouched", ()
     assert.equal(frontend.storageWrites(), 0);
   }
 });
+
+test("PayPal and crypto buttons refuse print-on-demand items before calling the server", async () => {
+  const podProduct = {
+    id: "test-pod-frontend",
+    sku: "TEST-POD",
+    name: "Test POD Hoodie",
+    price: 65,
+    image: "",
+    colors: [],
+    sizes: ["M"],
+    pod: { files: [{ url: "https://example.com/a.png" }], variants: { "M": 1 } },
+  };
+  PRODUCTS.push(podProduct);
+  try {
+    let fetchCalls = 0;
+    const frontend = loadFrontend({
+      fetchImpl: async () => {
+        fetchCalls += 1;
+        return { ok: true, async json() { return { url: "https://pay.test" }; } };
+      },
+      paymentMethods: ["paypal", "crypto"],
+      storedCart: [
+        { productId: podProduct.id, name: podProduct.name, price: 65, image: "", color: null, size: "M", style: null, qty: 1 },
+      ],
+    });
+    for (const button of frontend.paymentButtons) {
+      await button.click();
+      assert.equal(frontend.errorElement.textContent, "Made-to-order items can only be paid by card for now.");
+    }
+    assert.equal(fetchCalls, 0);
+  } finally {
+    PRODUCTS.splice(PRODUCTS.indexOf(podProduct), 1);
+  }
+});
