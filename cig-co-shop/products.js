@@ -8,6 +8,13 @@
 //   Keep it here anyway so all inventory lives in one file. Flip to false (or
 //   delete the line) when you're ready to put it on the site.
 //
+// shipping: the product's shipping class from shipping-rates.js
+//   ("bag", "case", "sleeve", or "pillow"). Only bag/case/sleeve can ship
+//   internationally; pillows and products with no class ship to the US only.
+//   International: CA, GB, DE, AU, JP, KR (rates in shipping-rates.js). For a
+//   MagSafe case, add to its description: "Japan & South Korea: allow ~30 days."
+//   (checkout also shows this automatically).
+//
 // pod: { ... } — print-on-demand (made to order by Printful, no stock to track).
 //   Leave out `stock` so it never sells out. Paid card orders are sent to
 //   Printful automatically (see "Print-on-demand (Printful)" in README.md).
@@ -22,6 +29,16 @@
 //     options: { stitch_color: "black" },
 //     variants: { "M": 10871, "L": 10872, "XL": { syncVariantId: 1234567890 } },
 //   },
+//
+// POD_CARD_ONLY (bottom of this file): while true, carts with any `pod` item can
+//   only be paid by card (PayPal and crypto refuse them, on the site and on the
+//   server). Flip it to false to allow PayPal/crypto for made-to-order items.
+//
+// CRYPTO_ENABLED (bottom of this file): crypto checkout (Coinbase Commerce,
+//   20% off) on/off. While false, the "Pay with Crypto" button and every
+//   20%-off crypto message are hidden site-wide, and the server refuses
+//   crypto checkouts. To turn it on: set COINBASE_COMMERCE_API_KEY and
+//   COINBASE_COMMERCE_WEBHOOK_SECRET on Netlify, flip this to true, deploy.
 
 const PRODUCTS = [
   {
@@ -29,6 +46,7 @@ const PRODUCTS = [
     sku: "0003",
     stock: { "Red": 67, "Blue": 58, "Purple": 67, "Teal": 74, "Black": 0 },
     name: "CIG Pillow Case",
+    shipping: "pillow", // US only
     price: 20.00,
     salePrice: 10.00,
     image: "assets/products/pillow-black.jpg",
@@ -271,6 +289,14 @@ const PRODUCTS = [
   },
 ];
 
+// Made-to-order (`pod`) items can only be paid by card while this is true.
+// One switch for the checkout page and the server. See the note at the top.
+const POD_CARD_ONLY = true;
+
+// Crypto checkout (Coinbase Commerce) is off: CIG decided 2026-10-21 to set
+// it up later under a new LLC. One switch for the site and the server.
+const CRYPTO_ENABLED = false;
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { PRODUCTS };
+  module.exports = { CRYPTO_ENABLED, POD_CARD_ONLY, PRODUCTS };
 }

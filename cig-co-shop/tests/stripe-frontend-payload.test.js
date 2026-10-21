@@ -6,6 +6,8 @@ const vm = require("node:vm");
 
 const { PRODUCTS } = require("../products.js");
 const fingerprintUtility = require("../checkout-fingerprint.js");
+const shippingRates = require("../shipping-rates.js");
+require("./shipping-fixture.js");
 
 function loadFrontend({
   fetchImpl,
@@ -15,7 +17,18 @@ function loadFrontend({
   promoCode = null,
   promoCodes = { CIG10: { discount: 0.1, label: "10% off" } },
   storedCart,
+  fieldOverrides = {},
+  shipCountry = "US",
+  // The crypto flow is tested switched on; the live value is checked separately.
+  cryptoEnabled = true,
 } = {}) {
+  const countrySelect = {
+    value: shipCountry,
+    options: Object.keys(shippingRates.SHIP_TO_COUNTRIES).map((value) => ({ value, disabled: false })),
+    addEventListener() {},
+  };
+  const shippingNoteElement = { hidden: true, textContent: "" };
+  const summaryElement = { innerHTML: "" };
   const promoMessageElement = {
     textContent: "",
     classes: new Set(),
@@ -45,7 +58,14 @@ function loadFrontend({
     "checkout-name": { value: "Customer" },
     "checkout-address": { value: "1 Test Street" },
     "checkout-city": { value: "Test City" },
+    "checkout-state": { value: "tx" },
+    "checkout-zip": { value: "78701" },
+    "checkout-duties-note": { hidden: true },
+    "checkout-pccc-row": { hidden: true },
   };
+  for (const [id, value] of Object.entries(fieldOverrides)) {
+    checkoutFields[id] = { value };
+  }
   const developerErrors = [];
   const paymentButtons = paymentMethods.map((method) => {
     const listeners = new Map();
@@ -61,6 +81,11 @@ function loadFrontend({
       },
     };
   });
+  // Stand-ins for the crypto-only copy and its card/PayPal replacement.
+  const cryptoToggles = {
+    "[data-crypto-only]": [{ hidden: true }, { hidden: true }],
+    "[data-crypto-off]": [{ hidden: true }],
+  };
   const storage = new Map();
   if (storedCart) {
     storage.set("cig_co_cart_v1", JSON.stringify(storedCart));
@@ -100,6 +125,10 @@ function loadFrontend({
   const context = vm.createContext({
     PRODUCTS,
     PROMO_CODES: promoCodes,
+    CRYPTO_ENABLED: cryptoEnabled,
+    SHIP_TO_COUNTRIES: shippingRates.SHIP_TO_COUNTRIES,
+    quoteShipping: shippingRates.quoteShipping,
+    slowDeliveryNote: shippingRates.slowDeliveryNote,
     URL,
     console: {
       error(...args) {
@@ -114,10 +143,13 @@ function loadFrontend({
         if (id === "checkout-optin") return optinElement;
         if (id === "product-modal") return productModalElement;
         if (id === "promo-message") return promoMessageElement;
+        if (id === "checkout-country") return countrySelect;
+        if (id === "checkout-shipping-note") return shippingNoteElement;
+        if (id === "checkout-summary") return summaryElement;
         return checkoutFields[id] || null;
       },
       querySelectorAll: (selector) =>
-        selector === ".pay-btn" ? paymentButtons : [],
+        selector === ".pay-btn" ? paymentButtons : (cryptoToggles[selector] || []),
       addEventListener(type, listener) {
         documentListeners.set(type, listener);
       },
@@ -141,7 +173,12 @@ function loadFrontend({
   }
 
   return {
+    checkoutFields,
+    cryptoToggles,
     context,
+    countrySelect,
+    shippingNoteElement,
+    summaryElement,
     developerErrors,
     errorElement,
     helpers: context.module.exports,
@@ -447,7 +484,7 @@ test("rejects a styled legacy item with no recoverable catalog style", () => {
   );
 });
 
-test("preserves PayPal and Coinbase request bodies", () => {
+test("PayPal and Coinbase send the same catalog-only payload as Stripe (no prices)", () => {
   const cart = [
     {
       productId: "0003",
@@ -460,11 +497,13 @@ test("preserves PayPal and Coinbase request bodies", () => {
       qty: 2,
     },
   ];
-  const cartToCharge = [{ ...cart[0], price: 9 }];
+  const cartToCharge = [{ ...cart[0], price: 0.01 }];
   const expected = {
-    cart: cartToCharge,
-    customer,
+    items: [
+      { productId: "0003", color: "Red", size: null, style: null, quantity: 2 },
+    ],
     promoCode: "CIG10",
+    customer,
   };
 
   for (const method of ["paypal", "coinbase"]) {
@@ -476,7 +515,6 @@ test("preserves PayPal and Coinbase request bodies", () => {
       "CIG10",
     );
     assert.deepEqual(JSON.parse(JSON.stringify(payload)), expected);
-    assert.equal(payload.cart, cartToCharge);
   }
 });
 
@@ -790,10 +828,9 @@ test("crypto checkout never stacks a promo code with the 20% crypto discount", a
   const [crypto, paypal] = requests;
   assert.match(crypto.url, /create-coinbase-charge/);
   assert.equal(crypto.body.promoCode, null);
-  assert.equal(crypto.body.cart[0].price, 10);
+  assert.equal(crypto.body.items[0].price, undefined);
   assert.match(paypal.url, /create-paypal-order/);
   assert.equal(paypal.body.promoCode, "CIG10");
-  assert.equal(paypal.body.cart[0].price, 9);
 });
 
 test("Arcade codes are checked with the server before they're applied", async () => {
@@ -822,4 +859,314 @@ test("Arcade codes are checked with the server before they're applied", async ()
   assert.equal(vm.runInContext("promoState", context), null);
   assert.equal(promoMessageElement.textContent, "This code has already been used.");
   assert.equal(promoMessageElement.classes.has("promo-error"), true);
+});
+
+test("crypto checkout sends a US state, ZIP, and country", async () => {
+  const requests = [];
+  const frontend = loadFrontend({
+    fetchImpl: async (url, init) => {
+      requests.push({ url, body: JSON.parse(init.body) });
+      return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } };
+    },
+    paymentMethods: ["crypto"],
+    storedCart: [
+      { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 },
+    ],
+  });
+  await frontend.paymentButtons[0].click();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].body.customer.state, "TX");
+  assert.equal(requests[0].body.customer.zip, "78701");
+  assert.equal(requests[0].body.customer.country, "US");
+});
+
+test("crypto checkout needs a US state and ZIP before it calls the server", async () => {
+  for (const fieldOverrides of [{ "checkout-state": "" }, { "checkout-zip": "SW1A 1AA" }]) {
+    const requests = [];
+    const frontend = loadFrontend({
+      fetchImpl: async (url) => { requests.push(url); return { ok: true, async json() { return { url: "x" }; } }; },
+      paymentMethods: ["crypto"],
+      fieldOverrides,
+      storedCart: [
+        { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 },
+      ],
+    });
+    await frontend.paymentButtons[0].click();
+    assert.deepEqual(requests, []);
+    assert.match(frontend.errorElement.textContent, /US/);
+  }
+});
+
+test("server checkout rejections (like US-only shipping) are shown to the shopper as-is", async () => {
+  const frontend = loadFrontend({
+    fetchImpl: async () => ({
+      ok: false,
+      status: 400,
+      async json() { return { error: "Sorry, we only ship to US addresses right now." }; },
+    }),
+    paymentMethods: ["crypto"],
+    storedCart: [
+      { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 },
+    ],
+  });
+  await frontend.paymentButtons[0].click();
+  assert.equal(frontend.errorElement.textContent, "Sorry, we only ship to US addresses right now.");
+});
+
+test("a PayPal us-only return shows a friendly banner and cleans the URL", () => {
+  const frontend = loadFrontend({ href: "https://shop.test/?checkout=us-only#shop" });
+  assert.equal(frontend.statusElement.hidden, false);
+  assert.match(frontend.statusElement.textContent, /isn’t in the US/);
+  assert.match(frontend.statusElement.textContent, /wasn’t taken/);
+  assert.equal(frontend.historyCalls[0].url, "/#shop");
+});
+
+const bagItem = { productId: "T-BAG", name: "Test Crossbody Bag", price: 45, image: "", color: null, size: null, style: null, qty: 2 };
+const pillowItem = { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 };
+
+test("checkout summary shows the shipping cost for the chosen country before paying", () => {
+  const frontend = loadFrontend({ shipCountry: "CA", storedCart: [bagItem] });
+  frontend.context.renderCheckoutSummary();
+  assert.match(frontend.summaryElement.innerHTML, /Shipping \(Canada\)<\/span><span>\$16\.00/);
+  assert.match(frontend.summaryElement.innerHTML, /Total<\/span><span>\$106\.00/);
+  frontend.countrySelect.value = "US";
+  frontend.context.renderCheckoutSummary();
+  assert.match(frontend.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>Free/);
+  assert.match(frontend.summaryElement.innerHTML, /Total<\/span><span>\$90\.00/);
+});
+
+test("a pillow in the bag disables non-US countries and explains why", () => {
+  const frontend = loadFrontend({ shipCountry: "GB", storedCart: [bagItem, pillowItem] });
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.countrySelect.value, "US");
+  assert.deepEqual(
+    frontend.countrySelect.options.map((option) => [option.value, option.disabled]),
+    [["US", false], ["CA", true], ["GB", true], ["DE", true], ["AU", true], ["JP", true], ["KR", true]],
+  );
+  assert.equal(frontend.shippingNoteElement.hidden, false);
+  assert.match(frontend.shippingNoteElement.textContent, /CIG Pillow Case ships to the US only/);
+});
+
+test("Japan and South Korea are selectable for bags, cases and sleeves; cases warn about ~30 days", () => {
+  const caseItem = { productId: "T-CASE", name: "Test MagSafe Case", price: 30, image: "", color: null, size: null, style: null, qty: 1 };
+  const sleeveItem = { productId: "T-SLEEVE", name: "Test Laptop Sleeve", price: 35, image: "", color: null, size: null, style: null, qty: 1 };
+  const frontend = loadFrontend({ shipCountry: "JP", storedCart: [bagItem, caseItem, sleeveItem] });
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.countrySelect.value, "JP");
+  assert.ok(frontend.countrySelect.options.every((option) => option.disabled === false));
+  // JP: bag $5 x2 + case $6 + sleeve $8
+  assert.match(frontend.summaryElement.innerHTML, /Shipping \(Japan\)<\/span><span>\$24\.00/);
+  assert.equal(frontend.shippingNoteElement.hidden, false);
+  assert.match(frontend.shippingNoteElement.textContent, /Test MagSafe Case to Japan takes about 30 days/);
+  frontend.countrySelect.value = "KR";
+  frontend.context.renderCheckoutSummary();
+  // KR: bag $13 x2 + case $9 + sleeve $18
+  assert.match(frontend.summaryElement.innerHTML, /Shipping \(South Korea\)<\/span><span>\$53\.00/);
+  assert.match(frontend.shippingNoteElement.textContent, /South Korea takes about 30 days/);
+  frontend.countrySelect.value = "GB";
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.shippingNoteElement.hidden, true);
+  const bagOnly = loadFrontend({ shipCountry: "KR", storedCart: [bagItem] });
+  bagOnly.context.renderCheckoutSummary();
+  assert.equal(bagOnly.shippingNoteElement.hidden, true);
+});
+
+test("card and PayPal send the chosen country; US payloads stay unchanged", async () => {
+  const requests = [];
+  const frontend = loadFrontend({
+    fetchImpl: async (url, init) => {
+      requests.push({ url, body: JSON.parse(init.body) });
+      return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } };
+    },
+    paymentMethods: ["paypal"],
+    shipCountry: "AU",
+    storedCart: [bagItem],
+  });
+  await frontend.paymentButtons[0].click();
+  assert.equal(requests[0].body.shipCountry, "AU");
+  assert.equal(requests[0].body.customer.country, undefined);
+  frontend.countrySelect.value = "US";
+  await frontend.paymentButtons[0].click();
+  assert.equal(requests[1].body.shipCountry, undefined);
+});
+
+test("international carts show the duties notice and no crypto line; US carts don't", () => {
+  const frontend = loadFrontend({ shipCountry: "CA", storedCart: [bagItem] });
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.checkoutFields["checkout-duties-note"].hidden, false);
+  assert.doesNotMatch(frontend.summaryElement.innerHTML, /Crypto/);
+  for (const country of ["GB", "DE", "AU", "JP", "KR"]) {
+    frontend.countrySelect.value = country;
+    frontend.context.renderCheckoutSummary();
+    assert.equal(frontend.checkoutFields["checkout-duties-note"].hidden, false, country);
+    assert.doesNotMatch(frontend.summaryElement.innerHTML, /Crypto/, country);
+  }
+  frontend.countrySelect.value = "US";
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.checkoutFields["checkout-duties-note"].hidden, true);
+});
+
+test("the PCCC field shows only for South Korea", () => {
+  const frontend = loadFrontend({ shipCountry: "KR", storedCart: [bagItem] });
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.checkoutFields["checkout-pccc-row"].hidden, false);
+  frontend.countrySelect.value = "JP";
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.checkoutFields["checkout-pccc-row"].hidden, true);
+});
+
+test("South Korea card checkout requires a valid PCCC and sends it; other countries never send it", async () => {
+  const requests = [];
+  const fetchImpl = async (url, init) => {
+    requests.push(JSON.parse(init.body));
+    return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } };
+  };
+  for (const bad of ["", "123456789012", "P12345678901", "P1234567890123", "Q123456789012"]) {
+    const frontend = loadFrontend({
+      fetchImpl, paymentMethods: ["paypal"], shipCountry: "KR", storedCart: [bagItem],
+      fieldOverrides: { "checkout-pccc": bad },
+    });
+    await frontend.paymentButtons[0].click();
+    assert.equal(requests.length, 0, bad);
+    assert.match(frontend.errorElement.textContent, /Personal Customs Clearance Code/);
+  }
+  const ok = loadFrontend({
+    fetchImpl, paymentMethods: ["paypal"], shipCountry: "KR", storedCart: [bagItem],
+    fieldOverrides: { "checkout-pccc": " p1234-5678-9012 " },
+  });
+  await ok.paymentButtons[0].click();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].shipCountry, "KR");
+  assert.equal(requests[0].customer.pccc, "P123456789012");
+
+  const jp = loadFrontend({
+    fetchImpl, paymentMethods: ["paypal"], shipCountry: "JP", storedCart: [bagItem],
+    fieldOverrides: { "checkout-pccc": "P123456789012" },
+  });
+  await jp.paymentButtons[0].click();
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].customer.pccc, undefined);
+});
+
+test("checkout won't start abroad when the bag has a pillow", async () => {
+  const requests = [];
+  const frontend = loadFrontend({
+    fetchImpl: async (url) => { requests.push(url); return { ok: true, async json() { return { url: "x" }; } }; },
+    paymentMethods: ["stripe"],
+    shipCountry: "DE",
+    storedCart: [pillowItem],
+  });
+  await frontend.paymentButtons[0].click();
+  assert.deepEqual(requests, []);
+  assert.match(frontend.errorElement.textContent, /ships to the US only/);
+});
+
+test("international crypto orders need a postal code, not a US state", async () => {
+  const requests = [];
+  const fetchImpl = async (url, init) => {
+    requests.push(JSON.parse(init.body));
+    return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } };
+  };
+  const missing = loadFrontend({
+    fetchImpl, paymentMethods: ["crypto"], shipCountry: "CA", storedCart: [bagItem],
+    fieldOverrides: { "checkout-state": "", "checkout-zip": "" },
+  });
+  await missing.paymentButtons[0].click();
+  assert.equal(requests.length, 0);
+  assert.match(missing.errorElement.textContent, /postal code/);
+
+  const ok = loadFrontend({
+    fetchImpl, paymentMethods: ["crypto"], shipCountry: "CA", storedCart: [bagItem],
+    fieldOverrides: { "checkout-state": "", "checkout-zip": "m5v 2t6" },
+  });
+  await ok.paymentButtons[0].click();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].shipCountry, "CA");
+  assert.equal(requests[0].customer.country, "CA");
+  assert.equal(requests[0].customer.zip, "M5V 2T6");
+});
+
+test("a PayPal country-mismatch return explains nothing was charged", () => {
+  const frontend = loadFrontend({ href: "https://shop.test/?checkout=country-mismatch" });
+  assert.equal(frontend.statusElement.hidden, false);
+  assert.match(frontend.statusElement.textContent, /didn’t match the country you picked/);
+  assert.match(frontend.statusElement.textContent, /wasn’t taken/);
+});
+
+test("the storefront card-only check follows POD_CARD_ONLY", async () => {
+  const podProduct = {
+    id: "test-pod-toggle", sku: "TEST-POD-T", name: "Test POD Tee", price: 30, image: "",
+    colors: [], sizes: ["M"], pod: { files: [{ url: "https://example.com/a.png" }], variants: { "M": 1 } },
+  };
+  PRODUCTS.push(podProduct);
+  try {
+    let fetchCalls = 0;
+    const frontend = loadFrontend({
+      fetchImpl: async () => { fetchCalls += 1; return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } }; },
+      paymentMethods: ["paypal"],
+      storedCart: [{ productId: podProduct.id, name: podProduct.name, price: 30, image: "", color: null, size: "M", style: null, qty: 1 }],
+    });
+    frontend.context.POD_CARD_ONLY = true;
+    await frontend.paymentButtons[0].click();
+    assert.equal(fetchCalls, 0);
+    frontend.context.POD_CARD_ONLY = false;
+    await frontend.paymentButtons[0].click();
+    assert.equal(fetchCalls, 1);
+  } finally {
+    PRODUCTS.splice(PRODUCTS.indexOf(podProduct), 1);
+  }
+});
+
+// ---------- Crypto switch (CRYPTO_ENABLED in products.js; off per CIG 10/21) ----------
+
+test("crypto is switched off on the live site", () => {
+  const catalog = require("../products.js");
+  assert.equal(catalog.CRYPTO_ENABLED, false);
+});
+
+test("with crypto off, the crypto button and 20%-off copy are hidden and the button never calls the server", async () => {
+  const requests = [];
+  const frontend = loadFrontend({
+    cryptoEnabled: false,
+    fetchImpl: async (url) => { requests.push(url); return { ok: true, async json() { return { url: "x" }; } }; },
+    paymentMethods: ["stripe", "paypal", "crypto"],
+    storedCart: [{ productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 }],
+  });
+  const [card, paypal, crypto] = frontend.paymentButtons;
+  assert.equal(crypto.hidden, true);
+  assert.equal(crypto.disabled, true);
+  assert.notEqual(card.hidden, true);
+  assert.notEqual(paypal.hidden, true);
+  assert.ok(frontend.cryptoToggles["[data-crypto-only]"].every((el) => el.hidden === true));
+  assert.ok(frontend.cryptoToggles["[data-crypto-off]"].every((el) => el.hidden === false));
+  await crypto.click();
+  assert.deepEqual(requests, []);
+  assert.match(frontend.errorElement.textContent, /pay by card or PayPal/);
+
+  frontend.context.applyPromoCode("cig10");
+  assert.doesNotMatch(frontend.promoMessageElement.textContent, /[Cc]rypto/);
+});
+
+test("with crypto on, the button and crypto copy show and the promo note mentions it", () => {
+  const frontend = loadFrontend({ cryptoEnabled: true, paymentMethods: ["crypto"] });
+  assert.equal(frontend.paymentButtons[0].hidden, false);
+  assert.equal(frontend.paymentButtons[0].disabled, false);
+  assert.ok(frontend.cryptoToggles["[data-crypto-only]"].every((el) => el.hidden === false));
+  assert.ok(frontend.cryptoToggles["[data-crypto-off]"].every((el) => el.hidden === true));
+  frontend.context.applyPromoCode("cig10");
+  assert.match(frontend.promoMessageElement.textContent, /Crypto checkout gets its 20% off instead/);
+});
+
+test("every crypto button and 20%-off line starts hidden in the HTML (no flash while off)", () => {
+  for (const page of ["index.html", "gallery.html", "arcade.html"]) {
+    const html = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
+    const buttons = html.match(/<button[^>]*data-method="crypto"[^>]*>/g) || [];
+    assert.equal(buttons.length, 1, page);
+    assert.match(buttons[0], /data-crypto-only hidden/, page);
+    // Any visible text mentioning crypto or 20% off must be inside a hidden crypto-only element.
+    const visible = html
+      .replace(/<script[\s\S]*?<\/script>/g, "")
+      .replace(/<(\w+)[^>]*data-crypto-only hidden[^>]*>[\s\S]*?<\/\1>/g, "");
+    assert.doesNotMatch(visible.replace(/<[^>]+>/g, " "), /crypto|20% off/i, page);
+  }
 });

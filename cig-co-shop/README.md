@@ -86,6 +86,39 @@ explicitly select the optional promotional-email checkbox. See
 4. To send from your own address instead of Resend's shared test address, go to **Domains** in Resend, add `cigcompany.com`, and add the DNS records it gives you at GoDaddy (same place you'll already be adding DNS records in Step 4 below). Once verified, set `RESEND_FROM_EMAIL` to `CIG & CO. <info@cigcompany.com>`.
 5. Until your domain is verified, Resend only lets you send to the email address you signed up with — that's a Resend limit for anti-spam, not something in this code. Real customers won't receive prize emails until you finish the domain verification step, so do that before promoting the Arcade.
 
+## PayPal and crypto payment confirmation
+
+PayPal and Coinbase checkouts are priced on the server from `products.js`
+(the browser's prices are ignored), just like card checkout. Crypto always
+gets its 20% discount and never takes a promo code on top.
+
+- **PayPal:** after the buyer approves, PayPal sends them to
+  `/.netlify/functions/paypal-capture`, which **captures** the payment (no
+  capture means no money) and records the order. PayPal collects the shipping
+  address from the buyer's PayPal account. The signed
+  `/.netlify/functions/paypal-webhook` captures and records any order whose
+  buyer closed the tab before returning.
+- **Crypto:** `/.netlify/functions/coinbase-webhook` checks Coinbase's
+  `X-CC-Webhook-Signature`, re-reads the charge, and records it once it is
+  confirmed. The shipping address typed on the site is stored in the charge.
+
+Confirmed PayPal/crypto orders are recorded in Supabase and get the same order
+email and Kit sync as card orders. Their order ids start with `paypal:` or
+`coinbase:` in the existing order columns.
+
+Setup:
+
+1. **PayPal:** in [developer.paypal.com](https://developer.paypal.com/dashboard/applications),
+   open your Live app > **Webhooks > Add webhook**. Use the URL
+   `https://cigcompany.com/.netlify/functions/paypal-webhook` with the events
+   **Checkout order approved** (`CHECKOUT.ORDER.APPROVED`) and
+   **Payment capture completed** (`PAYMENT.CAPTURE.COMPLETED`). Copy the
+   **Webhook ID** into Netlify as `PAYPAL_WEBHOOK_ID`.
+2. **Coinbase Commerce:** go to **Settings > Notifications > Add an endpoint**,
+   use `https://cigcompany.com/.netlify/functions/coinbase-webhook`, and copy
+   the **shared secret** into Netlify as `COINBASE_COMMERCE_WEBHOOK_SECRET`.
+3. Redeploy, then place a small test order with each method.
+
 ## Print-on-demand (Printful)
 
 Products with a `pod: { ... }` block in `products.js` are made to order by
@@ -103,8 +136,9 @@ before.
 - **No duplicates.** The Printful order's External ID is the Stripe payment id,
   so a retried webhook reuses the existing order.
 - **Card only for now.** PayPal and crypto checkout refuse carts with
-  print-on-demand items, because those payments aren't confirmed by a signed
-  webhook or collect a shipping address yet.
+  print-on-demand items, because Printful orders are only created from the
+  signed Stripe webhook. The switch is `POD_CARD_ONLY` at the bottom of
+  `products.js` (it covers both the site and the server).
 
 Setup:
 

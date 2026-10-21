@@ -351,7 +351,19 @@ function looksLikeArcadeCode(code) {
 const savedPromo = typeof getSavedPromo === "function" ? getSavedPromo() : null;
 let promoState = savedPromo && !looksLikeArcadeCode(savedPromo) ? savedPromo : null;
 
-const CRYPTO_NOTE = "(Crypto checkout gets its 20% off instead.)";
+// Crypto checkout on/off: CRYPTO_ENABLED in products.js (missing = off).
+const cryptoEnabled = typeof CRYPTO_ENABLED !== "undefined" && CRYPTO_ENABLED === true;
+const CRYPTO_NOTE = cryptoEnabled ? " (Crypto checkout gets its 20% off instead.)" : "";
+
+// Shows crypto-only bits ([data-crypto-only]) when crypto is on, and their
+// stand-ins ([data-crypto-off]) when it's off. Everything starts hidden in the
+// HTML, so crypto never flashes on screen while it's switched off.
+function applyCryptoSwitch() {
+  if (typeof document === "undefined" || typeof document.querySelectorAll !== "function") return;
+  Array.from(document.querySelectorAll("[data-crypto-only]")).forEach((el) => { el.hidden = !cryptoEnabled; });
+  Array.from(document.querySelectorAll("[data-crypto-off]")).forEach((el) => { el.hidden = cryptoEnabled; });
+}
+applyCryptoSwitch();
 
 async function applyPromoCode(rawCode, { quiet = false } = {}) {
   const messageEl = quiet ? null : document.getElementById("promo-message");
@@ -365,7 +377,7 @@ async function applyPromoCode(rawCode, { quiet = false } = {}) {
   if (typeof PROMO_CODES !== "undefined" && PROMO_CODES[code]) {
     promoState = code;
     if (typeof savePromoWin === "function") savePromoWin(code);
-    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label}. ${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
+    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label}.${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
   } else if (looksLikeArcadeCode(code)) {
     if (messageEl) { messageEl.textContent = "Checking code…"; messageEl.classList.remove("promo-error"); }
     let result = null;
@@ -383,7 +395,7 @@ async function applyPromoCode(rawCode, { quiet = false } = {}) {
       serverPromos[code] = { discount: result.discount, label: result.label };
       promoState = code;
       if (typeof savePromoWin === "function") savePromoWin(code);
-      if (messageEl) { messageEl.textContent = `Code applied — ${result.label}. One use, with the email that won it. ${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
+      if (messageEl) { messageEl.textContent = `Code applied — ${result.label}. One use, with the email that won it.${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
     } else {
       promoState = null;
       if (typeof clearSavedPromo === "function") clearSavedPromo();
@@ -425,15 +437,97 @@ if (checkoutBtn) {
 const checkoutCloseBtn = document.getElementById("checkout-close");
 if (checkoutCloseBtn) checkoutCloseBtn.addEventListener("click", () => closeModal("checkout-modal"));
 
+// ---------- Ship-to country + shipping (rates: shipping-rates.js) ----------
+// A function (not a const) so it's safe to call before this point in the file.
+function shipCountryNames() {
+  return typeof SHIP_TO_COUNTRIES !== "undefined" ? SHIP_TO_COUNTRIES : { US: "United States" };
+}
+
+function selectedShipCountry() {
+  const select = document.getElementById("checkout-country");
+  const value = select && typeof select.value === "string" ? select.value.trim().toUpperCase() : "";
+  return value && shipCountryNames()[value] ? value : "US";
+}
+
+// Same quote the server charges (shipping-rates.js). Returns
+// { shippingCents, blocked: [product names that ship to the US only] }.
+function cartShippingLines(cart) {
+  return cart.map((item) => {
+    const product = PRODUCTS.find((entry) => entry.id === item.productId);
+    return {
+      name: product ? product.name : item.name,
+      shipping: product && typeof product.shipping === "string" ? product.shipping : null,
+      quantity: item.qty,
+    };
+  });
+}
+
+function cartShippingQuote(cart, country) {
+  const lines = cartShippingLines(cart);
+  if (country === "US") return { shippingCents: 0, blocked: [] };
+  if (typeof quoteShipping !== "function") {
+    return { shippingCents: null, blocked: lines.map((line) => line.name) };
+  }
+  const quote = quoteShipping(lines, country);
+  return { shippingCents: quote.shippingCents, blocked: quote.blocked };
+}
+
+function usOnlyMessage(blocked) {
+  return `${blocked.join(", ")} ${blocked.length === 1 ? "ships" : "ship"} to the US only, so international shipping isn't available for this bag.`;
+}
+
+// Disables countries the bag can't ship to and updates the address hints.
+function updateShipToOptions(cart) {
+  const select = document.getElementById("checkout-country");
+  const note = document.getElementById("checkout-shipping-note");
+  let blockedNames = [];
+  if (select && select.options) {
+    Array.from(select.options).forEach((option) => {
+      if (option.value === "US") return;
+      const quote = cartShippingQuote(cart, option.value);
+      option.disabled = quote.shippingCents === null;
+      if (quote.blocked.length) blockedNames = quote.blocked;
+    });
+    const current = Array.from(select.options).find((option) => option.value === select.value);
+    if (current && current.disabled) select.value = "US";
+  }
+  const country = selectedShipCountry();
+  if (note) {
+    let text = blockedNames.length ? usOnlyMessage(blockedNames) : "";
+    if (!text && country !== "US" && typeof slowDeliveryNote === "function") {
+      text = slowDeliveryNote(cartShippingLines(cart), country);
+    }
+    note.textContent = text;
+    note.hidden = !text;
+  }
+  const dutiesNote = document.getElementById("checkout-duties-note");
+  if (dutiesNote) dutiesNote.hidden = country === "US";
+  const pcccRow = document.getElementById("checkout-pccc-row");
+  if (pcccRow) pcccRow.hidden = country !== "KR";
+  const stateEl = document.getElementById("checkout-state");
+  const zipEl = document.getElementById("checkout-zip");
+  if (stateEl) stateEl.placeholder = country === "US" ? "State (e.g. GA)" : "State / Province (optional)";
+  if (zipEl) zipEl.placeholder = country === "US" ? "ZIP" : "Postal code";
+}
+
+const shipCountryEl = document.getElementById("checkout-country");
+if (shipCountryEl && typeof shipCountryEl.addEventListener === "function") {
+  shipCountryEl.addEventListener("change", () => renderCheckoutSummary());
+}
+
 function renderCheckoutSummary() {
   const summary = document.getElementById("checkout-summary");
   if (!summary) return;
   const cart = getCart();
+  updateShipToOptions(cart);
+  const country = selectedShipCountry();
+  const shippingQuote = cartShippingQuote(cart, country);
+  const shipping = shippingQuote.shippingCents === null ? 0 : shippingQuote.shippingCents / 100;
   const subtotal = cartSubtotal(cart);
   const promoInfo = promoDetails(promoState);
   const discountFraction = promoInfo ? promoInfo.discount : 0;
   const discountAmount = subtotal * discountFraction;
-  const total = subtotal - discountAmount;
+  const total = subtotal - discountAmount + shipping;
 
   let rows = cart
     .map((item) => {
@@ -448,28 +542,75 @@ function renderCheckoutSummary() {
     rows += `<div class="checkout-summary-row" style="color:var(--gold);"><span>Promo (${promoState})</span><span>&minus;$${discountAmount.toFixed(2)}</span></div>`;
   }
 
+  const shippingLabel = shippingQuote.shippingCents === null
+    ? "Not available"
+    : shipping === 0 ? "Free" : `$${shipping.toFixed(2)}`;
+  rows += `<div class="checkout-summary-row"><span>Shipping (${shipCountryNames()[country] || country})</span><span>${shippingLabel}</span></div>`;
+
   rows += `<div class="checkout-summary-row" style="font-weight:700;"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
 
   summary.innerHTML = rows;
 }
 
+function checkoutFieldValue(id) {
+  const element = document.getElementById(id);
+  return element && typeof element.value === "string" ? element.value.trim() : "";
+}
+
 function getCheckoutFields() {
   return {
-    email: document.getElementById("checkout-email").value.trim(),
-    name: document.getElementById("checkout-name").value.trim(),
-    address: document.getElementById("checkout-address").value.trim(),
-    city: document.getElementById("checkout-city").value.trim(),
+    email: checkoutFieldValue("checkout-email"),
+    name: checkoutFieldValue("checkout-name"),
+    address: checkoutFieldValue("checkout-address"),
+    city: checkoutFieldValue("checkout-city"),
+    state: checkoutFieldValue("checkout-state").toUpperCase(),
+    zip: checkoutFieldValue("checkout-zip").toUpperCase(),
+    country: selectedShipCountry(),
+    pccc: checkoutFieldValue("checkout-pccc").replace(/[\s-]/g, "").toUpperCase(),
   };
+}
+
+// South Korea customs code: P + 12 digits (the server checks it too).
+function validateKoreaCustomsCode(fields) {
+  if (fields.country !== "KR") return null;
+  return /^P\d{12}$/.test(fields.pccc || "")
+    ? null
+    : "South Korea orders need your Personal Customs Clearance Code (PCCC): P followed by 12 digits.";
 }
 
 function validateCheckoutFields(fields) {
   return fields.email && fields.name && fields.address && fields.city;
 }
 
+// Crypto has no hosted address form, so it needs the full address from us:
+// state + ZIP in the US, a postal code elsewhere (the server checks the format).
+function validateCryptoShipping(fields) {
+  if (fields.country === "US") {
+    if (!/^[A-Z]{2}$/.test(fields.state)) {
+      return "Crypto orders need a US state (2-letter code, e.g. GA).";
+    }
+    if (!/^\d{5}(-\d{4})?$/.test(fields.zip)) {
+      return "Crypto orders need a valid 5-digit US ZIP code.";
+    }
+  } else if (!fields.zip) {
+    return "Crypto orders need a postal code.";
+  }
+  return null;
+}
+
 class StripeCartCompatibilityError extends Error {
   constructor(message) {
     super(message);
     this.name = "StripeCartCompatibilityError";
+  }
+}
+
+// The server turned the checkout down with a message meant for the shopper
+// (e.g. a non-US crypto address), so show it as-is.
+class CheckoutRequestError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "CheckoutRequestError";
   }
 }
 
@@ -503,14 +644,8 @@ function buildCheckoutRequestBody(
   customer,
   promoCode,
 ) {
-  if (method !== "stripe") {
-    return {
-      cart: cartToCharge,
-      customer,
-      promoCode: promoCode || null,
-    };
-  }
-
+  // Every payment method sends only the catalog selection; the server looks up
+  // names and prices in products.js. (cartToCharge is no longer used.)
   return {
     items: cart.map((item) => {
       const product = PRODUCTS.find((entry) => entry.id === item.productId);
@@ -575,6 +710,12 @@ function handleCheckoutResult({
       "Checkout was cancelled. Your bag is still saved whenever you’re ready.",
     success:
       "You returned from checkout. Payment confirmation is still pending, so your bag has been kept for now.",
+    failed:
+      "Your payment didn’t go through, so nothing was charged. Your bag is still saved.",
+    "us-only":
+      "Your PayPal shipping address isn’t in the US, so your payment wasn’t taken. Pick its country under “Ship to” (pillows ship to the US only). Your bag is still saved.",
+    "country-mismatch":
+      "Your PayPal shipping address didn’t match the country you picked under “Ship to”, so your payment wasn’t taken. Your bag is still saved.",
   };
   const message = messages[result];
   if (!message) return;
@@ -594,6 +735,12 @@ function handleCheckoutResult({
 // The three payment functions below call your deployed serverless functions
 // (see netlify/functions/). Each returns a hosted checkout URL to redirect to.
 const paymentButtons = Array.from(document.querySelectorAll(".pay-btn"));
+paymentButtons.forEach((btn) => {
+  if (btn.dataset && btn.dataset.method === "crypto") {
+    btn.hidden = !cryptoEnabled;
+    if (!cryptoEnabled) btn.disabled = true;
+  }
+});
 let checkoutSubmissionPending = false;
 
 paymentButtons.forEach((btn) => {
@@ -601,8 +748,12 @@ paymentButtons.forEach((btn) => {
     const method = btn.dataset.method;
     if (checkoutSubmissionPending) return;
 
-    const fields = getCheckoutFields();
     const errorEl = document.getElementById("checkout-error");
+    if (method === "crypto" && !cryptoEnabled) {
+      errorEl.textContent = "Crypto checkout isn't available right now. Please pay by card or PayPal.";
+      return;
+    }
+    const fields = getCheckoutFields();
     const loadingEl = document.getElementById("checkout-loading");
     errorEl.textContent = "";
 
@@ -611,21 +762,46 @@ paymentButtons.forEach((btn) => {
       return;
     }
 
+    const pcccError = validateKoreaCustomsCode(fields);
+    if (pcccError) {
+      errorEl.textContent = pcccError;
+      return;
+    }
+
+    if (method === "crypto") {
+      const shippingError = validateCryptoShipping(fields);
+      if (shippingError) {
+        errorEl.textContent = shippingError;
+        return;
+      }
+    }
+
     const cart = getCart();
     if (cart.length === 0) {
       errorEl.textContent = "Your bag is empty.";
       return;
     }
 
-    // Print-on-demand items are only sent to Printful from a confirmed card payment.
+    // Print-on-demand items are only sent to Printful from a confirmed card
+    // payment. Toggle: POD_CARD_ONLY in products.js (missing = card only).
+    const podCardOnly = typeof POD_CARD_ONLY === "undefined" || POD_CARD_ONLY !== false;
     if (
-      method !== "stripe"
+      podCardOnly
+      && method !== "stripe"
       && cart.some((item) => {
         const product = PRODUCTS.find((entry) => entry.id === item.productId);
         return product && product.pod;
       })
     ) {
       errorEl.textContent = "Made-to-order items can only be paid by card for now.";
+      return;
+    }
+
+    const shipQuote = cartShippingQuote(cart, fields.country);
+    if (shipQuote.shippingCents === null) {
+      errorEl.textContent = shipQuote.blocked.length
+        ? usOnlyMessage(shipQuote.blocked)
+        : "Shipping isn't available to that country yet.";
       return;
     }
 
@@ -657,29 +833,37 @@ paymentButtons.forEach((btn) => {
           ? "/.netlify/functions/create-paypal-order"
           : "/.netlify/functions/create-coinbase-charge";
 
-      // Promo codes never stack with the 20% crypto discount.
+      // Promo codes never stack with the 20% crypto discount (the server
+      // enforces this too); prices themselves are always computed server-side.
       const checkoutPromo = method === "crypto" ? null : promoState;
-      const checkoutPromoInfo = promoDetails(checkoutPromo);
-      const discountFraction = checkoutPromoInfo ? checkoutPromoInfo.discount : 0;
-      const cartToCharge = discountFraction > 0
-        ? cart.map((item) => ({ ...item, price: Math.round(item.price * (1 - discountFraction) * 100) / 100 }))
-        : cart;
+
+      // Only crypto needs state/ZIP/country from us; card and PayPal collect the
+      // shipping address on their own hosted pages (locked to the chosen country).
+      // The PCCC is only sent for South Korea (customs needs it on the parcel).
+      const { state, zip, country, pccc, ...baseFields } = fields;
+      if (country === "KR") baseFields.pccc = pccc;
+      const customerFields =
+        method === "crypto" ? { ...baseFields, state, zip, country } : baseFields;
 
       let requestBody = buildCheckoutRequestBody(
         method,
         cart,
-        cartToCharge,
-        fields,
+        cart,
+        customerFields,
         checkoutPromo,
       );
+      requestBody = {
+        ...requestBody,
+        customer: {
+          ...requestBody.customer,
+          marketingConsent,
+        },
+      };
+      // The server prices shipping for this country (missing = US, free).
+      if (method === "crypto" || country !== "US") {
+        requestBody.shipCountry = country;
+      }
       if (method === "stripe") {
-        requestBody = {
-          ...requestBody,
-          customer: {
-            ...requestBody.customer,
-            marketingConsent,
-          },
-        };
         requestBody = await addCheckoutFingerprint(
           requestBody,
           promoState,
@@ -692,6 +876,9 @@ paymentButtons.forEach((btn) => {
         body: JSON.stringify(requestBody),
       });
       const data = await res.json();
+      if (res.status === 400 && data.error) {
+        throw new CheckoutRequestError(data.error);
+      }
       if (!res.ok || !data.url) {
         throw new Error(data.error || "Checkout could not be started.");
       }
@@ -708,6 +895,7 @@ paymentButtons.forEach((btn) => {
           "Checkout could not be prepared. Please refresh and try again.";
       } else {
         errorEl.textContent = err instanceof StripeCartCompatibilityError
+          || err instanceof CheckoutRequestError
           ? err.message
           : "Checkout isn't wired up yet on this deployment — add your API keys per the README, then this button will work. (" +
             err.message +

@@ -1,82 +1,69 @@
 // Creates a PayPal order for the whole cart and returns the approval URL.
+// Prices come from products.js on the server (browser prices are ignored).
+// After approval PayPal returns the buyer to paypal-capture, which captures the
+// payment; paypal-webhook is the signed backup if the buyer never comes back.
 // Requires env vars: PAYPAL_CLIENT_ID, PAYPAL_SECRET
 // (from https://developer.paypal.com/dashboard/applications — use Live keys once you're ready to go live, Sandbox keys to test)
 // Optional: PAYPAL_API_BASE — defaults to live API. Set to https://api-m.sandbox.paypal.com while testing.
+const {
+  PricingValidationError,
+  priceCartForStripe,
+} = require("../lib/stripe-pricing.js");
+const { buildPayPalOrder, createPayPalClient } = require("../lib/paypal.js");
+const { checkoutSiteUrl, trustedCartItems } = require("../lib/checkout-request.js");
+const { RequestValidationError, normalizeEmail } = require("../lib/customer-utils.js");
+const { resolvePromo } = require("../lib/promo-codes.js");
+const { requireKoreaCustomsCode, resolveCheckoutShipping } = require("../lib/checkout-shipping.js");
+const { assertPodAllowedWithoutCard } = require("../lib/pod-payment.js");
 
-const { isPodProduct } = require("../lib/printful.js");
-const POD_CARD_ONLY_MESSAGE = "Made-to-order items can only be paid by card for now.";
+function createHandler({
+  paypalFactory = createPayPalClient,
+  promoResolver = resolvePromo,
+  environment = process.env,
+  logger = console,
+} = {}) {
+  return async (event) => {
+    if (event.httpMethod !== "POST") {
+      return { statusCode: 405, body: "Method Not Allowed" };
+    }
+    try {
+      const body = JSON.parse(event.body || "{}");
+      // Print-on-demand items are card-only while POD_CARD_ONLY (products.js) is true.
+      assertPodAllowedWithoutCard(trustedCartItems(body));
+      // Arcade codes must belong to the email entered on the site.
+      const email = body.customer && body.customer.email ? normalizeEmail(body.customer.email) : null;
+      const promo = await promoResolver({ promoCode: body.promoCode, email });
+      const pricing = priceCartForStripe(trustedCartItems(body), body.promoCode, promo);
+      // Shipping is priced for the country picked on the site (US = free);
+      // paypal-capture refuses to capture if PayPal's address is elsewhere.
+      const shipping = resolveCheckoutShipping(pricing, body.shipCountry);
+      requireKoreaCustomsCode(body.customer && body.customer.pccc, shipping.country);
+      const siteUrl = checkoutSiteUrl(environment.SITE_URL);
+      const order = await paypalFactory({ environment }).createOrder(
+        buildPayPalOrder(pricing, {
+          siteUrl,
+          marketingConsent: !!(body.customer && body.customer.marketingConsent === true),
+          shipping,
+        }),
+      );
 
-const PAYPAL_API_BASE = process.env.PAYPAL_API_BASE || "https://api-m.paypal.com";
-
-async function getAccessToken() {
-  const auth = Buffer.from(
-    `${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_SECRET}`
-  ).toString("base64");
-
-  const res = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error_description || "PayPal auth failed");
-  return data.access_token;
+      const approveLink = (order.links || []).find((l) => l.rel === "approve" || l.rel === "payer-action");
+      if (!approveLink) throw new Error("PayPal did not return an approval link");
+      return { statusCode: 200, body: JSON.stringify({ url: approveLink.href }) };
+    } catch (err) {
+      if (
+        err instanceof PricingValidationError
+        || err instanceof RequestValidationError
+        || err instanceof SyntaxError
+      ) {
+        return { statusCode: 400, body: JSON.stringify({ error: err.message }) };
+      }
+      logger.error("PayPal order creation failed.", { error: err && err.name });
+      return { statusCode: 500, body: JSON.stringify({ error: "PayPal checkout could not be started." }) };
+    }
+  };
 }
 
-exports.handler = async (event) => {
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
-  }
+const handler = createHandler();
 
-  try {
-    const { cart } = JSON.parse(event.body);
-    if (!cart || cart.length === 0) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Cart is empty." }) };
-    }
-    // Print-on-demand items are fulfilled from the signed Stripe webhook only.
-    if (cart.some((item) => item && isPodProduct(item.productId))) {
-      return { statusCode: 400, body: JSON.stringify({ error: POD_CARD_ONLY_MESSAGE }) };
-    }
-
-    const subtotal = cart
-      .reduce((sum, item) => sum + item.price * item.qty, 0)
-      .toFixed(2);
-
-    const accessToken = await getAccessToken();
-    const siteUrl = process.env.SITE_URL || `https://${event.headers.host}`;
-
-    const orderRes = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({
-        intent: "CAPTURE",
-        purchase_units: [
-          {
-            amount: { currency_code: "USD", value: subtotal },
-            description: "CIG & CO. order",
-          },
-        ],
-        application_context: {
-          return_url: `${siteUrl}/?checkout=success`,
-          cancel_url: `${siteUrl}/?checkout=cancelled`,
-          brand_name: "CIG & CO.",
-          user_action: "PAY_NOW",
-        },
-      }),
-    });
-
-    const order = await orderRes.json();
-    if (!orderRes.ok) throw new Error(order.message || "PayPal order creation failed");
-
-    const approveLink = order.links.find((l) => l.rel === "approve");
-    return { statusCode: 200, body: JSON.stringify({ url: approveLink.href }) };
-  } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
-  }
-};
+module.exports = { createHandler, handler };

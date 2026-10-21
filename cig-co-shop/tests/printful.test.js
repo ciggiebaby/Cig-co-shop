@@ -254,7 +254,30 @@ test("PayPal and Coinbase refuse POD items (card only)", async () => {
       headers: {},
       body: JSON.stringify({ cart: [{ productId: POD_PRODUCT.id, size: "M", price: 65, qty: 1 }] }),
     });
-    assert.equal(response.statusCode, 400);
+    // Coinbase is switched off (CRYPTO_ENABLED=false), so it refuses everything with 503.
+    assert.equal(response.statusCode, fn === coinbase ? 503 : 400);
     assert.match(JSON.parse(response.body).error, /card/);
+  }
+});
+
+test("POD_CARD_ONLY in products.js is the one switch for the card-only rule", async () => {
+  const catalog = require("../products.js");
+  assert.equal(catalog.POD_CARD_ONLY, true); // CIG hasn't changed the rule yet
+  const handler = paypal.createHandler({
+    paypalFactory: () => ({ createOrder: async () => ({ links: [{ rel: "approve", href: "https://paypal.test/a" }] }) }),
+    environment: { SITE_URL: "https://shop.test" },
+    logger: { error() {} },
+  });
+  const request = {
+    httpMethod: "POST",
+    headers: {},
+    body: JSON.stringify({ items: [{ productId: POD_PRODUCT.id, size: "M", quantity: 1 }] }),
+  };
+  assert.equal((await handler(request)).statusCode, 400);
+  catalog.POD_CARD_ONLY = false;
+  try {
+    assert.equal((await handler(request)).statusCode, 200);
+  } finally {
+    catalog.POD_CARD_ONLY = true;
   }
 });

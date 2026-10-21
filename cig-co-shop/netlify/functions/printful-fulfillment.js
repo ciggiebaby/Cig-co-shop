@@ -5,6 +5,35 @@
 // Requires env vars: STRIPE_SECRET_KEY, STRIPE_PRINTFUL_WEBHOOK_SECRET, PRINTFUL_API_TOKEN
 // Optional: PRINTFUL_STORE_ID, PRINTFUL_AUTO_CONFIRM
 const { safeIdentifier } = require("../lib/customer-utils.js");
+const { normalizePccc } = require("../../shipping-rates.js");
+
+// Printful's address limits (Latin characters only).
+const ADDRESS1_MAX = 35;
+const ADDRESS2_MAX = 30;
+
+// South Korea: Printful asks for the buyer's Personal Customs Clearance Code
+// (PCCC) in the shipping address, on Address 2 where possible. We put
+// "PCCC P123456789012" on address2 (keeping the buyer's own line 2 when it
+// fits, otherwise moving it onto address1), and also send it as the
+// recipient tax_number (the order's customs/tax ID field).
+function addKoreaCustomsCode(recipient, pccc) {
+  const label = `PCCC ${pccc}`;
+  const line2 = recipient.address2;
+  const out = { ...recipient, tax_number: pccc };
+  if (!line2) {
+    out.address2 = label;
+  } else if (`${line2} ${label}`.length <= ADDRESS2_MAX) {
+    out.address2 = `${line2} ${label}`;
+  } else if (`${recipient.address1}, ${line2}`.length <= ADDRESS1_MAX) {
+    out.address1 = `${recipient.address1}, ${line2}`;
+    out.address2 = label;
+  } else {
+    // Too long for Printful's limits either way: keep the code first so it
+    // survives any truncation; the draft is reviewed before it's confirmed.
+    out.address2 = `${label} ${line2}`;
+  }
+  return out;
+}
 const {
   autoConfirmEnabled,
   createPrintfulClient,
@@ -41,7 +70,7 @@ function printfulRecipient(session) {
     throw new Error("Paid session has no shipping address.");
   }
   const details = session.customer_details || {};
-  return {
+  const recipient = {
     name: shipping.name || details.name || "",
     address1: address.line1,
     address2: address.line2 || undefined,
@@ -52,6 +81,16 @@ function printfulRecipient(session) {
     email: details.email || session.customer_email || undefined,
     phone: details.phone || undefined,
   };
+  if (address.country === "KR") {
+    const pccc = normalizePccc(session.metadata && session.metadata.pccc);
+    if (!pccc) {
+      // create-stripe-session requires it, so this only happens for sessions
+      // made before the field existed. Fail loudly rather than ship without it.
+      throw new Error("South Korea order is missing a valid PCCC.");
+    }
+    return addKoreaCustomsCode(recipient, pccc);
+  }
+  return recipient;
 }
 
 function podLines(lineItems) {
@@ -170,6 +209,7 @@ const handler = createHandler();
 
 module.exports = {
   SUPPORTED_EVENTS,
+  addKoreaCustomsCode,
   createHandler,
   handler,
   podLines,
