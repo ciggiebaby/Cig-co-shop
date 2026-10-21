@@ -33,6 +33,12 @@
 // POD_CARD_ONLY (bottom of this file): while true, carts with any `pod` item can
 //   only be paid by card (PayPal and crypto refuse them, on the site and on the
 //   server). Flip it to false to allow PayPal/crypto for made-to-order items.
+//
+// CRYPTO_ENABLED (bottom of this file): crypto checkout (Coinbase Commerce,
+//   20% off) on/off. While false, the "Pay with Crypto" button and every
+//   20%-off crypto message are hidden site-wide, and the server refuses
+//   crypto checkouts. To turn it on: set COINBASE_COMMERCE_API_KEY and
+//   COINBASE_COMMERCE_WEBHOOK_SECRET on Netlify, flip this to true, deploy.
 
 const PRODUCTS = [
   {
@@ -287,6 +293,10 @@ const PRODUCTS = [
 // One switch for the checkout page and the server. See the note at the top.
 const POD_CARD_ONLY = true;
 
+// Crypto checkout (Coinbase Commerce) is off: CIG decided 2026-10-21 to set
+// it up later under a new LLC. One switch for the site and the server.
+const CRYPTO_ENABLED = false;
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { POD_CARD_ONLY, PRODUCTS };
+  module.exports = { CRYPTO_ENABLED, POD_CARD_ONLY, PRODUCTS };
 }

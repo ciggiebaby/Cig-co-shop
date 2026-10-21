@@ -351,7 +351,19 @@ function looksLikeArcadeCode(code) {
 const savedPromo = typeof getSavedPromo === "function" ? getSavedPromo() : null;
 let promoState = savedPromo && !looksLikeArcadeCode(savedPromo) ? savedPromo : null;
 
-const CRYPTO_NOTE = "(Crypto checkout gets its 20% off instead.)";
+// Crypto checkout on/off: CRYPTO_ENABLED in products.js (missing = off).
+const cryptoEnabled = typeof CRYPTO_ENABLED !== "undefined" && CRYPTO_ENABLED === true;
+const CRYPTO_NOTE = cryptoEnabled ? " (Crypto checkout gets its 20% off instead.)" : "";
+
+// Shows crypto-only bits ([data-crypto-only]) when crypto is on, and their
+// stand-ins ([data-crypto-off]) when it's off. Everything starts hidden in the
+// HTML, so crypto never flashes on screen while it's switched off.
+function applyCryptoSwitch() {
+  if (typeof document === "undefined" || typeof document.querySelectorAll !== "function") return;
+  Array.from(document.querySelectorAll("[data-crypto-only]")).forEach((el) => { el.hidden = !cryptoEnabled; });
+  Array.from(document.querySelectorAll("[data-crypto-off]")).forEach((el) => { el.hidden = cryptoEnabled; });
+}
+applyCryptoSwitch();
 
 async function applyPromoCode(rawCode, { quiet = false } = {}) {
   const messageEl = quiet ? null : document.getElementById("promo-message");
@@ -365,7 +377,7 @@ async function applyPromoCode(rawCode, { quiet = false } = {}) {
   if (typeof PROMO_CODES !== "undefined" && PROMO_CODES[code]) {
     promoState = code;
     if (typeof savePromoWin === "function") savePromoWin(code);
-    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label}. ${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
+    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label}.${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
   } else if (looksLikeArcadeCode(code)) {
     if (messageEl) { messageEl.textContent = "Checking code…"; messageEl.classList.remove("promo-error"); }
     let result = null;
@@ -383,7 +395,7 @@ async function applyPromoCode(rawCode, { quiet = false } = {}) {
       serverPromos[code] = { discount: result.discount, label: result.label };
       promoState = code;
       if (typeof savePromoWin === "function") savePromoWin(code);
-      if (messageEl) { messageEl.textContent = `Code applied — ${result.label}. One use, with the email that won it. ${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
+      if (messageEl) { messageEl.textContent = `Code applied — ${result.label}. One use, with the email that won it.${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
     } else {
       promoState = null;
       if (typeof clearSavedPromo === "function") clearSavedPromo();
@@ -723,6 +735,12 @@ function handleCheckoutResult({
 // The three payment functions below call your deployed serverless functions
 // (see netlify/functions/). Each returns a hosted checkout URL to redirect to.
 const paymentButtons = Array.from(document.querySelectorAll(".pay-btn"));
+paymentButtons.forEach((btn) => {
+  if (btn.dataset && btn.dataset.method === "crypto") {
+    btn.hidden = !cryptoEnabled;
+    if (!cryptoEnabled) btn.disabled = true;
+  }
+});
 let checkoutSubmissionPending = false;
 
 paymentButtons.forEach((btn) => {
@@ -730,8 +748,12 @@ paymentButtons.forEach((btn) => {
     const method = btn.dataset.method;
     if (checkoutSubmissionPending) return;
 
-    const fields = getCheckoutFields();
     const errorEl = document.getElementById("checkout-error");
+    if (method === "crypto" && !cryptoEnabled) {
+      errorEl.textContent = "Crypto checkout isn't available right now. Please pay by card or PayPal.";
+      return;
+    }
+    const fields = getCheckoutFields();
     const loadingEl = document.getElementById("checkout-loading");
     errorEl.textContent = "";
 

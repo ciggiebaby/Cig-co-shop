@@ -22,7 +22,8 @@ const { createHandler: createCoinbaseChargeHandler } = require("../netlify/funct
 const { paidPayPalOrder } = require("../netlify/lib/paypal.js");
 
 const silent = { log() {}, error() {} };
-const ENV = { SITE_URL: "https://shop.test" };
+const { CRYPTO_ENV } = require("./crypto-fixture.js");
+const ENV = { SITE_URL: "https://shop.test", ...CRYPTO_ENV };
 const bag = (quantity = 1) => ({ productId: "T-BAG", quantity });
 const phoneCase = (quantity = 1) => ({ productId: "T-CASE", quantity });
 const sleeve = (quantity = 1) => ({ productId: "T-SLEEVE", quantity });

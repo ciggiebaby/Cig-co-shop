@@ -19,6 +19,8 @@ function loadFrontend({
   storedCart,
   fieldOverrides = {},
   shipCountry = "US",
+  // The crypto flow is tested switched on; the live value is checked separately.
+  cryptoEnabled = true,
 } = {}) {
   const countrySelect = {
     value: shipCountry,
@@ -79,6 +81,11 @@ function loadFrontend({
       },
     };
   });
+  // Stand-ins for the crypto-only copy and its card/PayPal replacement.
+  const cryptoToggles = {
+    "[data-crypto-only]": [{ hidden: true }, { hidden: true }],
+    "[data-crypto-off]": [{ hidden: true }],
+  };
   const storage = new Map();
   if (storedCart) {
     storage.set("cig_co_cart_v1", JSON.stringify(storedCart));
@@ -118,6 +125,7 @@ function loadFrontend({
   const context = vm.createContext({
     PRODUCTS,
     PROMO_CODES: promoCodes,
+    CRYPTO_ENABLED: cryptoEnabled,
     SHIP_TO_COUNTRIES: shippingRates.SHIP_TO_COUNTRIES,
     quoteShipping: shippingRates.quoteShipping,
     slowDeliveryNote: shippingRates.slowDeliveryNote,
@@ -141,7 +149,7 @@ function loadFrontend({
         return checkoutFields[id] || null;
       },
       querySelectorAll: (selector) =>
-        selector === ".pay-btn" ? paymentButtons : [],
+        selector === ".pay-btn" ? paymentButtons : (cryptoToggles[selector] || []),
       addEventListener(type, listener) {
         documentListeners.set(type, listener);
       },
@@ -166,6 +174,7 @@ function loadFrontend({
 
   return {
     checkoutFields,
+    cryptoToggles,
     context,
     countrySelect,
     shippingNoteElement,
@@ -1105,5 +1114,59 @@ test("the storefront card-only check follows POD_CARD_ONLY", async () => {
     assert.equal(fetchCalls, 1);
   } finally {
     PRODUCTS.splice(PRODUCTS.indexOf(podProduct), 1);
+  }
+});
+
+// ---------- Crypto switch (CRYPTO_ENABLED in products.js; off per CIG 10/21) ----------
+
+test("crypto is switched off on the live site", () => {
+  const catalog = require("../products.js");
+  assert.equal(catalog.CRYPTO_ENABLED, false);
+});
+
+test("with crypto off, the crypto button and 20%-off copy are hidden and the button never calls the server", async () => {
+  const requests = [];
+  const frontend = loadFrontend({
+    cryptoEnabled: false,
+    fetchImpl: async (url) => { requests.push(url); return { ok: true, async json() { return { url: "x" }; } }; },
+    paymentMethods: ["stripe", "paypal", "crypto"],
+    storedCart: [{ productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 }],
+  });
+  const [card, paypal, crypto] = frontend.paymentButtons;
+  assert.equal(crypto.hidden, true);
+  assert.equal(crypto.disabled, true);
+  assert.notEqual(card.hidden, true);
+  assert.notEqual(paypal.hidden, true);
+  assert.ok(frontend.cryptoToggles["[data-crypto-only]"].every((el) => el.hidden === true));
+  assert.ok(frontend.cryptoToggles["[data-crypto-off]"].every((el) => el.hidden === false));
+  await crypto.click();
+  assert.deepEqual(requests, []);
+  assert.match(frontend.errorElement.textContent, /pay by card or PayPal/);
+
+  frontend.context.applyPromoCode("cig10");
+  assert.doesNotMatch(frontend.promoMessageElement.textContent, /[Cc]rypto/);
+});
+
+test("with crypto on, the button and crypto copy show and the promo note mentions it", () => {
+  const frontend = loadFrontend({ cryptoEnabled: true, paymentMethods: ["crypto"] });
+  assert.equal(frontend.paymentButtons[0].hidden, false);
+  assert.equal(frontend.paymentButtons[0].disabled, false);
+  assert.ok(frontend.cryptoToggles["[data-crypto-only]"].every((el) => el.hidden === false));
+  assert.ok(frontend.cryptoToggles["[data-crypto-off]"].every((el) => el.hidden === true));
+  frontend.context.applyPromoCode("cig10");
+  assert.match(frontend.promoMessageElement.textContent, /Crypto checkout gets its 20% off instead/);
+});
+
+test("every crypto button and 20%-off line starts hidden in the HTML (no flash while off)", () => {
+  for (const page of ["index.html", "gallery.html", "arcade.html"]) {
+    const html = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
+    const buttons = html.match(/<button[^>]*data-method="crypto"[^>]*>/g) || [];
+    assert.equal(buttons.length, 1, page);
+    assert.match(buttons[0], /data-crypto-only hidden/, page);
+    // Any visible text mentioning crypto or 20% off must be inside a hidden crypto-only element.
+    const visible = html
+      .replace(/<script[\s\S]*?<\/script>/g, "")
+      .replace(/<(\w+)[^>]*data-crypto-only hidden[^>]*>[\s\S]*?<\/\1>/g, "");
+    assert.doesNotMatch(visible.replace(/<[^>]+>/g, " "), /crypto|20% off/i, page);
   }
 });

@@ -50,7 +50,8 @@
 
 <section class="hero-intro reveal">
   <p class="hero-kicker">Archive Collection</p>
-  <p class="hero-tagline">Pay with card, PayPal, or crypto — 20% off always on crypto.</p>
+  <p class="hero-tagline" data-crypto-off>Pay with card or PayPal.</p>
+  <p class="hero-tagline" data-crypto-only hidden>Pay with card, PayPal, or crypto — 20% off always on crypto.</p>
   <a href="#shop" class="btn btn-gold">Shop Now</a>
 </section>
 
@@ -139,7 +140,7 @@
           <input type="text" id="checkout-pccc" placeholder="P + 12 digits (e.g. P123456789012)" maxlength="16" autocomplete="off" inputmode="text" />
           <p class="checkout-note">Required by Korea Customs for every South Korea order. Get yours at unipass.customs.go.kr.</p>
         </div>
-        <p class="checkout-note">Free US shipping. Canada, UK, Germany, Australia, Japan &amp; South Korea ship for a flat per-item fee shown above. MagSafe cases to Japan &amp; South Korea take about 30 days to arrive. Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility; shipping isn&rsquo;t refunded on refused parcels. Pillows ship to the US only. Crypto orders need a state + ZIP (US) or postal code.</p>
+        <p class="checkout-note">Free US shipping. Canada, UK, Germany, Australia, Japan &amp; South Korea ship for a flat per-item fee shown above. MagSafe cases to Japan &amp; South Korea take about 30 days to arrive. Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility; shipping isn&rsquo;t refunded on refused parcels. Pillows ship to the US only.<span data-crypto-only hidden> Crypto orders need a state + ZIP (US) or postal code.</span></p>
         <label class="checkbox-row">
           <input type="checkbox" id="checkout-optin" />
           <span>Keep me posted on drops &amp; discounts (optional)</span>
@@ -150,7 +151,7 @@
       <div class="payment-options">
         <button class="btn btn-outline pay-btn" data-method="stripe">Pay with Card</button>
         <button class="btn btn-outline pay-btn" data-method="paypal">Pay with PayPal</button>
-        <button class="btn btn-outline pay-btn pay-crypto" data-method="crypto">Pay with Crypto (20% off)</button>
+        <button class="btn btn-outline pay-btn pay-crypto" data-method="crypto" data-crypto-only hidden>Pay with Crypto (20% off)</button>
       </div>
       <p id="checkout-error" class="checkout-error"></p>
       <p id="checkout-loading" class="checkout-loading" hidden>Redirecting to secure checkout&hellip;</p>

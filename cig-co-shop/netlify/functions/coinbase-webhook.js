@@ -4,6 +4,7 @@
 // COINBASE_COMMERCE_API_KEY (to re-read the charge from Coinbase)
 const crypto = require("node:crypto");
 const { recordPaidOrder } = require("../lib/order-recording.js");
+const { cryptoWebhookEnabled } = require("../lib/crypto-payment.js");
 const { safeIdentifier, timingSafeTokenMatch } = require("../lib/customer-utils.js");
 
 const PAID_EVENTS = new Set(["charge:confirmed", "charge:resolved"]);
@@ -97,6 +98,12 @@ function createHandler({
   return async (event) => {
     if (event.httpMethod !== "POST") {
       return { statusCode: 405, body: "Method Not Allowed" };
+    }
+
+    // Crypto is switched off (CRYPTO_ENABLED in products.js) or not configured:
+    // answer cleanly without logging an error or touching Coinbase.
+    if (!cryptoWebhookEnabled(environment)) {
+      return json(503, { error: "Crypto checkout is turned off." });
     }
 
     const rawBody = rawEventBody(event);

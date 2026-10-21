@@ -254,7 +254,8 @@ test("PayPal and Coinbase refuse POD items (card only)", async () => {
       headers: {},
       body: JSON.stringify({ cart: [{ productId: POD_PRODUCT.id, size: "M", price: 65, qty: 1 }] }),
     });
-    assert.equal(response.statusCode, 400);
+    // Coinbase is switched off (CRYPTO_ENABLED=false), so it refuses everything with 503.
+    assert.equal(response.statusCode, fn === coinbase ? 503 : 400);
     assert.match(JSON.parse(response.body).error, /card/);
   }
 });

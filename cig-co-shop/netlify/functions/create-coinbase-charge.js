@@ -9,6 +9,8 @@
 // international shipping always covers Printful's cost.
 // Payment is confirmed by the signed coinbase-webhook function.
 // Requires env var: COINBASE_COMMERCE_API_KEY (from https://beta.commerce.coinbase.com/settings/security)
+// Off unless CRYPTO_ENABLED in products.js is true and the key is set; while
+// off it answers 503 with a friendly message and never calls Coinbase.
 const {
   PricingValidationError,
   priceCartForStripe,
@@ -26,6 +28,7 @@ const {
 } = require("../lib/checkout-shipping.js");
 
 const { assertPodAllowedWithoutCard } = require("../lib/pod-payment.js");
+const { CRYPTO_DISABLED_MESSAGE, cryptoCheckoutEnabled } = require("../lib/crypto-payment.js");
 
 const CRYPTO_DISCOUNT = 0.20; // 20% off for crypto payments, always
 
@@ -45,6 +48,9 @@ function createHandler({
   return async (event) => {
     if (event.httpMethod !== "POST") {
       return { statusCode: 405, body: "Method Not Allowed" };
+    }
+    if (!cryptoCheckoutEnabled(environment)) {
+      return { statusCode: 503, body: JSON.stringify({ error: CRYPTO_DISABLED_MESSAGE }) };
     }
     try {
       const body = JSON.parse(event.body || "{}");

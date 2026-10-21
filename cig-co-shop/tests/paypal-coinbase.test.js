@@ -12,7 +12,8 @@ const { createPayPalClient, paidPayPalOrder } = require("../netlify/lib/paypal.j
 const { recordPaidOrder } = require("../netlify/lib/order-recording.js");
 
 const silent = { log() {}, error() {} };
-const ENV = { SITE_URL: "https://shop.test" };
+const { CRYPTO_ENV } = require("./crypto-fixture.js");
+const ENV = { SITE_URL: "https://shop.test", ...CRYPTO_ENV };
 const customer = {
   email: "Buyer@Example.com",
   name: "Ada Lovelace",
@@ -449,7 +450,7 @@ function paidCharge(status = "COMPLETED") {
   };
 }
 
-function coinbaseWebhook({ charge = paidCharge(), environment = { COINBASE_COMMERCE_WEBHOOK_SECRET: COINBASE_SECRET } } = {}) {
+function coinbaseWebhook({ charge = paidCharge(), environment = { ...CRYPTO_ENV, COINBASE_COMMERCE_WEBHOOK_SECRET: COINBASE_SECRET } } = {}) {
   const recorded = [];
   const handler = createCoinbaseWebhookHandler({
     fetchImpl: async () => ({ ok: true, json: async () => ({ data: charge }) }),
@@ -466,8 +467,8 @@ test("Coinbase webhook rejects bad signatures and fails closed without a secret"
   const bad = coinbaseWebhook();
   assert.equal((await bad.handler(signedCoinbase(confirmedEvent, "wrong"))).statusCode, 400);
   assert.equal(bad.recorded.length, 0);
-  const unconfigured = coinbaseWebhook({ environment: {} });
-  assert.equal((await unconfigured.handler(signedCoinbase(confirmedEvent))).statusCode, 500);
+  const unconfigured = coinbaseWebhook({ environment: { ...CRYPTO_ENV } });
+  assert.equal((await unconfigured.handler(signedCoinbase(confirmedEvent))).statusCode, 503);
   assert.equal(unconfigured.recorded.length, 0);
 });
 
