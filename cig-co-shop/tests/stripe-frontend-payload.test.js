@@ -118,6 +118,7 @@ function loadFrontend({
     PROMO_CODES: promoCodes,
     SHIP_TO_COUNTRIES: shippingRates.SHIP_TO_COUNTRIES,
     quoteShipping: shippingRates.quoteShipping,
+    slowDeliveryNote: shippingRates.slowDeliveryNote,
     URL,
     console: {
       error(...args) {
@@ -932,6 +933,30 @@ test("a pillow in the bag disables non-US countries and explains why", () => {
   );
   assert.equal(frontend.shippingNoteElement.hidden, false);
   assert.match(frontend.shippingNoteElement.textContent, /CIG Pillow Case ships to the US only/);
+});
+
+test("Japan and South Korea are selectable for bags, cases and sleeves; cases warn about ~30 days", () => {
+  const caseItem = { productId: "T-CASE", name: "Test MagSafe Case", price: 30, image: "", color: null, size: null, style: null, qty: 1 };
+  const sleeveItem = { productId: "T-SLEEVE", name: "Test Laptop Sleeve", price: 35, image: "", color: null, size: null, style: null, qty: 1 };
+  const frontend = loadFrontend({ shipCountry: "JP", storedCart: [bagItem, caseItem, sleeveItem] });
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.countrySelect.value, "JP");
+  assert.ok(frontend.countrySelect.options.every((option) => option.disabled === false));
+  // JP: bag $5 x2 + case $6 + sleeve $8
+  assert.match(frontend.summaryElement.innerHTML, /Shipping \(Japan\)<\/span><span>\$24\.00/);
+  assert.equal(frontend.shippingNoteElement.hidden, false);
+  assert.match(frontend.shippingNoteElement.textContent, /Test MagSafe Case to Japan takes about 30 days/);
+  frontend.countrySelect.value = "KR";
+  frontend.context.renderCheckoutSummary();
+  // KR: bag $13 x2 + case $9 + sleeve $18
+  assert.match(frontend.summaryElement.innerHTML, /Shipping \(South Korea\)<\/span><span>\$53\.00/);
+  assert.match(frontend.shippingNoteElement.textContent, /South Korea takes about 30 days/);
+  frontend.countrySelect.value = "GB";
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.shippingNoteElement.hidden, true);
+  const bagOnly = loadFrontend({ shipCountry: "KR", storedCart: [bagItem] });
+  bagOnly.context.renderCheckoutSummary();
+  assert.equal(bagOnly.shippingNoteElement.hidden, true);
 });
 
 test("card and PayPal send the chosen country; US payloads stay unchanged", async () => {

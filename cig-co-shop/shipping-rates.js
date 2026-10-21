@@ -2,7 +2,7 @@
 //
 // Status of each country's rates:
 //   CA, GB, DE, AU: APPROVED by CIG on 2026-10-21.
-//   JP, KR:         *** PROPOSED (new, not yet approved by CIG) ***
+//   JP, KR:         APPROVED by CIG on 2026-10-21.
 //
 // US: free shipping on everything (unchanged).
 // International: only the countries below, and only for products whose
@@ -22,8 +22,8 @@ const SHIP_TO_COUNTRIES = {
   GB: "United Kingdom",
   DE: "Germany",
   AU: "Australia",
-  JP: "Japan",       // PROPOSED
-  KR: "South Korea", // PROPOSED
+  JP: "Japan",
+  KR: "South Korea",
 };
 
 const INTERNATIONAL_SHIPPING_PER_ITEM_USD = {
@@ -37,6 +37,13 @@ const INTERNATIONAL_SHIPPING_PER_ITEM_USD = {
   //   Printful per-unit: CA 9.79  GB 7.29  DE 7.29  AU 12.49 | JP 7.89  KR 17.69
   sleeve: { CA: 10, GB: 8, DE: 8, AU: 13, JP: 8, KR: 18 },
   // pillow: US only (Printful: CA 12.69, GB 11.49, DE 13.79, AU 37.59, JP 55.99, KR 51.99)
+};
+
+// Slow routes: shown to the buyer at checkout so the wait isn't a surprise.
+// Printful's standard estimate for MagSafe cases to Japan/South Korea is up
+// to 30 days (bags and sleeves are ~8-11 days).
+const SLOW_DELIVERY = {
+  case: { JP: "about 30 days", KR: "about 30 days" },
 };
 
 // Returns the per-item charge in cents, or null if that class can't ship there.
@@ -67,11 +74,27 @@ function quoteShipping(lines, country) {
   return { country, shippingCents: blocked.length ? null : shippingCents, blocked, unsupportedCountry: false };
 }
 
+// lines: [{ name, shipping }]. Returns a short note for items on a slow route
+// to that country, or "" if none.
+function slowDeliveryNote(lines, country) {
+  const notes = [];
+  lines.forEach((line) => {
+    const route = SLOW_DELIVERY[line.shipping];
+    const eta = route && route[country];
+    if (eta && !notes.some((n) => n.name === line.name)) notes.push({ name: line.name, eta });
+  });
+  if (!notes.length) return "";
+  const place = SHIP_TO_COUNTRIES[country] || country;
+  return notes.map((n) => `${n.name} to ${place} takes ${n.eta} to arrive.`).join(" ");
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     INTERNATIONAL_SHIPPING_PER_ITEM_USD,
     SHIP_TO_COUNTRIES,
+    SLOW_DELIVERY,
     quoteShipping,
+    slowDeliveryNote,
     shippingCentsPerItem,
   };
 }

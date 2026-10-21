@@ -6,7 +6,9 @@ require("./shipping-fixture.js");
 const {
   INTERNATIONAL_SHIPPING_PER_ITEM_USD,
   SHIP_TO_COUNTRIES,
+  SLOW_DELIVERY,
   quoteShipping,
+  slowDeliveryNote,
 } = require("../shipping-rates.js");
 const { PRODUCTS } = require("../products.js");
 const { priceCartForStripe } = require("../netlify/lib/stripe-pricing.js");
@@ -80,7 +82,7 @@ test("pillows (and products without an international class) block non-US shippin
   assert.equal(quoteShipping([{ name: "Pillow", shipping: "pillow", quantity: 1 }], "CA").shippingCents, null);
 });
 
-test("countries outside US/CA/GB/DE/AU are refused", () => {
+test("countries outside US/CA/GB/DE/AU/JP/KR are refused", () => {
   const pricing = priceCartForStripe([bag()]);
   for (const country of ["FR", "MX", "PR", "XX"]) {
     assert.throws(() => resolveCheckoutShipping(pricing, country), /only ship to the United States, Canada, the United Kingdom, Germany, Australia, Japan, and South Korea/);
@@ -339,4 +341,49 @@ test("Japan and South Korea checkouts price shipping and keep pillows US-only", 
   await stripeHandler(post({ items: [sleeve()], shipCountry: "KR" }));
   assert.deepEqual(stripe.request.shipping_address_collection, { allowed_countries: ["KR"] });
   assert.equal(stripe.request.shipping_options[0].shipping_rate_data.fixed_amount.amount, 1800);
+});
+
+test("Japan and South Korea are approved and live: no PROPOSED flags left", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const source = fs.readFileSync(path.join(__dirname, "..", "shipping-rates.js"), "utf8");
+  assert.doesNotMatch(source, /PROPOSED/);
+  assert.equal(SHIP_TO_COUNTRIES.JP, "Japan");
+  assert.equal(SHIP_TO_COUNTRIES.KR, "South Korea");
+  const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  assert.match(html, /<option value="JP">Japan<\/option>/);
+  assert.match(html, /<option value="KR">South Korea<\/option>/);
+  assert.match(html, /MagSafe cases to Japan &amp; South Korea take about 30 days/);
+  assert.deepEqual(INTERNATIONAL_SHIPPING_PER_ITEM_USD.bag, { CA: 8, GB: 5, DE: 5, AU: 8, JP: 5, KR: 13 });
+  assert.deepEqual(INTERNATIONAL_SHIPPING_PER_ITEM_USD.case, { CA: 10, GB: 3, DE: 8, AU: 9, JP: 6, KR: 9 });
+  assert.deepEqual(INTERNATIONAL_SHIPPING_PER_ITEM_USD.sleeve, { CA: 10, GB: 8, DE: 8, AU: 13, JP: 8, KR: 18 });
+});
+
+test("only MagSafe cases to Japan/South Korea get the ~30-day note", () => {
+  assert.deepEqual(Object.keys(SLOW_DELIVERY), ["case"]);
+  const lines = [{ name: "Case", shipping: "case", quantity: 2 }, { name: "Bag", shipping: "bag", quantity: 1 }];
+  assert.equal(slowDeliveryNote(lines, "JP"), "Case to Japan takes about 30 days to arrive.");
+  assert.equal(slowDeliveryNote(lines, "KR"), "Case to South Korea takes about 30 days to arrive.");
+  assert.equal(slowDeliveryNote(lines, "GB"), "");
+  assert.equal(slowDeliveryNote(lines, "US"), "");
+  assert.equal(slowDeliveryNote([{ name: "Bag", shipping: "bag", quantity: 1 }], "KR"), "");
+});
+
+test("Stripe accepts Japan and South Korea for bags, cases and sleeves, never pillows", async () => {
+  for (const [country, zip] of [["JP", "150-0001"], ["KR", "06236"]]) {
+    for (const item of [bag(), phoneCase(), sleeve()]) {
+      const stripe = stripeStub();
+      const handler = createStripeHandler({ stripeFactory: stripe.factory, siteUrl: "https://shop.test", logger: silent });
+      const response = await handler(post({ items: [item], shipCountry: country, customer: { email: "a@b.co" } }));
+      assert.equal(response.statusCode, 200, `${country} ${item.productId}`);
+      assert.deepEqual(stripe.request.shipping_address_collection, { allowed_countries: [country] });
+      assert.equal(stripe.request.metadata.ship_country, country);
+    }
+    assert.equal(requireShippingAddress({ zip }, country).zip, zip);
+  }
+  const stripe = stripeStub();
+  const handler = createStripeHandler({ stripeFactory: stripe.factory, siteUrl: "https://shop.test", logger: silent });
+  const refused = await handler(post({ items: [pillow()], shipCountry: "JP" }));
+  assert.equal(refused.statusCode, 400);
+  assert.equal(stripe.request, undefined);
 });

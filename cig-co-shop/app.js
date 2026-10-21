@@ -439,8 +439,8 @@ function selectedShipCountry() {
 
 // Same quote the server charges (shipping-rates.js). Returns
 // { shippingCents, blocked: [product names that ship to the US only] }.
-function cartShippingQuote(cart, country) {
-  const lines = cart.map((item) => {
+function cartShippingLines(cart) {
+  return cart.map((item) => {
     const product = PRODUCTS.find((entry) => entry.id === item.productId);
     return {
       name: product ? product.name : item.name,
@@ -448,6 +448,10 @@ function cartShippingQuote(cart, country) {
       quantity: item.qty,
     };
   });
+}
+
+function cartShippingQuote(cart, country) {
+  const lines = cartShippingLines(cart);
   if (country === "US") return { shippingCents: 0, blocked: [] };
   if (typeof quoteShipping !== "function") {
     return { shippingCents: null, blocked: lines.map((line) => line.name) };
@@ -475,11 +479,15 @@ function updateShipToOptions(cart) {
     const current = Array.from(select.options).find((option) => option.value === select.value);
     if (current && current.disabled) select.value = "US";
   }
-  if (note) {
-    note.textContent = blockedNames.length ? usOnlyMessage(blockedNames) : "";
-    note.hidden = !blockedNames.length;
-  }
   const country = selectedShipCountry();
+  if (note) {
+    let text = blockedNames.length ? usOnlyMessage(blockedNames) : "";
+    if (!text && country !== "US" && typeof slowDeliveryNote === "function") {
+      text = slowDeliveryNote(cartShippingLines(cart), country);
+    }
+    note.textContent = text;
+    note.hidden = !text;
+  }
   const stateEl = document.getElementById("checkout-state");
   const zipEl = document.getElementById("checkout-zip");
   if (stateEl) stateEl.placeholder = country === "US" ? "State (e.g. GA)" : "State / Province (optional)";

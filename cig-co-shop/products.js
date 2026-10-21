@@ -11,6 +11,9 @@
 // shipping: the product's shipping class from shipping-rates.js
 //   ("bag", "case", "sleeve", or "pillow"). Only bag/case/sleeve can ship
 //   internationally; pillows and products with no class ship to the US only.
+//   International: CA, GB, DE, AU, JP, KR (rates in shipping-rates.js). For a
+//   MagSafe case, add to its description: "Japan & South Korea: allow ~30 days."
+//   (checkout also shows this automatically).
 //
 // pod: { ... } — print-on-demand (made to order by Printful, no stock to track).
 //   Leave out `stock` so it never sells out. Paid card orders are sent to
