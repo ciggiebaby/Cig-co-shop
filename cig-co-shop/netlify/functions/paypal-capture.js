@@ -1,7 +1,8 @@
 // PayPal sends the buyer here (?token=<order id>) after they approve payment.
-// Captures the payment, records the order, and sends the buyer back to the shop.
+// Checks the order ships to the US (we don't capture anything else), captures the
+// payment, records the order, and sends the buyer back to the shop.
 // Recording is retried by paypal-webhook if anything fails after capture.
-const { createPayPalClient, recordPayPalOrder } = require("../lib/paypal.js");
+const { createPayPalClient, payPalShippingCountry, recordPayPalOrder, shipsToUs } = require("../lib/paypal.js");
 const { checkoutSiteUrl } = require("../lib/checkout-request.js");
 const { safeIdentifier } = require("../lib/customer-utils.js");
 
@@ -31,7 +32,21 @@ function createHandler({
 
     let order;
     try {
-      order = await paypalFactory({ environment }).captureOrder(orderId);
+      const paypal = paypalFactory({ environment });
+      const approved = await paypal.getOrder(orderId);
+      if (approved && approved.status === "COMPLETED") {
+        // Already captured (e.g. by paypal-webhook); just record and confirm.
+        order = approved;
+      } else if (!shipsToUs(approved)) {
+        // Never capture money for an address we don't ship to.
+        logger.error("PayPal order not captured: shipping address is outside the US.", {
+          order: safeIdentifier(orderId),
+          country: payPalShippingCountry(approved) || "missing",
+        });
+        return redirect("us-only");
+      } else {
+        order = await paypal.captureOrder(orderId);
+      }
     } catch (error) {
       logger.error("PayPal capture failed.", {
         order: safeIdentifier(orderId),

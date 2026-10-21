@@ -2,6 +2,7 @@
 // applied automatically, and returns the hosted checkout URL.
 // Prices come from products.js on the server (browser prices are ignored).
 // Promo codes never stack with the crypto discount: any promo code is ignored.
+// US shipping only (state + ZIP required), matching the Stripe checkout.
 // Payment is confirmed by the signed coinbase-webhook function.
 // Requires env var: COINBASE_COMMERCE_API_KEY (from https://beta.commerce.coinbase.com/settings/security)
 const {
@@ -13,6 +14,7 @@ const {
   RequestValidationError,
   normalizeEmail,
 } = require("../lib/customer-utils.js");
+const { requireUsShipping } = require("../lib/us-shipping.js");
 
 const CRYPTO_DISCOUNT = 0.20; // 20% off for crypto payments, always
 
@@ -39,6 +41,8 @@ function createHandler({
       const customer = body.customer || {};
       // The order record and receipt email go to this address, so require it.
       const email = normalizeEmail(customer.email);
+      // We only ship to the US; reject anything else before creating a charge.
+      const shipping = requireUsShipping(customer);
       // No promo code here — crypto always gets its 20% instead.
       const pricing = priceCartForStripe(trustedCartItems(body), null);
       const discounted = (cryptoChargeCents(pricing.totalCents) / 100).toFixed(2);
@@ -67,6 +71,9 @@ function createHandler({
             customer_name: text(customer.name),
             shipping_address: text(customer.address),
             shipping_city: text(customer.city),
+            shipping_state: shipping.state,
+            shipping_zip: shipping.zip,
+            shipping_country: shipping.country,
             marketing_consent: customer.marketingConsent === true ? "true" : "false",
             items: JSON.stringify(lines),
           },

@@ -151,6 +151,18 @@ function parseCustomId(value) {
   }
 }
 
+// The buyer's PayPal shipping country (e.g. "US"), or null if PayPal sent none.
+function payPalShippingCountry(order) {
+  const unit = order && order.purchase_units && order.purchase_units[0];
+  const country = unit && unit.shipping && unit.shipping.address && unit.shipping.address.country_code;
+  return typeof country === "string" && country ? country.toUpperCase() : null;
+}
+
+// We only ship to the US (same as Stripe), so only capture orders shipping there.
+function shipsToUs(order) {
+  return payPalShippingCountry(order) === "US";
+}
+
 // Returns the order details to record, or null if the money isn't captured yet.
 function paidPayPalOrder(order) {
   const unit = order && order.purchase_units && order.purchase_units[0];
@@ -214,5 +226,7 @@ module.exports = {
   buildPayPalOrder,
   createPayPalClient,
   paidPayPalOrder,
+  payPalShippingCountry,
   recordPayPalOrder,
+  shipsToUs,
 };

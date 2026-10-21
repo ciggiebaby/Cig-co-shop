@@ -112,7 +112,12 @@
         <input type="email" id="checkout-email" placeholder="Email" required />
         <input type="text" id="checkout-name" placeholder="Full name" required />
         <input type="text" id="checkout-address" placeholder="Shipping address" required />
-        <input type="text" id="checkout-city" placeholder="City, State, ZIP" required />
+        <input type="text" id="checkout-city" placeholder="City" required />
+        <div class="checkout-row">
+          <input type="text" id="checkout-state" placeholder="State (e.g. GA)" maxlength="2" autocomplete="address-level1" />
+          <input type="text" id="checkout-zip" placeholder="ZIP" inputmode="numeric" maxlength="10" autocomplete="postal-code" />
+        </div>
+        <p class="checkout-note">We ship to US addresses only. State and ZIP are required for crypto orders.</p>
         <label class="checkbox-row">
           <input type="checkbox" id="checkout-optin" />
           <span>Keep me posted on drops &amp; discounts (optional)</span>

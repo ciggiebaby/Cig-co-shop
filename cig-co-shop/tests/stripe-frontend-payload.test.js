@@ -15,6 +15,7 @@ function loadFrontend({
   promoCode = null,
   promoCodes = { CIG10: { discount: 0.1, label: "10% off" } },
   storedCart,
+  fieldOverrides = {},
 } = {}) {
   const promoMessageElement = {
     textContent: "",
@@ -45,7 +46,12 @@ function loadFrontend({
     "checkout-name": { value: "Customer" },
     "checkout-address": { value: "1 Test Street" },
     "checkout-city": { value: "Test City" },
+    "checkout-state": { value: "tx" },
+    "checkout-zip": { value: "78701" },
   };
+  for (const [id, value] of Object.entries(fieldOverrides)) {
+    checkoutFields[id] = { value };
+  }
   const developerErrors = [];
   const paymentButtons = paymentMethods.map((method) => {
     const listeners = new Map();
@@ -788,4 +794,64 @@ test("Arcade codes are checked with the server before they're applied", async ()
   assert.equal(vm.runInContext("promoState", context), null);
   assert.equal(promoMessageElement.textContent, "This code has already been used.");
   assert.equal(promoMessageElement.classes.has("promo-error"), true);
+});
+
+test("crypto checkout sends a US state, ZIP, and country", async () => {
+  const requests = [];
+  const frontend = loadFrontend({
+    fetchImpl: async (url, init) => {
+      requests.push({ url, body: JSON.parse(init.body) });
+      return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } };
+    },
+    paymentMethods: ["crypto"],
+    storedCart: [
+      { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 },
+    ],
+  });
+  await frontend.paymentButtons[0].click();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].body.customer.state, "TX");
+  assert.equal(requests[0].body.customer.zip, "78701");
+  assert.equal(requests[0].body.customer.country, "US");
+});
+
+test("crypto checkout needs a US state and ZIP before it calls the server", async () => {
+  for (const fieldOverrides of [{ "checkout-state": "" }, { "checkout-zip": "SW1A 1AA" }]) {
+    const requests = [];
+    const frontend = loadFrontend({
+      fetchImpl: async (url) => { requests.push(url); return { ok: true, async json() { return { url: "x" }; } }; },
+      paymentMethods: ["crypto"],
+      fieldOverrides,
+      storedCart: [
+        { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 },
+      ],
+    });
+    await frontend.paymentButtons[0].click();
+    assert.deepEqual(requests, []);
+    assert.match(frontend.errorElement.textContent, /US/);
+  }
+});
+
+test("server checkout rejections (like US-only shipping) are shown to the shopper as-is", async () => {
+  const frontend = loadFrontend({
+    fetchImpl: async () => ({
+      ok: false,
+      status: 400,
+      async json() { return { error: "Sorry, we only ship to US addresses right now." }; },
+    }),
+    paymentMethods: ["crypto"],
+    storedCart: [
+      { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 },
+    ],
+  });
+  await frontend.paymentButtons[0].click();
+  assert.equal(frontend.errorElement.textContent, "Sorry, we only ship to US addresses right now.");
+});
+
+test("a PayPal us-only return shows a friendly banner and cleans the URL", () => {
+  const frontend = loadFrontend({ href: "https://shop.test/?checkout=us-only#shop" });
+  assert.equal(frontend.statusElement.hidden, false);
+  assert.match(frontend.statusElement.textContent, /only ship to US addresses/);
+  assert.match(frontend.statusElement.textContent, /wasn’t taken/);
+  assert.equal(frontend.historyCalls[0].url, "/#shop");
 });

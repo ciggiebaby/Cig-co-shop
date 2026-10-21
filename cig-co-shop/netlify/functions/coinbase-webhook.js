@@ -76,10 +76,11 @@ function chargeOrder(charge) {
       line1: metadata.shipping_address || null,
       line2: null,
       city: metadata.shipping_city || null,
-      state: null,
-      postalCode: null,
-      country: null,
-      summary: metadata.shipping_city || null,
+      state: metadata.shipping_state || null,
+      postalCode: metadata.shipping_zip || null,
+      country: metadata.shipping_country || null,
+      summary: [metadata.shipping_city, metadata.shipping_state, metadata.shipping_zip, metadata.shipping_country]
+        .filter(Boolean).join(", ") || null,
     } : null,
     marketingConsent: metadata.marketing_consent === "true",
     promoCode: null, // promo codes never apply to crypto

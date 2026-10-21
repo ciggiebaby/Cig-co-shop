@@ -453,12 +453,21 @@ function renderCheckoutSummary() {
   summary.innerHTML = rows;
 }
 
+function checkoutFieldValue(id) {
+  const element = document.getElementById(id);
+  return element && typeof element.value === "string" ? element.value.trim() : "";
+}
+
 function getCheckoutFields() {
   return {
-    email: document.getElementById("checkout-email").value.trim(),
-    name: document.getElementById("checkout-name").value.trim(),
-    address: document.getElementById("checkout-address").value.trim(),
-    city: document.getElementById("checkout-city").value.trim(),
+    email: checkoutFieldValue("checkout-email"),
+    name: checkoutFieldValue("checkout-name"),
+    address: checkoutFieldValue("checkout-address"),
+    city: checkoutFieldValue("checkout-city"),
+    state: checkoutFieldValue("checkout-state").toUpperCase(),
+    zip: checkoutFieldValue("checkout-zip"),
+    // We only ship to the US (card checkout enforces this too).
+    country: "US",
   };
 }
 
@@ -466,10 +475,30 @@ function validateCheckoutFields(fields) {
   return fields.email && fields.name && fields.address && fields.city;
 }
 
+// Crypto has no hosted address form, so it needs a full US address from us.
+function validateCryptoShipping(fields) {
+  if (!/^[A-Z]{2}$/.test(fields.state)) {
+    return "Crypto orders need a US state (2-letter code, e.g. GA). We only ship to US addresses.";
+  }
+  if (!/^\d{5}(-\d{4})?$/.test(fields.zip)) {
+    return "Crypto orders need a valid 5-digit US ZIP code.";
+  }
+  return null;
+}
+
 class StripeCartCompatibilityError extends Error {
   constructor(message) {
     super(message);
     this.name = "StripeCartCompatibilityError";
+  }
+}
+
+// The server turned the checkout down with a message meant for the shopper
+// (e.g. a non-US crypto address), so show it as-is.
+class CheckoutRequestError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "CheckoutRequestError";
   }
 }
 
@@ -571,6 +600,8 @@ function handleCheckoutResult({
       "You returned from checkout. Payment confirmation is still pending, so your bag has been kept for now.",
     failed:
       "Your payment didn’t go through, so nothing was charged. Your bag is still saved.",
+    "us-only":
+      "Sorry, we only ship to US addresses right now, so your PayPal payment wasn’t taken. Your bag is still saved.",
   };
   const message = messages[result];
   if (!message) return;
@@ -605,6 +636,14 @@ paymentButtons.forEach((btn) => {
     if (!validateCheckoutFields(fields)) {
       errorEl.textContent = "Please fill in all fields before checking out.";
       return;
+    }
+
+    if (method === "crypto") {
+      const shippingError = validateCryptoShipping(fields);
+      if (shippingError) {
+        errorEl.textContent = shippingError;
+        return;
+      }
     }
 
     const cart = getCart();
@@ -645,11 +684,17 @@ paymentButtons.forEach((btn) => {
       // enforces this too); prices themselves are always computed server-side.
       const checkoutPromo = method === "crypto" ? null : promoState;
 
+      // Only crypto needs state/ZIP/country from us; card and PayPal collect the
+      // shipping address on their own hosted pages (both limited to the US).
+      const { state, zip, country, ...baseFields } = fields;
+      const customerFields =
+        method === "crypto" ? { ...baseFields, state, zip, country } : baseFields;
+
       let requestBody = buildCheckoutRequestBody(
         method,
         cart,
         cart,
-        fields,
+        customerFields,
         checkoutPromo,
       );
       requestBody = {
@@ -672,6 +717,9 @@ paymentButtons.forEach((btn) => {
         body: JSON.stringify(requestBody),
       });
       const data = await res.json();
+      if (res.status === 400 && data.error) {
+        throw new CheckoutRequestError(data.error);
+      }
       if (!res.ok || !data.url) {
         throw new Error(data.error || "Checkout could not be started.");
       }
@@ -688,6 +736,7 @@ paymentButtons.forEach((btn) => {
           "Checkout could not be prepared. Please refresh and try again.";
       } else {
         errorEl.textContent = err instanceof StripeCartCompatibilityError
+          || err instanceof CheckoutRequestError
           ? err.message
           : "Checkout isn't wired up yet on this deployment — add your API keys per the README, then this button will work. (" +
             err.message +

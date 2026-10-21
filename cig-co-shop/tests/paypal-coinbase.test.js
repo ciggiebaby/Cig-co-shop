@@ -13,7 +13,15 @@ const { recordPaidOrder } = require("../netlify/lib/order-recording.js");
 
 const silent = { log() {}, error() {} };
 const ENV = { SITE_URL: "https://shop.test" };
-const customer = { email: "Buyer@Example.com", name: "Ada Lovelace", address: "1 Main St", city: "Austin, TX 78701" };
+const customer = {
+  email: "Buyer@Example.com",
+  name: "Ada Lovelace",
+  address: "1 Main St",
+  city: "Austin",
+  state: "tx",
+  zip: "78701",
+  country: "US",
+};
 // Browser prices are deliberately wrong; the server must ignore them.
 const tamperedCart = [{ productId: "0003", color: "Red", size: null, style: null, qty: 2, price: 0.01, name: "x" }];
 
@@ -109,6 +117,15 @@ function completedOrder(overrides = {}) {
   };
 }
 
+// What PayPal returns for an approved-but-not-yet-captured order.
+function approvedOrder(overrides = {}, country = "US") {
+  const order = completedOrder({ status: "APPROVED", ...overrides });
+  delete order.purchase_units[0].payments;
+  if (country === null) delete order.purchase_units[0].shipping;
+  else order.purchase_units[0].shipping.address.country_code = country;
+  return order;
+}
+
 test("captured PayPal orders map to the same order record as Stripe", () => {
   const paid = paidPayPalOrder(completedOrder());
   assert.equal(paid.sessionId, "paypal:5O190127TN364715T");
@@ -134,7 +151,10 @@ test("uncaptured or mismatched PayPal orders are not recorded", () => {
 test("PayPal return URL captures, records, and redirects", async () => {
   const recorded = [];
   const handler = createPayPalCaptureHandler({
-    paypalFactory: () => ({ captureOrder: async (id) => completedOrder({ id }) }),
+    paypalFactory: () => ({
+      getOrder: async (id) => approvedOrder({ id }),
+      captureOrder: async (id) => completedOrder({ id }),
+    }),
     recordOrder: async (order, meta) => { recorded.push({ order, meta }); return true; },
     environment: ENV,
     logger: silent,
@@ -148,7 +168,10 @@ test("PayPal return URL captures, records, and redirects", async () => {
 
 test("PayPal return URL reports failed captures and ignores junk tokens", async () => {
   const handler = createPayPalCaptureHandler({
-    paypalFactory: () => ({ captureOrder: async () => { throw new Error("INSTRUMENT_DECLINED"); } }),
+    paypalFactory: () => ({
+      getOrder: async (id) => approvedOrder({ id }),
+      captureOrder: async () => { throw new Error("INSTRUMENT_DECLINED"); },
+    }),
     recordOrder: async () => { throw new Error("should not record"); },
     environment: ENV,
     logger: silent,
@@ -174,6 +197,58 @@ test("PayPal capture is idempotent and re-reads already-captured orders", async 
   assert.equal(order.status, "COMPLETED");
   const capture = calls.find((call) => call.url.endsWith("/capture"));
   assert.equal(capture.init.headers["PayPal-Request-Id"], "capture-5O190127TN364715T");
+});
+
+test("PayPal return URL never captures orders shipping outside the US", async () => {
+  for (const country of ["CA", "GB", null]) {
+    const calls = { captured: 0, recorded: 0, logged: [] };
+    const handler = createPayPalCaptureHandler({
+      paypalFactory: () => ({
+        getOrder: async (id) => approvedOrder({ id }, country),
+        captureOrder: async () => { calls.captured += 1; return completedOrder(); },
+      }),
+      recordOrder: async () => { calls.recorded += 1; return true; },
+      environment: ENV,
+      logger: { log() {}, error(message, details) { calls.logged.push(details); } },
+    });
+    const response = await handler({ httpMethod: "GET", headers: {}, queryStringParameters: { token: "5O190127TN364715T" } });
+    assert.equal(response.headers.Location, "https://shop.test/?checkout=us-only");
+    assert.equal(calls.captured, 0);
+    assert.equal(calls.recorded, 0);
+    assert.equal(calls.logged[0].country, country || "missing");
+    assert.doesNotMatch(JSON.stringify(calls.logged), /5O190127TN364715T|buyer@example.com|Main St/);
+  }
+});
+
+test("PayPal return URL records an order the webhook already captured without re-capturing", async () => {
+  let captured = 0;
+  const recorded = [];
+  const handler = createPayPalCaptureHandler({
+    paypalFactory: () => ({
+      getOrder: async (id) => completedOrder({ id }),
+      captureOrder: async () => { captured += 1; return completedOrder(); },
+    }),
+    recordOrder: async (order) => { recorded.push(order); return true; },
+    environment: ENV,
+    logger: silent,
+  });
+  const response = await handler({ httpMethod: "GET", headers: {}, queryStringParameters: { token: "5O190127TN364715T" } });
+  assert.equal(response.headers.Location, "https://shop.test/?checkout=success");
+  assert.equal(captured, 0);
+  assert.equal(recorded.length, 1);
+});
+
+test("PayPal client can read an order before capture", async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, method: init.method });
+    if (url.endsWith("/v1/oauth2/token")) return { ok: true, status: 200, json: async () => ({ access_token: "t" }) };
+    return { ok: true, status: 200, json: async () => approvedOrder() };
+  };
+  const client = createPayPalClient({ environment: { PAYPAL_API_BASE: "https://paypal.test" }, fetchImpl });
+  const order = await client.getOrder("5O190127TN364715T");
+  assert.equal(order.status, "APPROVED");
+  assert.deepEqual(calls[1], { url: "https://paypal.test/v2/checkout/orders/5O190127TN364715T", method: "GET" });
 });
 
 // ---------- PayPal webhook ----------
@@ -204,13 +279,13 @@ test("PayPal webhook verification embeds the raw event and needs every header", 
   assert.equal(await client.verifyWebhookSignature(missing, raw), false);
 });
 
-function payPalWebhook({ verified = true, order = completedOrder() } = {}) {
+function payPalWebhook({ verified = true, order = completedOrder(), fetched = order } = {}) {
   const calls = { captured: [], fetched: [], recorded: [] };
   const handler = createPayPalWebhookHandler({
     paypalFactory: () => ({
       verifyWebhookSignature: async () => verified,
       captureOrder: async (id) => { calls.captured.push(id); return order; },
-      getOrder: async (id) => { calls.fetched.push(id); return order; },
+      getOrder: async (id) => { calls.fetched.push(id); return fetched; },
     }),
     recordOrder: async (paidOrder, meta) => { calls.recorded.push(meta); return true; },
     environment: {},
@@ -227,7 +302,7 @@ test("PayPal webhook rejects unverified deliveries", async () => {
 });
 
 test("PayPal webhook captures approved orders and records completed captures", async () => {
-  const approved = payPalWebhook();
+  const approved = payPalWebhook({ fetched: approvedOrder() });
   assert.equal((await approved.handler(post({ id: "WH-1", event_type: "CHECKOUT.ORDER.APPROVED", resource: { id: "O1" } }))).statusCode, 200);
   assert.deepEqual(approved.calls.captured, ["O1"]);
   assert.equal(approved.calls.recorded[0].eventId, "paypal:WH-1");
@@ -240,6 +315,18 @@ test("PayPal webhook captures approved orders and records completed captures", a
   }));
   assert.deepEqual(completed.calls.fetched, ["O2"]);
   assert.equal(completed.calls.recorded.length, 1);
+});
+
+test("PayPal webhook leaves approved non-US orders uncaptured", async () => {
+  for (const country of ["MX", null]) {
+    const webhook = payPalWebhook({ fetched: approvedOrder({}, country) });
+    const response = await webhook.handler(post({ id: "WH-4", event_type: "CHECKOUT.ORDER.APPROVED", resource: { id: "O4" } }));
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(JSON.parse(response.body), { received: true, processed: false, reason: "us-only" });
+    assert.deepEqual(webhook.calls.fetched, ["O4"]);
+    assert.deepEqual(webhook.calls.captured, []);
+    assert.equal(webhook.calls.recorded.length, 0);
+  }
 });
 
 test("PayPal sales not made by this shop are left alone", async () => {
@@ -275,7 +362,10 @@ test("Coinbase charges use server prices and never stack a promo code with the 2
   assert.deepEqual(sent.local_price, { amount: "16.00", currency: "USD" });
   assert.equal(sent.metadata.customer_email, "buyer@example.com");
   assert.equal(sent.metadata.shipping_address, "1 Main St");
-  assert.equal(sent.metadata.shipping_city, "Austin, TX 78701");
+  assert.equal(sent.metadata.shipping_city, "Austin");
+  assert.equal(sent.metadata.shipping_state, "TX");
+  assert.equal(sent.metadata.shipping_zip, "78701");
+  assert.equal(sent.metadata.shipping_country, "US");
   assert.equal(sent.metadata.promo_code, undefined);
   assert.deepEqual(JSON.parse(sent.metadata.items), [["CIG Pillow Case — Red", 2]]);
   assert.equal(sent.redirect_url, "https://shop.test/?checkout=success");
@@ -305,6 +395,29 @@ test("Coinbase charges require a valid email", async () => {
   assert.equal(response.statusCode, 400);
 });
 
+test("Coinbase charges are US-only and need a state and ZIP", async () => {
+  let called = 0;
+  const handler = createCoinbaseChargeHandler({
+    fetchImpl: async () => { called += 1; throw new Error("should not be called"); },
+    environment: ENV,
+    logger: silent,
+  });
+  const cases = [
+    [{ country: "CA" }, /only ship to US/],
+    [{ country: undefined }, /only ship to US/],
+    [{ state: "" }, /US state/],
+    [{ state: "ON" }, /US state/],
+    [{ zip: "" }, /ZIP/],
+    [{ zip: "M5V 2T6" }, /ZIP/],
+  ];
+  for (const [change, message] of cases) {
+    const response = await handler(post({ cart: tamperedCart, customer: { ...customer, ...change } }));
+    assert.equal(response.statusCode, 400);
+    assert.match(JSON.parse(response.body).error, message);
+  }
+  assert.equal(called, 0);
+});
+
 // ---------- Coinbase webhook ----------
 
 const COINBASE_SECRET = "cc_shared_secret";
@@ -326,7 +439,10 @@ function paidCharge(status = "COMPLETED") {
       customer_email: "buyer@example.com",
       customer_name: "Ada Lovelace",
       shipping_address: "1 Main St",
-      shipping_city: "Austin, TX 78701",
+      shipping_city: "Austin",
+      shipping_state: "TX",
+      shipping_zip: "78701",
+      shipping_country: "US",
       marketing_consent: "true",
       items: JSON.stringify([["CIG Pillow Case — Red", 2]]),
     },
@@ -367,6 +483,11 @@ test("Coinbase webhook records confirmed charges with shipping from metadata", a
   assert.equal(order.emailOriginal, "buyer@example.com");
   assert.equal(order.marketingConsent, true);
   assert.equal(order.shippingDestination.line1, "1 Main St");
+  assert.equal(order.shippingDestination.city, "Austin");
+  assert.equal(order.shippingDestination.state, "TX");
+  assert.equal(order.shippingDestination.postalCode, "78701");
+  assert.equal(order.shippingDestination.country, "US");
+  assert.equal(order.shippingDestination.summary, "Austin, TX, 78701, US");
   assert.deepEqual(order.items.map((item) => [item.description, item.quantity]), [["CIG Pillow Case — Red", 2]]);
 });
 
