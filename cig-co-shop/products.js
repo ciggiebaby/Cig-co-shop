@@ -7,6 +7,10 @@
 //   shop grid and the server refuses to price it, so it can't be bought online.
 //   Keep it here anyway so all inventory lives in one file. Flip to false (or
 //   delete the line) when you're ready to put it on the site.
+//
+// shipping: the product's shipping class from shipping-rates.js
+//   ("bag", "case", "sleeve", or "pillow"). Only bag/case/sleeve can ship
+//   internationally; pillows and products with no class ship to the US only.
 
 const PRODUCTS = [
   {
@@ -14,6 +18,7 @@ const PRODUCTS = [
     sku: "0003",
     stock: { "Red": 67, "Blue": 58, "Purple": 67, "Teal": 74, "Black": 0 },
     name: "CIG Pillow Case",
+    shipping: "pillow", // US only
     price: 20.00,
     salePrice: 10.00,
     image: "assets/products/pillow-black.jpg",

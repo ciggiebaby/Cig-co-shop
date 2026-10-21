@@ -111,7 +111,9 @@ function createPayPalClient({ environment = process.env, fetchImpl = fetch } = {
 
 // Builds the PayPal order from server-side pricing (priceCartForStripe).
 // Each item's sku carries the catalog selection for the order record.
-function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false }) {
+// shipping ({ country, shippingCents }) comes from resolveCheckoutShipping; the
+// chosen country is stored in custom_id so capture can check PayPal's address.
+function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping = { country: "US", shippingCents: 0 } }) {
   const items = pricing.lineItems.map((line) => ({
     name: line.price_data.product_data.name.slice(0, 127),
     quantity: String(line.quantity),
@@ -124,11 +126,20 @@ function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false }) {
       {
         amount: {
           currency_code: "USD",
-          value: centsToValue(pricing.totalCents),
-          breakdown: { item_total: { currency_code: "USD", value: centsToValue(pricing.totalCents) } },
+          value: centsToValue(pricing.totalCents + shipping.shippingCents),
+          breakdown: {
+            item_total: { currency_code: "USD", value: centsToValue(pricing.totalCents) },
+            ...(shipping.shippingCents > 0
+              ? { shipping: { currency_code: "USD", value: centsToValue(shipping.shippingCents) } }
+              : {}),
+          },
         },
         description: "CIG & CO. order",
-        custom_id: JSON.stringify({ p: pricing.promoCode || "", m: marketingConsent ? 1 : 0 }),
+        custom_id: JSON.stringify({
+          p: pricing.promoCode || "",
+          m: marketingConsent ? 1 : 0,
+          ...(shipping.country !== "US" ? { c: shipping.country } : {}),
+        }),
         items,
       },
     ],
@@ -145,9 +156,13 @@ function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false }) {
 function parseCustomId(value) {
   try {
     const parsed = JSON.parse(value || "{}");
-    return { promoCode: parsed.p || null, marketingConsent: parsed.m === 1 };
+    return {
+      promoCode: parsed.p || null,
+      marketingConsent: parsed.m === 1,
+      shipCountry: typeof parsed.c === "string" && parsed.c ? parsed.c : "US",
+    };
   } catch {
-    return { promoCode: null, marketingConsent: false };
+    return { promoCode: null, marketingConsent: false, shipCountry: "US" };
   }
 }
 
@@ -158,9 +173,17 @@ function payPalShippingCountry(order) {
   return typeof country === "string" && country ? country.toUpperCase() : null;
 }
 
-// We only ship to the US (same as Stripe), so only capture orders shipping there.
-function shipsToUs(order) {
-  return payPalShippingCountry(order) === "US";
+// The ship-to country the buyer picked on the site (stored in custom_id).
+function payPalChosenCountry(order) {
+  const unit = order && order.purchase_units && order.purchase_units[0];
+  return parseCustomId(unit && unit.custom_id).shipCountry;
+}
+
+// Shipping was priced for the country picked on the site, so only capture when
+// PayPal's shipping address is in that same country.
+function shipsToChosenCountry(order) {
+  const country = payPalShippingCountry(order);
+  return country !== null && country === payPalChosenCountry(order);
 }
 
 // Returns the order details to record, or null if the money isn't captured yet.
@@ -226,7 +249,8 @@ module.exports = {
   buildPayPalOrder,
   createPayPalClient,
   paidPayPalOrder,
+  payPalChosenCountry,
   payPalShippingCountry,
   recordPayPalOrder,
-  shipsToUs,
+  shipsToChosenCountry,
 };

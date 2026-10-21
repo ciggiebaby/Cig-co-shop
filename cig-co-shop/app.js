@@ -425,15 +425,85 @@ if (checkoutBtn) {
 const checkoutCloseBtn = document.getElementById("checkout-close");
 if (checkoutCloseBtn) checkoutCloseBtn.addEventListener("click", () => closeModal("checkout-modal"));
 
+// ---------- Ship-to country + shipping (rates: shipping-rates.js) ----------
+// A function (not a const) so it's safe to call before this point in the file.
+function shipCountryNames() {
+  return typeof SHIP_TO_COUNTRIES !== "undefined" ? SHIP_TO_COUNTRIES : { US: "United States" };
+}
+
+function selectedShipCountry() {
+  const select = document.getElementById("checkout-country");
+  const value = select && typeof select.value === "string" ? select.value.trim().toUpperCase() : "";
+  return value && shipCountryNames()[value] ? value : "US";
+}
+
+// Same quote the server charges (shipping-rates.js). Returns
+// { shippingCents, blocked: [product names that ship to the US only] }.
+function cartShippingQuote(cart, country) {
+  const lines = cart.map((item) => {
+    const product = PRODUCTS.find((entry) => entry.id === item.productId);
+    return {
+      name: product ? product.name : item.name,
+      shipping: product && typeof product.shipping === "string" ? product.shipping : null,
+      quantity: item.qty,
+    };
+  });
+  if (country === "US") return { shippingCents: 0, blocked: [] };
+  if (typeof quoteShipping !== "function") {
+    return { shippingCents: null, blocked: lines.map((line) => line.name) };
+  }
+  const quote = quoteShipping(lines, country);
+  return { shippingCents: quote.shippingCents, blocked: quote.blocked };
+}
+
+function usOnlyMessage(blocked) {
+  return `${blocked.join(", ")} ${blocked.length === 1 ? "ships" : "ship"} to the US only, so international shipping isn't available for this bag.`;
+}
+
+// Disables countries the bag can't ship to and updates the address hints.
+function updateShipToOptions(cart) {
+  const select = document.getElementById("checkout-country");
+  const note = document.getElementById("checkout-shipping-note");
+  let blockedNames = [];
+  if (select && select.options) {
+    Array.from(select.options).forEach((option) => {
+      if (option.value === "US") return;
+      const quote = cartShippingQuote(cart, option.value);
+      option.disabled = quote.shippingCents === null;
+      if (quote.blocked.length) blockedNames = quote.blocked;
+    });
+    const current = Array.from(select.options).find((option) => option.value === select.value);
+    if (current && current.disabled) select.value = "US";
+  }
+  if (note) {
+    note.textContent = blockedNames.length ? usOnlyMessage(blockedNames) : "";
+    note.hidden = !blockedNames.length;
+  }
+  const country = selectedShipCountry();
+  const stateEl = document.getElementById("checkout-state");
+  const zipEl = document.getElementById("checkout-zip");
+  if (stateEl) stateEl.placeholder = country === "US" ? "State (e.g. GA)" : "State / Province (optional)";
+  if (zipEl) zipEl.placeholder = country === "US" ? "ZIP" : "Postal code";
+}
+
+const shipCountryEl = document.getElementById("checkout-country");
+if (shipCountryEl && typeof shipCountryEl.addEventListener === "function") {
+  shipCountryEl.addEventListener("change", () => renderCheckoutSummary());
+}
+
 function renderCheckoutSummary() {
   const summary = document.getElementById("checkout-summary");
   if (!summary) return;
   const cart = getCart();
+  updateShipToOptions(cart);
+  const country = selectedShipCountry();
+  const shippingQuote = cartShippingQuote(cart, country);
+  const shipping = shippingQuote.shippingCents === null ? 0 : shippingQuote.shippingCents / 100;
   const subtotal = cartSubtotal(cart);
   const promoInfo = promoDetails(promoState);
   const discountFraction = promoInfo ? promoInfo.discount : 0;
   const discountAmount = subtotal * discountFraction;
-  const total = subtotal - discountAmount;
+  const total = subtotal - discountAmount + shipping;
 
   let rows = cart
     .map((item) => {
@@ -446,6 +516,14 @@ function renderCheckoutSummary() {
 
   if (discountFraction > 0) {
     rows += `<div class="checkout-summary-row" style="color:var(--gold);"><span>Promo (${promoState})</span><span>&minus;$${discountAmount.toFixed(2)}</span></div>`;
+  }
+
+  const shippingLabel = shippingQuote.shippingCents === null
+    ? "Not available"
+    : shipping === 0 ? "Free" : `$${shipping.toFixed(2)}`;
+  rows += `<div class="checkout-summary-row"><span>Shipping (${shipCountryNames()[country] || country})</span><span>${shippingLabel}</span></div>`;
+  if (shipping > 0) {
+    rows += `<div class="checkout-summary-row" style="color:#9a9a9a;font-size:12px;"><span>Crypto: 20% off items; shipping isn't discounted</span><span></span></div>`;
   }
 
   rows += `<div class="checkout-summary-row" style="font-weight:700;"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
@@ -465,9 +543,8 @@ function getCheckoutFields() {
     address: checkoutFieldValue("checkout-address"),
     city: checkoutFieldValue("checkout-city"),
     state: checkoutFieldValue("checkout-state").toUpperCase(),
-    zip: checkoutFieldValue("checkout-zip"),
-    // We only ship to the US (card checkout enforces this too).
-    country: "US",
+    zip: checkoutFieldValue("checkout-zip").toUpperCase(),
+    country: selectedShipCountry(),
   };
 }
 
@@ -475,13 +552,18 @@ function validateCheckoutFields(fields) {
   return fields.email && fields.name && fields.address && fields.city;
 }
 
-// Crypto has no hosted address form, so it needs a full US address from us.
+// Crypto has no hosted address form, so it needs the full address from us:
+// state + ZIP in the US, a postal code elsewhere (the server checks the format).
 function validateCryptoShipping(fields) {
-  if (!/^[A-Z]{2}$/.test(fields.state)) {
-    return "Crypto orders need a US state (2-letter code, e.g. GA). We only ship to US addresses.";
-  }
-  if (!/^\d{5}(-\d{4})?$/.test(fields.zip)) {
-    return "Crypto orders need a valid 5-digit US ZIP code.";
+  if (fields.country === "US") {
+    if (!/^[A-Z]{2}$/.test(fields.state)) {
+      return "Crypto orders need a US state (2-letter code, e.g. GA).";
+    }
+    if (!/^\d{5}(-\d{4})?$/.test(fields.zip)) {
+      return "Crypto orders need a valid 5-digit US ZIP code.";
+    }
+  } else if (!fields.zip) {
+    return "Crypto orders need a postal code.";
   }
   return null;
 }
@@ -601,7 +683,9 @@ function handleCheckoutResult({
     failed:
       "Your payment didn’t go through, so nothing was charged. Your bag is still saved.",
     "us-only":
-      "Sorry, we only ship to US addresses right now, so your PayPal payment wasn’t taken. Your bag is still saved.",
+      "Your PayPal shipping address isn’t in the US, so your payment wasn’t taken. Pick its country under “Ship to” (pillows ship to the US only). Your bag is still saved.",
+    "country-mismatch":
+      "Your PayPal shipping address didn’t match the country you picked under “Ship to”, so your payment wasn’t taken. Your bag is still saved.",
   };
   const message = messages[result];
   if (!message) return;
@@ -652,6 +736,14 @@ paymentButtons.forEach((btn) => {
       return;
     }
 
+    const shipQuote = cartShippingQuote(cart, fields.country);
+    if (shipQuote.shippingCents === null) {
+      errorEl.textContent = shipQuote.blocked.length
+        ? usOnlyMessage(shipQuote.blocked)
+        : "Shipping isn't available to that country yet.";
+      return;
+    }
+
     checkoutSubmissionPending = true;
     const previousDisabledStates = paymentButtons.map(
       (paymentButton) => paymentButton.disabled,
@@ -685,7 +777,7 @@ paymentButtons.forEach((btn) => {
       const checkoutPromo = method === "crypto" ? null : promoState;
 
       // Only crypto needs state/ZIP/country from us; card and PayPal collect the
-      // shipping address on their own hosted pages (both limited to the US).
+      // shipping address on their own hosted pages (locked to the chosen country).
       const { state, zip, country, ...baseFields } = fields;
       const customerFields =
         method === "crypto" ? { ...baseFields, state, zip, country } : baseFields;
@@ -704,6 +796,10 @@ paymentButtons.forEach((btn) => {
           marketingConsent,
         },
       };
+      // The server prices shipping for this country (missing = US, free).
+      if (method === "crypto" || country !== "US") {
+        requestBody.shipCountry = country;
+      }
       if (method === "stripe") {
         requestBody = await addCheckoutFingerprint(
           requestBody,

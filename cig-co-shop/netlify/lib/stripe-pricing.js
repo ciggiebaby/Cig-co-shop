@@ -159,6 +159,8 @@ function resolveRequestedItem(rawItem) {
   return {
     key: JSON.stringify([productId, style, color, size]),
     productId,
+    productName: product.name,
+    shippingClass: typeof product.shipping === "string" ? product.shipping : null,
     style,
     color,
     size,
@@ -244,6 +246,12 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
 
   return {
     lineItems,
+    // Per-product shipping classes for checkout-shipping.js (see shipping-rates.js).
+    shippingLines: resolvedItems.map((item) => ({
+      name: item.productName,
+      shipping: item.shippingClass,
+      quantity: item.quantity,
+    })),
     promoCode: promo ? promo.code : null,
     subtotalCents,
     discountCents: subtotalCents - totalCents,

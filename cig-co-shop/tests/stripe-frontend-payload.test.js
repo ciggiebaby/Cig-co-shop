@@ -6,6 +6,8 @@ const vm = require("node:vm");
 
 const { PRODUCTS } = require("../products.js");
 const fingerprintUtility = require("../checkout-fingerprint.js");
+const shippingRates = require("../shipping-rates.js");
+require("./shipping-fixture.js");
 
 function loadFrontend({
   fetchImpl,
@@ -16,7 +18,15 @@ function loadFrontend({
   promoCodes = { CIG10: { discount: 0.1, label: "10% off" } },
   storedCart,
   fieldOverrides = {},
+  shipCountry = "US",
 } = {}) {
+  const countrySelect = {
+    value: shipCountry,
+    options: Object.keys(shippingRates.SHIP_TO_COUNTRIES).map((value) => ({ value, disabled: false })),
+    addEventListener() {},
+  };
+  const shippingNoteElement = { hidden: true, textContent: "" };
+  const summaryElement = { innerHTML: "" };
   const promoMessageElement = {
     textContent: "",
     classes: new Set(),
@@ -106,6 +116,8 @@ function loadFrontend({
   const context = vm.createContext({
     PRODUCTS,
     PROMO_CODES: promoCodes,
+    SHIP_TO_COUNTRIES: shippingRates.SHIP_TO_COUNTRIES,
+    quoteShipping: shippingRates.quoteShipping,
     URL,
     console: {
       error(...args) {
@@ -120,6 +132,9 @@ function loadFrontend({
         if (id === "checkout-optin") return optinElement;
         if (id === "product-modal") return productModalElement;
         if (id === "promo-message") return promoMessageElement;
+        if (id === "checkout-country") return countrySelect;
+        if (id === "checkout-shipping-note") return shippingNoteElement;
+        if (id === "checkout-summary") return summaryElement;
         return checkoutFields[id] || null;
       },
       querySelectorAll: (selector) =>
@@ -148,6 +163,9 @@ function loadFrontend({
 
   return {
     context,
+    countrySelect,
+    shippingNoteElement,
+    summaryElement,
     developerErrors,
     errorElement,
     helpers: context.module.exports,
@@ -851,7 +869,97 @@ test("server checkout rejections (like US-only shipping) are shown to the shoppe
 test("a PayPal us-only return shows a friendly banner and cleans the URL", () => {
   const frontend = loadFrontend({ href: "https://shop.test/?checkout=us-only#shop" });
   assert.equal(frontend.statusElement.hidden, false);
-  assert.match(frontend.statusElement.textContent, /only ship to US addresses/);
+  assert.match(frontend.statusElement.textContent, /isn’t in the US/);
   assert.match(frontend.statusElement.textContent, /wasn’t taken/);
   assert.equal(frontend.historyCalls[0].url, "/#shop");
+});
+
+const bagItem = { productId: "T-BAG", name: "Test Crossbody Bag", price: 45, image: "", color: null, size: null, style: null, qty: 2 };
+const pillowItem = { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 };
+
+test("checkout summary shows the shipping cost for the chosen country before paying", () => {
+  const frontend = loadFrontend({ shipCountry: "CA", storedCart: [bagItem] });
+  frontend.context.renderCheckoutSummary();
+  assert.match(frontend.summaryElement.innerHTML, /Shipping \(Canada\)<\/span><span>\$16\.00/);
+  assert.match(frontend.summaryElement.innerHTML, /Total<\/span><span>\$106\.00/);
+  frontend.countrySelect.value = "US";
+  frontend.context.renderCheckoutSummary();
+  assert.match(frontend.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>Free/);
+  assert.match(frontend.summaryElement.innerHTML, /Total<\/span><span>\$90\.00/);
+});
+
+test("a pillow in the bag disables non-US countries and explains why", () => {
+  const frontend = loadFrontend({ shipCountry: "GB", storedCart: [bagItem, pillowItem] });
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.countrySelect.value, "US");
+  assert.deepEqual(
+    frontend.countrySelect.options.map((option) => [option.value, option.disabled]),
+    [["US", false], ["CA", true], ["GB", true], ["DE", true], ["AU", true]],
+  );
+  assert.equal(frontend.shippingNoteElement.hidden, false);
+  assert.match(frontend.shippingNoteElement.textContent, /CIG Pillow Case ships to the US only/);
+});
+
+test("card and PayPal send the chosen country; US payloads stay unchanged", async () => {
+  const requests = [];
+  const frontend = loadFrontend({
+    fetchImpl: async (url, init) => {
+      requests.push({ url, body: JSON.parse(init.body) });
+      return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } };
+    },
+    paymentMethods: ["paypal"],
+    shipCountry: "AU",
+    storedCart: [bagItem],
+  });
+  await frontend.paymentButtons[0].click();
+  assert.equal(requests[0].body.shipCountry, "AU");
+  assert.equal(requests[0].body.customer.country, undefined);
+  frontend.countrySelect.value = "US";
+  await frontend.paymentButtons[0].click();
+  assert.equal(requests[1].body.shipCountry, undefined);
+});
+
+test("checkout won't start abroad when the bag has a pillow", async () => {
+  const requests = [];
+  const frontend = loadFrontend({
+    fetchImpl: async (url) => { requests.push(url); return { ok: true, async json() { return { url: "x" }; } }; },
+    paymentMethods: ["stripe"],
+    shipCountry: "DE",
+    storedCart: [pillowItem],
+  });
+  await frontend.paymentButtons[0].click();
+  assert.deepEqual(requests, []);
+  assert.match(frontend.errorElement.textContent, /ships to the US only/);
+});
+
+test("international crypto orders need a postal code, not a US state", async () => {
+  const requests = [];
+  const fetchImpl = async (url, init) => {
+    requests.push(JSON.parse(init.body));
+    return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } };
+  };
+  const missing = loadFrontend({
+    fetchImpl, paymentMethods: ["crypto"], shipCountry: "CA", storedCart: [bagItem],
+    fieldOverrides: { "checkout-state": "", "checkout-zip": "" },
+  });
+  await missing.paymentButtons[0].click();
+  assert.equal(requests.length, 0);
+  assert.match(missing.errorElement.textContent, /postal code/);
+
+  const ok = loadFrontend({
+    fetchImpl, paymentMethods: ["crypto"], shipCountry: "CA", storedCart: [bagItem],
+    fieldOverrides: { "checkout-state": "", "checkout-zip": "m5v 2t6" },
+  });
+  await ok.paymentButtons[0].click();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].shipCountry, "CA");
+  assert.equal(requests[0].customer.country, "CA");
+  assert.equal(requests[0].customer.zip, "M5V 2T6");
+});
+
+test("a PayPal country-mismatch return explains nothing was charged", () => {
+  const frontend = loadFrontend({ href: "https://shop.test/?checkout=country-mismatch" });
+  assert.equal(frontend.statusElement.hidden, false);
+  assert.match(frontend.statusElement.textContent, /didn’t match the country you picked/);
+  assert.match(frontend.statusElement.textContent, /wasn’t taken/);
 });

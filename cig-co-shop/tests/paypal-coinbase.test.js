@@ -322,7 +322,7 @@ test("PayPal webhook leaves approved non-US orders uncaptured", async () => {
     const webhook = payPalWebhook({ fetched: approvedOrder({}, country) });
     const response = await webhook.handler(post({ id: "WH-4", event_type: "CHECKOUT.ORDER.APPROVED", resource: { id: "O4" } }));
     assert.equal(response.statusCode, 200);
-    assert.deepEqual(JSON.parse(response.body), { received: true, processed: false, reason: "us-only" });
+    assert.deepEqual(JSON.parse(response.body), { received: true, processed: false, reason: "country-mismatch" });
     assert.deepEqual(webhook.calls.fetched, ["O4"]);
     assert.deepEqual(webhook.calls.captured, []);
     assert.equal(webhook.calls.recorded.length, 0);
@@ -395,7 +395,7 @@ test("Coinbase charges require a valid email", async () => {
   assert.equal(response.statusCode, 400);
 });
 
-test("Coinbase charges are US-only and need a state and ZIP", async () => {
+test("Coinbase charges need a supported country, and a state and ZIP in the US", async () => {
   let called = 0;
   const handler = createCoinbaseChargeHandler({
     fetchImpl: async () => { called += 1; throw new Error("should not be called"); },
@@ -403,8 +403,8 @@ test("Coinbase charges are US-only and need a state and ZIP", async () => {
     logger: silent,
   });
   const cases = [
-    [{ country: "CA" }, /only ship to US/],
-    [{ country: undefined }, /only ship to US/],
+    [{ country: "FR" }, /only ship to the United States, Canada/],
+    [{ country: undefined }, /only ship to the United States, Canada/],
     [{ state: "" }, /US state/],
     [{ state: "ON" }, /US state/],
     [{ zip: "" }, /ZIP/],

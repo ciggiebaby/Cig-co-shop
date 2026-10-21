@@ -2,7 +2,11 @@
 // applied automatically, and returns the hosted checkout URL.
 // Prices come from products.js on the server (browser prices are ignored).
 // Promo codes never stack with the crypto discount: any promo code is ignored.
-// US shipping only (state + ZIP required), matching the Stripe checkout.
+// Ships to the country picked on the site: US (state + ZIP required, free
+// shipping) or CA/GB/DE/AU (postal code required, per-item shipping from
+// shipping-rates.js; pillows are US only).
+// The 20% crypto discount applies to the items only, never to shipping, so
+// international shipping always covers Printful's cost.
 // Payment is confirmed by the signed coinbase-webhook function.
 // Requires env var: COINBASE_COMMERCE_API_KEY (from https://beta.commerce.coinbase.com/settings/security)
 const {
@@ -14,7 +18,11 @@ const {
   RequestValidationError,
   normalizeEmail,
 } = require("../lib/customer-utils.js");
-const { requireUsShipping } = require("../lib/us-shipping.js");
+const {
+  normalizeShipCountry,
+  requireShippingAddress,
+  resolveCheckoutShipping,
+} = require("../lib/checkout-shipping.js");
 
 const CRYPTO_DISCOUNT = 0.20; // 20% off for crypto payments, always
 
@@ -41,11 +49,18 @@ function createHandler({
       const customer = body.customer || {};
       // The order record and receipt email go to this address, so require it.
       const email = normalizeEmail(customer.email);
-      // We only ship to the US; reject anything else before creating a charge.
-      const shipping = requireUsShipping(customer);
+      // The ship-to country must be chosen explicitly for crypto.
+      const country = normalizeShipCountry(
+        body.shipCountry !== undefined ? body.shipCountry : customer.country,
+        { requireCountry: true },
+      );
+      const address = requireShippingAddress(customer, country);
       // No promo code here — crypto always gets its 20% instead.
       const pricing = priceCartForStripe(trustedCartItems(body), null);
-      const discounted = (cryptoChargeCents(pricing.totalCents) / 100).toFixed(2);
+      const shipping = resolveCheckoutShipping(pricing, country);
+      // 20% off the items only; shipping is added at full price.
+      const chargeCents = cryptoChargeCents(pricing.totalCents) + shipping.shippingCents;
+      const discounted = (chargeCents / 100).toFixed(2);
       const lines = pricing.lineItems.map((line) => [line.price_data.product_data.name, line.quantity]);
 
       const description = lines
@@ -62,7 +77,9 @@ function createHandler({
           "X-CC-Version": "2018-03-22",
         },
         body: JSON.stringify({
-          name: "CIG & CO. order (20% crypto discount applied)",
+          name: shipping.shippingCents > 0
+            ? "CIG & CO. order (20% crypto discount on items, plus shipping)"
+            : "CIG & CO. order (20% crypto discount applied)",
           description: description.slice(0, 200),
           pricing_type: "fixed_price",
           local_price: { amount: discounted, currency: "USD" },
@@ -71,9 +88,10 @@ function createHandler({
             customer_name: text(customer.name),
             shipping_address: text(customer.address),
             shipping_city: text(customer.city),
-            shipping_state: shipping.state,
-            shipping_zip: shipping.zip,
-            shipping_country: shipping.country,
+            shipping_state: address.state,
+            shipping_zip: address.zip,
+            shipping_country: address.country,
+            shipping_cents: String(shipping.shippingCents),
             marketing_consent: customer.marketingConsent === true ? "true" : "false",
             items: JSON.stringify(lines),
           },

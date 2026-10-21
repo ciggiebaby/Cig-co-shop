@@ -13,6 +13,7 @@ const { buildPayPalOrder, createPayPalClient } = require("../lib/paypal.js");
 const { checkoutSiteUrl, trustedCartItems } = require("../lib/checkout-request.js");
 const { RequestValidationError, normalizeEmail } = require("../lib/customer-utils.js");
 const { resolvePromo } = require("../lib/promo-codes.js");
+const { resolveCheckoutShipping } = require("../lib/checkout-shipping.js");
 
 function createHandler({
   paypalFactory = createPayPalClient,
@@ -31,11 +32,15 @@ function createHandler({
       const email = body.customer && body.customer.email ? normalizeEmail(body.customer.email) : null;
       const promo = await promoResolver({ promoCode: body.promoCode, email });
       const pricing = priceCartForStripe(trustedCartItems(body), body.promoCode, promo);
+      // Shipping is priced for the country picked on the site (US = free);
+      // paypal-capture refuses to capture if PayPal's address is elsewhere.
+      const shipping = resolveCheckoutShipping(pricing, body.shipCountry);
       const siteUrl = checkoutSiteUrl(environment.SITE_URL);
       const order = await paypalFactory({ environment }).createOrder(
         buildPayPalOrder(pricing, {
           siteUrl,
           marketingConsent: !!(body.customer && body.customer.marketingConsent === true),
+          shipping,
         }),
       );
 

@@ -1,8 +1,9 @@
 // PayPal sends the buyer here (?token=<order id>) after they approve payment.
-// Checks the order ships to the US (we don't capture anything else), captures the
+// Checks PayPal's shipping address is in the country picked on the site
+// (shipping was priced for it; we don't capture anything else), captures the
 // payment, records the order, and sends the buyer back to the shop.
 // Recording is retried by paypal-webhook if anything fails after capture.
-const { createPayPalClient, payPalShippingCountry, recordPayPalOrder, shipsToUs } = require("../lib/paypal.js");
+const { createPayPalClient, payPalChosenCountry, payPalShippingCountry, recordPayPalOrder, shipsToChosenCountry } = require("../lib/paypal.js");
 const { checkoutSiteUrl } = require("../lib/checkout-request.js");
 const { safeIdentifier } = require("../lib/customer-utils.js");
 
@@ -37,13 +38,15 @@ function createHandler({
       if (approved && approved.status === "COMPLETED") {
         // Already captured (e.g. by paypal-webhook); just record and confirm.
         order = approved;
-      } else if (!shipsToUs(approved)) {
-        // Never capture money for an address we don't ship to.
-        logger.error("PayPal order not captured: shipping address is outside the US.", {
+      } else if (!shipsToChosenCountry(approved)) {
+        // Never capture money for an address we didn't price shipping for.
+        const chosen = payPalChosenCountry(approved);
+        logger.error("PayPal order not captured: shipping address is not in the chosen country.", {
           order: safeIdentifier(orderId),
+          chosen,
           country: payPalShippingCountry(approved) || "missing",
         });
-        return redirect("us-only");
+        return redirect(chosen === "US" ? "us-only" : "country-mismatch");
       } else {
         order = await paypal.captureOrder(orderId);
       }

@@ -111,13 +111,22 @@
       <div class="checkout-fields">
         <input type="email" id="checkout-email" placeholder="Email" required />
         <input type="text" id="checkout-name" placeholder="Full name" required />
+        <label class="checkout-label" for="checkout-country">Ship to</label>
+        <select id="checkout-country" autocomplete="country">
+          <option value="US" selected>United States (free shipping)</option>
+          <option value="CA">Canada</option>
+          <option value="GB">United Kingdom</option>
+          <option value="DE">Germany</option>
+          <option value="AU">Australia</option>
+        </select>
+        <p id="checkout-shipping-note" class="checkout-note" hidden></p>
         <input type="text" id="checkout-address" placeholder="Shipping address" required />
         <input type="text" id="checkout-city" placeholder="City" required />
         <div class="checkout-row">
-          <input type="text" id="checkout-state" placeholder="State (e.g. GA)" maxlength="2" autocomplete="address-level1" />
-          <input type="text" id="checkout-zip" placeholder="ZIP" inputmode="numeric" maxlength="10" autocomplete="postal-code" />
+          <input type="text" id="checkout-state" placeholder="State (e.g. GA)" maxlength="60" autocomplete="address-level1" />
+          <input type="text" id="checkout-zip" placeholder="ZIP" maxlength="10" autocomplete="postal-code" />
         </div>
-        <p class="checkout-note">We ship to US addresses only. State and ZIP are required for crypto orders.</p>
+        <p class="checkout-note">Free US shipping. Canada, UK, Germany &amp; Australia ship for a flat per-item fee shown above. Pillows ship to the US only. Crypto orders need a state + ZIP (US) or postal code.</p>
         <label class="checkbox-row">
           <input type="checkbox" id="checkout-optin" />
           <span>Keep me posted on drops &amp; discounts (optional)</span>
@@ -146,6 +155,7 @@
 
 <script src="products.js"></script>
 <script src="promo.js"></script>
+<script src="shipping-rates.js"></script>
 <script src="email-list.js"></script>
 <script src="cart.js"></script>
 <script src="checkout-fingerprint.js"></script>
