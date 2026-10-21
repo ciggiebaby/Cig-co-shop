@@ -8,6 +8,7 @@ const {
   RequestValidationError,
   normalizeEmail,
 } = require("../lib/customer-utils.js");
+const { resolvePromo } = require("../lib/promo-codes.js");
 
 const CHECKOUT_FINGERPRINT_PATTERN = /^v1:[a-f0-9]{64}$/;
 
@@ -54,6 +55,7 @@ function checkoutSiteUrl(value) {
 
 function createHandler({
   stripeFactory = defaultStripeFactory,
+  promoResolver = resolvePromo,
   siteUrl,
   environment = process.env,
   logger = console,
@@ -79,7 +81,6 @@ function createHandler({
       const trustedItems = Array.isArray(submittedItems)
         ? submittedItems.map(getTrustedItemFields)
         : submittedItems;
-      const pricing = priceCartForStripe(trustedItems, body.promoCode);
       const stripe = stripeFactory(environment.STRIPE_SECRET_KEY);
       // Prefer SITE_URL; fall back to the fixed canonical domain (never the
       // client-controllable request Host) so a missing env var can't break
@@ -91,6 +92,12 @@ function createHandler({
         body.customer && body.customer.email
           ? normalizeEmail(body.customer.email)
           : undefined;
+      // Arcade codes are checked in Supabase against the checkout email.
+      const promo = await promoResolver({
+        promoCode: body.promoCode,
+        email: customerEmail || null,
+      });
+      const pricing = priceCartForStripe(trustedItems, body.promoCode, promo);
       const marketingConsent =
         !!(body.customer && body.customer.marketingConsent === true);
       const checkoutFingerprint =

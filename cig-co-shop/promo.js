@@ -13,30 +13,41 @@
 const PROMO_CODES = {
 };
 
+// Arcade codes (e.g. CIG10-7KQ4XW2M) are different: each one is unique to the
+// email that won it, single use, and expires 7 days after it's issued. They
+// live in Supabase (arcade_codes) and the server checks them at checkout.
+const ARCADE_CODE_PATTERN = /^CIG\d{2}-[A-HJKMNP-Z2-9]{8}$/;
+
+function isArcadeCode(code) {
+  return typeof code === "string" && ARCADE_CODE_PATTERN.test(code);
+}
+
 const PROMO_STORAGE_KEY = "cig_co_promo_v1";
 
 function savePromoWin(code) {
-  if (!PROMO_CODES[code]) return;
+  if (!PROMO_CODES[code] && !isArcadeCode(code)) return;
   localStorage.setItem(PROMO_STORAGE_KEY, code);
+}
+
+function clearSavedPromo() {
+  localStorage.removeItem(PROMO_STORAGE_KEY);
 }
 
 function getSavedPromo() {
   const code = localStorage.getItem(PROMO_STORAGE_KEY);
-  return code && PROMO_CODES[code] ? code : null;
+  return code && (PROMO_CODES[code] || isArcadeCode(code)) ? code : null;
 }
 
 // ---------- Arcade prizes ----------
-// type "discount" auto-links to a PROMO_CODES entry (usable at checkout).
-// type "merch" / "gift" have no auto-fulfillment — instruct the winner to
-// screenshot their result and reach out (email/DM) to redeem. Edit freely.
+// Display copy for the Arcade wheel. Supabase (arcade_prizes) is what actually
+// picks the prize — keep the ids here in sync with the active rows there.
+// First play: always "p10" (a unique one-time 10% code, good for 7 days).
+// Later plays: mostly free perks, with a rare one-time 15% code (~1 in 20).
 const PRIZES = [
-  { id: "p5",     type: "discount", code: "CIG5",  label: "5% Off",         detail: "Use code CIG5 at checkout." },
-  { id: "p10",    type: "discount", code: "CIG10", label: "10% Off",        detail: "Use code CIG10 at checkout." },
-  { id: "p20",    type: "discount", code: "CIG20", label: "20% Off",        detail: "Use code CIG20 at checkout." },
-  { id: "merch",  type: "merch",    code: null,    label: "Free Merch",     detail: "Screenshot this and email or DM us to claim your free item." },
-  { id: "gift",   type: "gift",     code: null,    label: "Mystery Gift",   detail: "Screenshot this and email or DM us to claim your gift." },
-  { id: "again1", type: "none",     code: null,    label: "Try Again",      detail: "No luck this time — come back soon." },
-  { id: "again2", type: "none",     code: null,    label: "So Close",       detail: "No luck this time — come back soon." },
+  { id: "p10",      type: "discount", code: null, label: "10% Off",        detail: "A one-time 10% off code, good for 7 days." },
+  { id: "early",    type: "perk",     code: null, label: "Early Access",   detail: "You're on the early-access list for our next drop. Watch your inbox." },
+  { id: "p15",      type: "discount", code: null, label: "15% Off",        detail: "A one-time 15% off code, good for 7 days." },
+  { id: "giveaway", type: "perk",     code: null, label: "Giveaway Entry", detail: "You're entered in this month's giveaway for one free item. The winner is emailed." },
 ];
 
 function prizeById(id) {
@@ -44,5 +55,5 @@ function prizeById(id) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { PROMO_CODES, PRIZES };
+  module.exports = { ARCADE_CODE_PATTERN, PROMO_CODES, PRIZES, isArcadeCode };
 }
