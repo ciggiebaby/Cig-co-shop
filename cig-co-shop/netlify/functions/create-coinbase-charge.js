@@ -1,7 +1,7 @@
 // Creates a Coinbase Commerce charge for the cart, with your standing 20% crypto discount
 // applied automatically, and returns the hosted checkout URL.
-// Prices come from products.js on the server (browser prices are ignored); the
-// crypto discount stacks on top of any promo code, exactly as before.
+// Prices come from products.js on the server (browser prices are ignored).
+// Promo codes never stack with the crypto discount: any promo code is ignored.
 // Payment is confirmed by the signed coinbase-webhook function.
 // Requires env var: COINBASE_COMMERCE_API_KEY (from https://beta.commerce.coinbase.com/settings/security)
 const {
@@ -39,7 +39,8 @@ function createHandler({
       const customer = body.customer || {};
       // The order record and receipt email go to this address, so require it.
       const email = normalizeEmail(customer.email);
-      const pricing = priceCartForStripe(trustedCartItems(body), body.promoCode);
+      // No promo code here — crypto always gets its 20% instead.
+      const pricing = priceCartForStripe(trustedCartItems(body), null);
       const discounted = (cryptoChargeCents(pricing.totalCents) / 100).toFixed(2);
       const lines = pricing.lineItems.map((line) => [line.price_data.product_data.name, line.quantity]);
 
@@ -67,7 +68,6 @@ function createHandler({
             shipping_address: text(customer.address),
             shipping_city: text(customer.city),
             marketing_consent: customer.marketingConsent === true ? "true" : "false",
-            promo_code: pricing.promoCode || "",
             items: JSON.stringify(lines),
           },
           redirect_url: `${siteUrl}/?checkout=success`,

@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
 const test = require("node:test");
+require("./promo-fixture.js");
 
 const { createHandler: createPayPalOrderHandler } = require("../netlify/functions/create-paypal-order.js");
 const { createHandler: createPayPalCaptureHandler } = require("../netlify/functions/paypal-capture.js");
@@ -227,7 +228,7 @@ test("PayPal sales not made by this shop are left alone", async () => {
 
 // ---------- Coinbase charge creation ----------
 
-test("Coinbase charges use server prices with the 20% crypto discount on top of promos", async () => {
+test("Coinbase charges use server prices and never stack a promo code with the 20% crypto discount", async () => {
   let sent;
   const handler = createCoinbaseChargeHandler({
     fetchImpl: async (url, init) => {
@@ -240,12 +241,12 @@ test("Coinbase charges use server prices with the 20% crypto discount on top of 
   const response = await handler(post({ cart: tamperedCart, customer, promoCode: "CIG10" }));
   assert.equal(response.statusCode, 200);
   assert.equal(JSON.parse(response.body).url, "https://commerce.test/pay");
-  // Old browser math: $9 promo price x2 = $18, then 20% off = $14.40.
-  assert.deepEqual(sent.local_price, { amount: "14.40", currency: "USD" });
+  // $10 x2 = $20, 20% crypto discount only (CIG10 ignored) = $16.00.
+  assert.deepEqual(sent.local_price, { amount: "16.00", currency: "USD" });
   assert.equal(sent.metadata.customer_email, "buyer@example.com");
   assert.equal(sent.metadata.shipping_address, "1 Main St");
   assert.equal(sent.metadata.shipping_city, "Austin, TX 78701");
-  assert.equal(sent.metadata.promo_code, "CIG10");
+  assert.equal(sent.metadata.promo_code, undefined);
   assert.deepEqual(JSON.parse(sent.metadata.items), [["CIG Pillow Case — Red", 2]]);
   assert.equal(sent.redirect_url, "https://shop.test/?checkout=success");
 });
@@ -289,7 +290,7 @@ function paidCharge(status = "COMPLETED") {
   return {
     id: "c0a3b1d2-0000-0000-0000-000000000000",
     code: "ABCD1234",
-    pricing: { local: { amount: "14.40", currency: "USD" } },
+    pricing: { local: { amount: "16.00", currency: "USD" } },
     timeline: [{ status: "NEW", time: "2026-10-20T19:59:00Z" }, { status, time: "2026-10-20T20:10:00Z" }],
     metadata: {
       customer_email: "buyer@example.com",
@@ -297,7 +298,6 @@ function paidCharge(status = "COMPLETED") {
       shipping_address: "1 Main St",
       shipping_city: "Austin, TX 78701",
       marketing_consent: "true",
-      promo_code: "CIG10",
       items: JSON.stringify([["CIG Pillow Case — Red", 2]]),
     },
   };
@@ -333,7 +333,7 @@ test("Coinbase webhook records confirmed charges with shipping from metadata", a
   const order = recorded[0];
   assert.equal(order.sessionId, "coinbase:ABCD1234");
   assert.equal(order.eventId, "coinbase:evt-1");
-  assert.equal(order.amountTotalCents, 1440);
+  assert.equal(order.amountTotalCents, 1600);
   assert.equal(order.emailOriginal, "buyer@example.com");
   assert.equal(order.marketingConsent, true);
   assert.equal(order.shippingDestination.line1, "1 Main St");

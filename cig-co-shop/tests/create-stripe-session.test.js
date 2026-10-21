@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+require("./promo-fixture.js");
 const test = require("node:test");
 
 const {

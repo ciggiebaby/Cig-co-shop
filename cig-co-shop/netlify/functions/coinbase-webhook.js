@@ -82,7 +82,7 @@ function chargeOrder(charge) {
       summary: metadata.shipping_city || null,
     } : null,
     marketingConsent: metadata.marketing_consent === "true",
-    promoCode: metadata.promo_code || null,
+    promoCode: null, // promo codes never apply to crypto
     paidAt: (paidEntry && paidEntry.time) || new Date().toISOString(),
   };
 }

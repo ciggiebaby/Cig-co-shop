@@ -350,7 +350,7 @@ function applyPromoCode(rawCode) {
   if (typeof PROMO_CODES !== "undefined" && PROMO_CODES[code]) {
     promoState = code;
     if (typeof savePromoWin === "function") savePromoWin(code);
-    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label}.`; messageEl.classList.remove("promo-error"); }
+    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label}. (Crypto checkout gets its 20% off instead.)`; messageEl.classList.remove("promo-error"); }
   } else {
     promoState = null;
     if (messageEl) { messageEl.textContent = "That code isn't valid."; messageEl.classList.add("promo-error"); }
@@ -597,12 +597,16 @@ paymentButtons.forEach((btn) => {
           ? "/.netlify/functions/create-paypal-order"
           : "/.netlify/functions/create-coinbase-charge";
 
+      // Promo codes never stack with the 20% crypto discount (the server
+      // enforces this too); prices themselves are always computed server-side.
+      const checkoutPromo = method === "crypto" ? null : promoState;
+
       let requestBody = buildCheckoutRequestBody(
         method,
         cart,
         cart,
         fields,
-        promoState,
+        checkoutPromo,
       );
       requestBody = {
         ...requestBody,
