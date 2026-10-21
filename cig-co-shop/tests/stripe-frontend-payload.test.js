@@ -13,8 +13,17 @@ function loadFrontend({
   href,
   paymentMethods = [],
   promoCode = null,
+  promoCodes = { CIG10: { discount: 0.1, label: "10% off" } },
   storedCart,
 } = {}) {
+  const promoMessageElement = {
+    textContent: "",
+    classes: new Set(),
+    classList: {
+      add(name) { promoMessageElement.classes.add(name); },
+      remove(name) { promoMessageElement.classes.delete(name); },
+    },
+  };
   const statusElement = { hidden: true, textContent: "" };
   const errorElement = { textContent: "" };
   const loadingElement = { hidden: true };
@@ -90,9 +99,7 @@ function loadFrontend({
   }
   const context = vm.createContext({
     PRODUCTS,
-    PROMO_CODES: {
-      CIG10: { discount: 0.1, label: "10% off" },
-    },
+    PROMO_CODES: promoCodes,
     URL,
     console: {
       error(...args) {
@@ -106,6 +113,7 @@ function loadFrontend({
         if (id === "checkout-loading") return loadingElement;
         if (id === "checkout-optin") return optinElement;
         if (id === "product-modal") return productModalElement;
+        if (id === "promo-message") return promoMessageElement;
         return checkoutFields[id] || null;
       },
       querySelectorAll: (selector) =>
@@ -141,6 +149,7 @@ function loadFrontend({
     loadingElement,
     paymentButtons,
     productModalElement,
+    promoMessageElement,
     statusElement,
     storage,
     storageWrites: () => storageWrites,
@@ -753,4 +762,64 @@ test("PayPal and crypto buttons refuse print-on-demand items before calling the 
   } finally {
     PRODUCTS.splice(PRODUCTS.indexOf(podProduct), 1);
   }
+});
+
+test("an entered code that isn't in promo.js shows 'invalid' and applies no discount", () => {
+  const { context, promoMessageElement } = loadFrontend({ promoCodes: {} });
+  context.applyPromoCode("cig10");
+  assert.equal(promoMessageElement.textContent, "That code isn't valid.");
+  assert.equal(promoMessageElement.classes.has("promo-error"), true);
+  assert.equal(vm.runInContext("promoState", context), null);
+});
+
+test("crypto checkout never stacks a promo code with the 20% crypto discount", async () => {
+  const requests = [];
+  const frontend = loadFrontend({
+    fetchImpl: async (url, init) => {
+      requests.push({ url, body: JSON.parse(init.body) });
+      return { ok: true, async json() { return { url: "https://pay.test" }; } };
+    },
+    paymentMethods: ["crypto", "paypal"],
+    promoCode: "CIG10",
+    storedCart: [
+      { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 2 },
+    ],
+  });
+  await frontend.paymentButtons[0].click();
+  await frontend.paymentButtons[1].click();
+  const [crypto, paypal] = requests;
+  assert.match(crypto.url, /create-coinbase-charge/);
+  assert.equal(crypto.body.promoCode, null);
+  assert.equal(crypto.body.cart[0].price, 10);
+  assert.match(paypal.url, /create-paypal-order/);
+  assert.equal(paypal.body.promoCode, "CIG10");
+  assert.equal(paypal.body.cart[0].price, 9);
+});
+
+test("Arcade codes are checked with the server before they're applied", async () => {
+  const { isArcadeCode } = require("../promo.js");
+  const requests = [];
+  let reply = { valid: true, code: "CIG10-HXRN5K63", discount: 0.1, label: "10% off" };
+  const { context, promoMessageElement } = loadFrontend({
+    promoCodes: {},
+    fetchImpl: async (url, init) => {
+      requests.push({ url, body: JSON.parse(init.body) });
+      return { ok: true, async json() { return reply; } };
+    },
+  });
+  context.isArcadeCode = isArcadeCode;
+  context.savePromoWin = () => {};
+  context.clearSavedPromo = () => {};
+
+  await context.applyPromoCode("cig10-hxrn5k63");
+  assert.deepEqual(requests, [{ url: "/.netlify/functions/validate-promo", body: { code: "CIG10-HXRN5K63" } }]);
+  assert.equal(vm.runInContext("promoState", context), "CIG10-HXRN5K63");
+  assert.equal(vm.runInContext("promoDetails('CIG10-HXRN5K63').discount", context), 0.1);
+  assert.match(promoMessageElement.textContent, /Code applied — 10% off/);
+
+  reply = { valid: false, error: "This code has already been used." };
+  await context.applyPromoCode("CIG15-ABCDEFGH");
+  assert.equal(vm.runInContext("promoState", context), null);
+  assert.equal(promoMessageElement.textContent, "This code has already been used.");
+  assert.equal(promoMessageElement.classes.has("promo-error"), true);
 });

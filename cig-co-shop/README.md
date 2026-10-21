@@ -10,7 +10,7 @@ per-transaction processing fees from whichever payment method the customer picks
 - `index.html`, `styles.css`, `app.js`, `cart.js` — the actual site.
 - `gallery.html`, `gallery-data.js`, `gallery.js` — the Gallery page.
 - `arcade.html`, `arcade.js` — the Arcade page (email-gated games).
-- `promo.js` — discount codes and Arcade prizes, shared by checkout and the Arcade.
+- `promo.js` — discount codes (none active right now) and Arcade prizes, shared by checkout and the Arcade.
 - `email-list.js` — legacy Netlify Forms capture retained for non-Stripe checkout compatibility.
 - `products.js` — **edit this to add/change backstock.** Plain English, no code experience needed beyond copy-pasting the pattern.
 - `assets/logo-spin.mp4` — your spinning logo, used in the hero section.
@@ -28,20 +28,49 @@ the placeholder `{ ... }` blocks, point `image` at a file in `assets/gallery/`
 top of the page is set in `gallery.html` — swap the YouTube link there any
 time you drop a new visualizer or music video.
 
+## Promo codes
+
+Store-wide promo codes live in `promo.js` under `PROMO_CODES` (Arcade codes
+are separate; see below). **No store-wide codes are active right now** (CIG5, CIG10 and CIG20 were retired), so any code a customer types
+shows "That code isn't valid." To add one, add a line inside the braces and
+deploy:
+
+```js
+const PROMO_CODES = {
+  SUMMER15: { discount: 0.15, label: "15% off" },
+};
+```
+
+`discount` is the fraction off (0.15 = 15%). Write the code in UPPERCASE;
+customers can type it in any case. The checkout server reads the same file, so
+a code works for card and PayPal as soon as it's deployed. **Promo codes never
+stack with the 20% crypto discount.** Crypto checkout always uses its 20% and
+ignores any promo code.
+
 ## Arcade page + email list
 
 Visitors enter their email to unlock three games — a spin wheel, a scratch
-card, and mystery boxes. **Every visitor's first play is a guaranteed 10% or
-20% off** (picked randomly between the two) — a hook to get people playing.
-Every play after that is pure chance across the full prize pool, including a
-"try again" outcome. **Playing any one of the three counts as your play**
-and locks the whole Arcade for seven days — a live countdown shows on the page
-until the next play unlocks. Prizes are
-defined in `promo.js` under `PRIZES`: 5%, 10%, and 20% off codes (the same
-codes usable at checkout — nothing higher, by design), plus "Free Merch" and
-"Mystery Gift" prizes that have no automatic fulfillment — winners are told
-to screenshot their result and email or DM you to claim it, so keep an eye
-out for those.
+card, and mystery boxes. It's built to capture emails without giving away much:
+
+- **First play:** a guaranteed **10% off** code.
+- **Every play after that** (one every seven days): mostly free perks —
+  **Early Access** to the next drop or a **Giveaway Entry** for that month's
+  free item — with a rare **15% off** code (about 1 play in 20).
+- No 20% codes, no free merch, no "try again".
+
+Every discount code is **unique** (e.g. `CIG10-7KQ4XW2M`), works **once**, only
+with **the email that won it**, and **expires 7 days** after it's issued.
+Codes are stored in the Supabase `arcade_codes` table, checked by the server at
+checkout, and marked used when the paid order is recorded. Like every promo
+code, they never stack with the 20% crypto discount. **Playing any one of the
+three games counts as your play** and locks the whole Arcade for seven days.
+
+Supabase's `arcade_prizes` table picks the prize (the `weight` column sets the
+odds; `is_first_play_eligible` marks the first-play prize). `PRIZES` in
+`promo.js` is only the display copy for the wheel, so keep its ids in sync.
+To find giveaway entrants or the early-access list, filter `arcade_plays` by
+`prize_id = 'giveaway'` or `'early'`. See `docs/arcade-codes-rollout.md` for
+the database rollout.
 
 **Winners get their code by email immediately** after Supabase confirms the
 play. Supabase is authoritative for Arcade identity, first-play eligibility,

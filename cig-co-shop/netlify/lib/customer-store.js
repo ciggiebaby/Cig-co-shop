@@ -32,6 +32,13 @@ function createCustomerStore(client = createSupabaseClient()) {
       });
     },
 
+    checkArcadeCode(code, email = null) {
+      return client.rpc("cigco_check_arcade_code", {
+        p_code: code,
+        p_email: email,
+      });
+    },
+
     getArcadePlayDelivery(playId) {
       return client.rpc("cigco_get_arcade_play_delivery", {
         p_play_id: playId,

@@ -336,10 +336,25 @@ if (cartCloseBtn) cartCloseBtn.addEventListener("click", closeCart);
 if (cartBackdropEl) cartBackdropEl.addEventListener("click", closeCart);
 
 // ---------- Promo codes ----------
-let promoState = typeof getSavedPromo === "function" ? getSavedPromo() : null;
+// Arcade codes (unique per email, one use, 7 days) are checked by the server;
+// serverPromos caches the ones it confirmed.
+const serverPromos = {};
+function promoDetails(code) {
+  if (!code) return null;
+  if (typeof PROMO_CODES !== "undefined" && PROMO_CODES[code]) return PROMO_CODES[code];
+  return serverPromos[code] || null;
+}
+function looksLikeArcadeCode(code) {
+  return typeof isArcadeCode === "function" && isArcadeCode(code);
+}
 
-function applyPromoCode(rawCode) {
-  const messageEl = document.getElementById("promo-message");
+const savedPromo = typeof getSavedPromo === "function" ? getSavedPromo() : null;
+let promoState = savedPromo && !looksLikeArcadeCode(savedPromo) ? savedPromo : null;
+
+const CRYPTO_NOTE = "(Crypto checkout gets its 20% off instead.)";
+
+async function applyPromoCode(rawCode, { quiet = false } = {}) {
+  const messageEl = quiet ? null : document.getElementById("promo-message");
   const code = (rawCode || "").trim().toUpperCase();
   if (!code) {
     promoState = null;
@@ -350,12 +365,40 @@ function applyPromoCode(rawCode) {
   if (typeof PROMO_CODES !== "undefined" && PROMO_CODES[code]) {
     promoState = code;
     if (typeof savePromoWin === "function") savePromoWin(code);
-    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label}.`; messageEl.classList.remove("promo-error"); }
+    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label}. ${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
+  } else if (looksLikeArcadeCode(code)) {
+    if (messageEl) { messageEl.textContent = "Checking code…"; messageEl.classList.remove("promo-error"); }
+    let result = null;
+    try {
+      const res = await fetch("/.netlify/functions/validate-promo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      result = await res.json();
+    } catch {
+      result = { valid: false, error: "That code couldn't be checked. Please try again." };
+    }
+    if (result && result.valid) {
+      serverPromos[code] = { discount: result.discount, label: result.label };
+      promoState = code;
+      if (typeof savePromoWin === "function") savePromoWin(code);
+      if (messageEl) { messageEl.textContent = `Code applied — ${result.label}. One use, with the email that won it. ${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
+    } else {
+      promoState = null;
+      if (typeof clearSavedPromo === "function") clearSavedPromo();
+      if (messageEl) { messageEl.textContent = (result && result.error) || "That code isn't valid."; messageEl.classList.add("promo-error"); }
+    }
   } else {
     promoState = null;
     if (messageEl) { messageEl.textContent = "That code isn't valid."; messageEl.classList.add("promo-error"); }
   }
   renderCheckoutSummary();
+}
+
+// An Arcade code saved by the Arcade page is re-checked before it's applied.
+if (savedPromo && looksLikeArcadeCode(savedPromo)) {
+  applyPromoCode(savedPromo, { quiet: true });
 }
 
 const promoApplyBtn = document.getElementById("promo-apply");
@@ -387,7 +430,8 @@ function renderCheckoutSummary() {
   if (!summary) return;
   const cart = getCart();
   const subtotal = cartSubtotal(cart);
-  const discountFraction = promoState && typeof PROMO_CODES !== "undefined" && PROMO_CODES[promoState] ? PROMO_CODES[promoState].discount : 0;
+  const promoInfo = promoDetails(promoState);
+  const discountFraction = promoInfo ? promoInfo.discount : 0;
   const discountAmount = subtotal * discountFraction;
   const total = subtotal - discountAmount;
 
@@ -613,7 +657,10 @@ paymentButtons.forEach((btn) => {
           ? "/.netlify/functions/create-paypal-order"
           : "/.netlify/functions/create-coinbase-charge";
 
-      const discountFraction = promoState && typeof PROMO_CODES !== "undefined" && PROMO_CODES[promoState] ? PROMO_CODES[promoState].discount : 0;
+      // Promo codes never stack with the 20% crypto discount.
+      const checkoutPromo = method === "crypto" ? null : promoState;
+      const checkoutPromoInfo = promoDetails(checkoutPromo);
+      const discountFraction = checkoutPromoInfo ? checkoutPromoInfo.discount : 0;
       const cartToCharge = discountFraction > 0
         ? cart.map((item) => ({ ...item, price: Math.round(item.price * (1 - discountFraction) * 100) / 100 }))
         : cart;
@@ -623,7 +670,7 @@ paymentButtons.forEach((btn) => {
         cart,
         cartToCharge,
         fields,
-        promoState,
+        checkoutPromo,
       );
       if (method === "stripe") {
         requestBody = {

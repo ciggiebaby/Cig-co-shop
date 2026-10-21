@@ -172,7 +172,9 @@ function resolveRequestedItem(rawItem) {
   };
 }
 
-function priceCartForStripe(rawItems, rawPromoCode) {
+// resolvedPromo ({ code, discountBasisPoints } or null) comes from
+// resolvePromo() when the code was already checked (e.g. an Arcade code).
+function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
     validationError("Cart must contain at least one item.");
   }
@@ -180,7 +182,7 @@ function priceCartForStripe(rawItems, rawPromoCode) {
     validationError(`Cart cannot contain more than ${MAX_CART_LINES} lines.`);
   }
 
-  const promo = normalizePromoCode(rawPromoCode);
+  const promo = resolvedPromo !== undefined ? resolvedPromo : normalizePromoCode(rawPromoCode);
   const variants = new Map();
   let totalQuantity = 0;
 

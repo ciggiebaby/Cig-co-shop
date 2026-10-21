@@ -58,7 +58,7 @@ function createResendClient({
     sendPrize({ email, prize, playId }) {
       const codeBlock = prize.code
         ? `<p style="font-size:26px;letter-spacing:3px;font-weight:bold;color:#D4AF37;margin:16px 0;">${escapeHtml(prize.code)}</p>
-           <p style="color:#ccc;">Enter this code at checkout to redeem your discount.</p>`
+           <p style="color:#ccc;">${escapeHtml(prize.detail || "Enter this code at checkout to redeem your discount.")}</p>`
         : `<p style="color:#ccc;">${escapeHtml(prize.detail)}</p>`;
       return send({
         to: email,
