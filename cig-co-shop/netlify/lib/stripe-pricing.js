@@ -59,6 +59,21 @@ function validateQuantity(value) {
   return value;
 }
 
+// Style price, then a per-size or per-color price (products.js sizePrices /
+// colorPrices), then the sale price, then the base price.
+function optionPrice(map, key) {
+  return map && key != null && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+}
+
+function catalogUnitPrice(product, selectedStyle, color, size) {
+  if (selectedStyle) return selectedStyle.price;
+  const bySize = optionPrice(product.sizePrices, size);
+  if (bySize !== undefined) return bySize;
+  const byColor = optionPrice(product.colorPrices, color);
+  if (byColor !== undefined) return byColor;
+  return product.salePrice != null ? product.salePrice : product.price;
+}
+
 function priceToCents(value, productId) {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw new Error(`Invalid price configuration for product ${productId}.`);
@@ -140,11 +155,7 @@ function resolveRequestedItem(rawItem) {
   const quantity = validateQuantity(rawItem.quantity);
 
   const selectedStyle = style ? styles.find((entry) => entry.name === style) : null;
-  const catalogPrice = selectedStyle
-    ? selectedStyle.price
-    : product.salePrice != null
-    ? product.salePrice
-    : product.price;
+  const catalogPrice = catalogUnitPrice(product, selectedStyle, color, size);
   const unitAmount = priceToCents(catalogPrice, productId);
   const availableStock = variantStock(product, style, color, size);
   const componentRequirements = product.componentStock && selectedStyle
@@ -273,6 +284,7 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
 }
 
 module.exports = {
+  catalogUnitPrice,
   MAX_CART_LINES,
   MAX_QUANTITY_PER_VARIANT,
   MAX_TOTAL_QUANTITY,

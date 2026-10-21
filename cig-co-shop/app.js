@@ -6,7 +6,7 @@ function renderProductGrid() {
   const grid = document.getElementById("product-grid");
   if (!grid) return;
   grid.innerHTML = PRODUCTS.filter((p) => !p.hidden).map((p) => {
-    const price = p.styles
+    const price = p.styles || hasPriceRange(p)
       ? `From $${minPrice(p).toFixed(2)}`
       : p.salePrice
       ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${p.salePrice.toFixed(2)}</span>`
@@ -75,13 +75,31 @@ function productTotalStock(p) {
   return p.colors.reduce((a, c) => a + colorStock(p, null, c), 0);
 }
 function styleObj(p, name) { return (p.styles || []).find((s) => s.name === name) || null; }
-function currentPrice(p, style) {
+function optionPriceFor(map, key) {
+  return map && key != null && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+}
+// Same order as the server (stripe-pricing.js): style, size, color, sale, base.
+function currentPrice(p, style, color, size) {
   if (p.styles) { const s = styleObj(p, style); return s ? s.price : p.styles[0].price; }
+  const bySize = optionPriceFor(p.sizePrices, size);
+  if (bySize !== undefined) return bySize;
+  const byColor = optionPriceFor(p.colorPrices, color);
+  if (byColor !== undefined) return byColor;
   return p.salePrice != null ? p.salePrice : p.price;
 }
+function allPrices(p) {
+  if (p.styles) return p.styles.map((s) => s.price);
+  const base = p.salePrice != null ? p.salePrice : p.price;
+  const extra = Object.values(p.sizePrices || {}).concat(Object.values(p.colorPrices || {}));
+  // With per-size prices on every size, the base price never applies.
+  const allSizesPriced = p.sizes && p.sizes.length && p.sizes.every((sz) => optionPriceFor(p.sizePrices, sz) !== undefined);
+  return (allSizesPriced ? [] : [base]).concat(extra).filter((v) => typeof v === "number");
+}
 function minPrice(p) {
-  if (p.styles) return Math.min.apply(null, p.styles.map((s) => s.price));
-  return p.salePrice != null ? p.salePrice : p.price;
+  return Math.min.apply(null, allPrices(p));
+}
+function hasPriceRange(p) {
+  return new Set(allPrices(p)).size > 1;
 }
 
 function productImageForColor(p, color, size, style) {
@@ -151,6 +169,7 @@ function openProductModal(id) {
     <div class="pd-sku">SKU: ${p.sku}</div>
     <h3 class="pd-name">${p.name}</h3>
     <div class="pd-price" id="pd-price"></div>
+    ${p.description ? `<p class="pd-description">${p.description}</p>` : ""}
     ${p.styles ? `
       <div class="pd-field">
         <label>Style</label>
@@ -162,7 +181,10 @@ function openProductModal(id) {
       <div class="pd-field">
         <label>Color</label>
         <div class="pd-options" id="pd-colors">
-          ${p.colors.map((c) => `<button class="pd-option${c === modalState.color ? " selected" : ""}${colorStock(p, modalState.style, c) <= 0 ? " soldout" : ""}" data-color="${c}">${c}</button>`).join("")}
+          ${p.colors.map((c) => {
+            const swatch = p.colorSwatches && p.colorSwatches[c];
+            return `<button class="pd-option${swatch ? " pd-swatch" : ""}${c === modalState.color ? " selected" : ""}${colorStock(p, modalState.style, c) <= 0 ? " soldout" : ""}" data-color="${c}" title="${c}">${swatch ? `<img class="pd-swatch-img" src="${swatch}" alt="" loading="lazy" />` : ""}<span>${c}</span></button>`;
+          }).join("")}
         </div>
       </div>` : ""}
     ${p.sizes.length ? `
@@ -193,7 +215,7 @@ function openProductModal(id) {
       b.classList.toggle("soldout", colorStock(p, modalState.style, b.dataset.color) <= 0);
     });
     const priceEl = document.getElementById("pd-price");
-    if (priceEl) priceEl.textContent = `$${currentPrice(p, modalState.style).toFixed(2)}`;
+    if (priceEl) priceEl.textContent = `$${currentPrice(p, modalState.style, modalState.color, modalState.size).toFixed(2)}`;
     const avail = variantStock(p, modalState.style, modalState.color, modalState.size);
     const addBtn = document.getElementById("add-to-cart-btn");
     const qtyVal = document.getElementById("qty-value");
@@ -259,7 +281,7 @@ function openProductModal(id) {
       productId: p.id,
       sku: p.sku,
       name: p.styles ? `${p.name} (${modalState.style})` : p.name,
-      price: currentPrice(p, modalState.style),
+      price: currentPrice(p, modalState.style, modalState.color, modalState.size),
       image: productImageForColor(p, modalState.color, modalState.size, modalState.style),
       color: modalState.color,
       size: modalState.size,
@@ -922,6 +944,8 @@ if (typeof module !== "undefined" && module.exports) {
     addCheckoutFingerprint,
     buildCheckoutRequestBody,
     componentVariantStock,
+    currentPrice,
+    minPrice,
     handleCheckoutResult,
     productTotalStock,
     variantStock,
