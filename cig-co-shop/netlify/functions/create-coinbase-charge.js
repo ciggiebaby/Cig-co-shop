@@ -3,7 +3,7 @@
 // Prices come from products.js on the server (browser prices are ignored).
 // Promo codes never stack with the crypto discount: any promo code is ignored.
 // Ships to the country picked on the site: US (state + ZIP required, free
-// shipping) or CA/GB/DE/AU (postal code required, per-item shipping from
+// shipping) or CA/GB/DE/AU/JP/KR (postal code required, per-item shipping from
 // shipping-rates.js; pillows are US only).
 // The 20% crypto discount applies to the items only, never to shipping, so
 // international shipping always covers Printful's cost.

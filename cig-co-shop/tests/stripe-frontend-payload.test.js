@@ -894,7 +894,7 @@ test("a pillow in the bag disables non-US countries and explains why", () => {
   assert.equal(frontend.countrySelect.value, "US");
   assert.deepEqual(
     frontend.countrySelect.options.map((option) => [option.value, option.disabled]),
-    [["US", false], ["CA", true], ["GB", true], ["DE", true], ["AU", true]],
+    [["US", false], ["CA", true], ["GB", true], ["DE", true], ["AU", true], ["JP", true], ["KR", true]],
   );
   assert.equal(frontend.shippingNoteElement.hidden, false);
   assert.match(frontend.shippingNoteElement.textContent, /CIG Pillow Case ships to the US only/);

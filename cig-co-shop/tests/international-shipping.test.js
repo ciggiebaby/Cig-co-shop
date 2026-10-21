@@ -32,15 +32,15 @@ function post(body) {
 
 // Printful's cheapest standard per-unit quotes (USD) from SERVI's pull.
 const PRINTFUL_PER_UNIT = {
-  bag: { CA: 7.29, GB: 4.59, DE: 4.99, AU: 7.99 },
-  case: { CA: 9.29, GB: 2.59, DE: 7.29, AU: 8.39 },
-  sleeve: { CA: 9.79, GB: 7.29, DE: 7.29, AU: 12.49 },
+  bag: { CA: 7.29, GB: 4.59, DE: 4.99, AU: 7.99, JP: 4.89, KR: 12.49 },
+  case: { CA: 9.29, GB: 2.59, DE: 7.29, AU: 8.39, JP: 5.19, KR: 8.29 },
+  sleeve: { CA: 9.79, GB: 7.29, DE: 7.29, AU: 12.49, JP: 7.89, KR: 17.69 },
 };
 
 // ---------- Rate table + pricing ----------
 
 test("international rates are Printful's per-unit cost rounded up to the next dollar", () => {
-  assert.deepEqual(Object.keys(SHIP_TO_COUNTRIES), ["US", "CA", "GB", "DE", "AU"]);
+  assert.deepEqual(Object.keys(SHIP_TO_COUNTRIES), ["US", "CA", "GB", "DE", "AU", "JP", "KR"]);
   assert.deepEqual(Object.keys(INTERNATIONAL_SHIPPING_PER_ITEM_USD).sort(), ["bag", "case", "sleeve"]);
   for (const [shippingClass, costs] of Object.entries(PRINTFUL_PER_UNIT)) {
     for (const [country, cost] of Object.entries(costs)) {
@@ -59,6 +59,9 @@ test("shipping is free in the US and charged per item abroad", () => {
   assert.equal(resolveCheckoutShipping(pricing, "AU").shippingCents, 3800);
   assert.equal(resolveCheckoutShipping(pricing, "GB").shippingCents, 2100);
   assert.equal(resolveCheckoutShipping(pricing, "DE").shippingCents, 2600);
+  // JP: bag $5 x2 + case $6 + sleeve $8; KR: bag $13 x2 + case $9 + sleeve $18
+  assert.equal(resolveCheckoutShipping(pricing, "JP").shippingCents, 2400);
+  assert.equal(resolveCheckoutShipping(pricing, "kr").shippingCents, 5300);
   // Item prices are untouched by shipping.
   assert.equal(pricing.totalCents, 4500 * 2 + 3000 + 3500);
 });
@@ -80,7 +83,7 @@ test("pillows (and products without an international class) block non-US shippin
 test("countries outside US/CA/GB/DE/AU are refused", () => {
   const pricing = priceCartForStripe([bag()]);
   for (const country of ["FR", "MX", "PR", "XX"]) {
-    assert.throws(() => resolveCheckoutShipping(pricing, country), /only ship to the United States, Canada, the United Kingdom, Germany, and Australia/);
+    assert.throws(() => resolveCheckoutShipping(pricing, country), /only ship to the United States, Canada, the United Kingdom, Germany, Australia, Japan, and South Korea/);
   }
 });
 
@@ -91,6 +94,11 @@ test("address checks: state + ZIP in the US, a valid postal code elsewhere", () 
   assert.equal(requireShippingAddress({ zip: "SW1A 1AA" }, "GB").zip, "SW1A 1AA");
   assert.equal(requireShippingAddress({ zip: "10115", state: "Berlin" }, "DE").state, "BERLIN");
   assert.equal(requireShippingAddress({ zip: "2000" }, "AU").zip, "2000");
+  assert.equal(requireShippingAddress({ zip: "100-0001" }, "JP").zip, "100-0001");
+  assert.equal(requireShippingAddress({ zip: "1000001" }, "JP").zip, "1000001");
+  assert.equal(requireShippingAddress({ zip: "04524" }, "KR").zip, "04524");
+  assert.throws(() => requireShippingAddress({ zip: "100-001" }, "JP"), /postal code for Japan/);
+  assert.throws(() => requireShippingAddress({ zip: "0452" }, "KR"), /postal code for South Korea/);
   assert.throws(() => requireShippingAddress({ zip: "30303" }, "CA"), /postal code for Canada/);
   assert.throws(() => requireShippingAddress({ zip: "" }, "AU"), /postal code for Australia/);
 });
@@ -153,6 +161,7 @@ test("Stripe US sessions stay free-shipping and US-only", async () => {
 test("Stripe refuses a pillow or an unsupported country abroad without calling Stripe", async () => {
   for (const [items, shipCountry, message] of [
     [[bag(), pillow()], "AU", /CIG Pillow Case ships to the US only/],
+    [[pillow()], "JP", /CIG Pillow Case ships to the US only/],
     [[bag()], "FR", /only ship to the United States/],
   ]) {
     const stripe = stripeStub();
@@ -314,4 +323,20 @@ test("crypto refuses pillows abroad, bad postal codes, and unsupported countries
     assert.match(JSON.parse(response.body).error, message);
   }
   assert.equal(sent.length, 0);
+});
+
+test("Japan and South Korea checkouts price shipping and keep pillows US-only", async () => {
+  const { handler, sent } = coinbaseHandler();
+  const jp = await handler(post({ items: [phoneCase()], customer: { ...intlCustomer, country: "JP", zip: "100-0001" } }));
+  assert.equal(jp.statusCode, 200);
+  assert.equal(sent[0].local_price.amount, "30.00"); // $30 case -> $24, plus JP $6
+  const kr = await handler(post({ items: [pillow()], customer: { ...intlCustomer, country: "KR", zip: "04524" } }));
+  assert.equal(kr.statusCode, 400);
+  assert.match(JSON.parse(kr.body).error, /ship to South Korea/);
+
+  const stripe = stripeStub();
+  const stripeHandler = createStripeHandler({ stripeFactory: stripe.factory, siteUrl: "https://shop.test", logger: silent });
+  await stripeHandler(post({ items: [sleeve()], shipCountry: "KR" }));
+  assert.deepEqual(stripe.request.shipping_address_collection, { allowed_countries: ["KR"] });
+  assert.equal(stripe.request.shipping_options[0].shipping_rate_data.fixed_amount.amount, 1800);
 });

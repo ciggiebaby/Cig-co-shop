@@ -2,7 +2,7 @@
 // the Stripe, PayPal, and crypto checkouts. The rates live in shipping-rates.js
 // (site root) so the checkout page shows exactly what the server charges.
 //
-// US: free shipping, any product. International (CA, GB, DE, AU only): allowed
+// US: free shipping, any product. International (CA, GB, DE, AU, JP, KR only): allowed
 // only when every product in the cart has an international shipping class;
 // pillows (and products without a class) are US only.
 const { SHIP_TO_COUNTRIES, quoteShipping } = require("../../shipping-rates.js");
@@ -21,10 +21,12 @@ const POSTAL_CODE_PATTERNS = {
   GB: /^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/,
   DE: /^\d{5}$/,
   AU: /^\d{4}$/,
+  JP: /^\d{3}-?\d{4}$/,
+  KR: /^\d{5}$/,
 };
 
 const UNSUPPORTED_COUNTRY_MESSAGE =
-  "Sorry, we only ship to the United States, Canada, the United Kingdom, Germany, and Australia right now.";
+  "Sorry, we only ship to the United States, Canada, the United Kingdom, Germany, Australia, Japan, and South Korea right now.";
 
 function countryName(country) {
   return SHIP_TO_COUNTRIES[country] || country;

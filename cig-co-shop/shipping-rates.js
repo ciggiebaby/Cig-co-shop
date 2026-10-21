@@ -1,6 +1,8 @@
 // CIG & CO. — shipping rates (one table for the checkout page AND the server)
 //
-// *** PROPOSED RATES — CIG must approve these numbers before this is merged. ***
+// Status of each country's rates:
+//   CA, GB, DE, AU: APPROVED by CIG on 2026-10-21.
+//   JP, KR:         *** PROPOSED (new, not yet approved by CIG) ***
 //
 // US: free shipping on everything (unchanged).
 // International: only the countries below, and only for products whose
@@ -10,8 +12,8 @@
 // Each number is the charge PER ITEM in whole US dollars: Printful's cheapest
 // standard per-unit shipping for that country, rounded UP to the next dollar.
 // Printful quotes (USD, one unit, pulled Oct 2026) are in the comments. We
-// charge the per-unit rate on every item, even though Printful may charge
-// less for additional items in the same box, so margin is never at risk.
+// charge the per-unit rate on every item, even though Printful charges less
+// for additional items in the same box, so margin is never at risk.
 // To change a rate, edit the number here; the site and checkout both use it.
 
 const SHIP_TO_COUNTRIES = {
@@ -20,16 +22,21 @@ const SHIP_TO_COUNTRIES = {
   GB: "United Kingdom",
   DE: "Germany",
   AU: "Australia",
+  JP: "Japan",       // PROPOSED
+  KR: "South Korea", // PROPOSED
 };
 
 const INTERNATIONAL_SHIPPING_PER_ITEM_USD = {
-  //            Printful per-unit:  CA 7.29  GB 4.59  DE 4.99  AU 7.99
-  bag:    { CA: 8,  GB: 5, DE: 5, AU: 8 },  // crossbody bags (incl. Multi)
-  //            Printful per-unit:  CA 9.29  GB 2.59  DE 7.29  AU 8.39
-  case:   { CA: 10, GB: 3, DE: 8, AU: 9 },  // MagSafe phone cases
-  //            Printful per-unit:  CA 9.79  GB 7.29  DE 7.29  AU 12.49
-  sleeve: { CA: 10, GB: 8, DE: 8, AU: 13 }, // laptop sleeves
-  // pillow: US only (Printful: CA 12.69, GB 11.49, DE 13.79, AU 37.59)
+  // crossbody bags (incl. Multi; all are Printful product 744, variant 19256)
+  //   Printful per-unit: CA 7.29  GB 4.59  DE 4.99  AU 7.99 | JP 4.89  KR 12.49
+  bag:    { CA: 8,  GB: 5, DE: 5, AU: 8,  JP: 5, KR: 13 },
+  // MagSafe phone cases (JP/KR delivery is slow: ~30 days)
+  //   Printful per-unit: CA 9.29  GB 2.59  DE 7.29  AU 8.39 | JP 5.19  KR 8.29
+  case:   { CA: 10, GB: 3, DE: 8, AU: 9,  JP: 6, KR: 9 },
+  // laptop sleeves
+  //   Printful per-unit: CA 9.79  GB 7.29  DE 7.29  AU 12.49 | JP 7.89  KR 17.69
+  sleeve: { CA: 10, GB: 8, DE: 8, AU: 13, JP: 8, KR: 18 },
+  // pillow: US only (Printful: CA 12.69, GB 11.49, DE 13.79, AU 37.59, JP 55.99, KR 51.99)
 };
 
 // Returns the per-item charge in cents, or null if that class can't ship there.
