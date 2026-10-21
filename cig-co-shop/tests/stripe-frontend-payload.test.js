@@ -1174,13 +1174,16 @@ test("every crypto button and 20%-off line starts hidden in the HTML (no flash w
 
 // ---------- FW26/27 collection: one product per item type, priced per option ----------
 
-test("the shop grid lists the FW26 crossbody once, from $65, and hides the TBD-priced items", () => {
+test("the shop grid lists each FW26 item once with its approved price", () => {
   const frontend = loadFrontend();
   frontend.context.renderProductGrid();
   const html = frontend.checkoutFields["product-grid"].innerHTML;
   assert.equal((html.match(/data-id="FW26-BAG"/g) || []).length, 1);
-  assert.match(html, /CIG Utility Crossbody<\/div>\s*<div class="product-card-price">From \$65\.00</);
-  for (const id of ["FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW"]) assert.doesNotMatch(html, new RegExp(`data-id="${id}"`));
+  assert.match(html, /Crossbody Bag<\/div>\s*<div class="product-card-price">From \$65\.00</);
+  assert.match(html, /MagSafe Case<\/div>\s*<div class="product-card-price">\$40\.00</);
+  assert.match(html, /Laptop Sleeve<\/div>\s*<div class="product-card-price">From \$50\.00</);
+  assert.match(html, /Throw Pillow<\/div>\s*<div class="product-card-price">From \$45\.00</);
+  assert.doesNotMatch(html, /CIG (Utility Crossbody|MagSafe|Laptop Sleeve|Throw Pillow)/);
 });
 
 test("picking a color swaps the photo and the price (solid $65, Multi $75)", () => {
@@ -1212,10 +1215,21 @@ test("adding the Multi crossbody to the bag sends only ids; the server prices it
   const frontend = loadFrontend();
   const body = frontend.helpers.buildCheckoutRequestBody(
     "stripe",
-    [{ productId: "FW26-BAG", name: "CIG Utility Crossbody", price: 75, color: "Multi", size: null, style: null, qty: 1 }],
+    [{ productId: "FW26-BAG", name: "Crossbody Bag", price: 75, color: "Multi", size: null, style: null, qty: 1 }],
     [],
     {},
     null,
   );
   assert.deepEqual(JSON.parse(JSON.stringify(body.items)), [{ productId: "FW26-BAG", color: "Multi", size: null, style: null, quantity: 1 }]);
+});
+
+test("sleeve and pillow prices follow the picked size; the case picker is labelled Model", () => {
+  const { context } = loadFrontend();
+  const sleeve = PRODUCTS.find((p) => p.id === "FW26-SLEEVE");
+  const pillow = PRODUCTS.find((p) => p.id === "FW26-PILLOW");
+  assert.equal(context.currentPrice(sleeve, null, "Gold", "15″"), 55);
+  assert.equal(context.currentPrice(pillow, null, "Gold", "22″×22″"), 58);
+  assert.equal(context.minPrice(pillow), 45);
+  const source = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.match(source, /<label>\$\{p\.sizeLabel \|\| "Size"\}<\/label>/);
 });

@@ -189,7 +189,7 @@ function openProductModal(id) {
       </div>` : ""}
     ${p.sizes.length ? `
       <div class="pd-field">
-        <label>Size</label>
+        <label>${p.sizeLabel || "Size"}</label>
         <div class="pd-options" id="pd-sizes">
           ${p.sizes.map((s) => `<button class="pd-option${s === modalState.size ? " selected" : ""}${variantStock(p, modalState.style, modalState.color, s) <= 0 ? " soldout" : ""}" data-size="${s}">${s}</button>`).join("")}
         </div>

@@ -65,19 +65,31 @@ test("MagSafe case description carries the ~30-day Asia note", () => {
   assert.match(product("FW26-CASE").description, /Japan & South Korea takes about 30 days/);
 });
 
-test("only CIG-approved prices are live: bag $65 solids / $75 Multi; the rest stay hidden with no price", () => {
-  const bag = product("FW26-BAG");
-  assert.equal(bag.price, 65);
-  assert.deepEqual(bag.colorPrices, { Multi: 75 });
-  assert.notEqual(bag.hidden, true);
-  for (const id of ["FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW"]) {
+test("plain product names (CIG 10/21)", () => {
+  assert.deepEqual(
+    ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW"].map((id) => product(id).name),
+    ["Crossbody Bag", "MagSafe Case", "Laptop Sleeve", "Throw Pillow"],
+  );
+});
+
+test("all four are purchasable at CIG's approved prices (10/21), charged by the server", () => {
+  const expected = {
+    "FW26-BAG": { Black: 6500, Burgundy: 6500, Navy: 6500, Hunter: 6500, Grape: 6500, Gold: 6500, "Burnt Orange": 6500, Espresso: 6500, Multi: 7500 },
+    "FW26-CASE": Object.fromEntries(product("FW26-CASE").sizes.map((s) => [s, 4000])),
+    "FW26-SLEEVE": { "13″": 5000, "15″": 5500 },
+    "FW26-PILLOW": { "14″×14″": 4500, "16″×16″": 4800, "18″×18″": 5200, "20″×12″": 4800, "22″×22″": 5800 },
+  };
+  for (const [id, prices] of Object.entries(expected)) {
     const p = product(id);
-    assert.equal(p.hidden, true, id);
-    assert.equal(p.price, null, id);
-    assert.equal(p.sizePrices, undefined, id);
-    assert.equal(p.colorPrices, undefined, id);
-    assert.throws(() => priceCartForStripe([{ productId: id, color: "Black", size: p.sizes[0], quantity: 1 }]), /not available/);
+    assert.notEqual(p.hidden, true, id);
+    for (const [option, cents] of Object.entries(prices)) {
+      const item = p.sizes.length
+        ? { productId: id, color: "Navy", size: option, quantity: 1 }
+        : { productId: id, color: option, quantity: 1 };
+      assert.equal(priceCartForStripe([item]).lineItems[0].price_data.unit_amount, cents, `${id} ${option}`);
+    }
   }
+  assert.equal(product("FW26-CASE").sizeLabel, "Model");
 });
 
 test("the server charges $65 for a solid and $75 for Multi, and tags each line for Printful", () => {

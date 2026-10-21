@@ -35,6 +35,7 @@
 //   over color). The site and the server both use them. Styles keep their own
 //   price as before.
 // description: short line shown on the product sheet.
+// sizeLabel: label for the size picker (default "Size"; the case uses "Model").
 // colorSwatches: { color: image URL } — small swatch image on each color button
 //   (clicking a color also swaps the product photo via colorImages).
 //
@@ -56,7 +57,7 @@ const PRODUCTS = [
   {
     id: "FW26-BAG",
     sku: "FW26-BAG",
-    name: "CIG Utility Crossbody",
+    name: "Crossbody Bag",
     shipping: "bag",
     // Approved by CIG: solids $65, Multi $75.
     price: 65.00,
@@ -105,12 +106,11 @@ const PRODUCTS = [
   {
     id: "FW26-CASE",
     sku: "FW26-CASE",
-    // PRICE TBD: not approved by CIG yet. Hidden (not shown, server refuses it)
-    // until CIG sets the price. Printful retail is $40 (set 10/20).
-    hidden: true,
-    name: "CIG MagSafe Tough Case",
+    // Prices approved by CIG 10/21: $40 every model.
+    name: "MagSafe Case",
     shipping: "case",
-    price: null,
+    price: 40.00,
+    sizeLabel: "Model",
     salePrice: null,
     description: "Made to order. MagSafe compatible. Shipping to Japan & South Korea takes about 30 days.",
     image: "https://files.cdn.printful.com/files/cfe/cfe92b997631c49642cb842a6d911845_preview.png",
@@ -448,12 +448,11 @@ const PRODUCTS = [
   {
     id: "FW26-SLEEVE",
     sku: "FW26-SLEEVE",
-    // PRICE TBD: not approved by CIG yet. Hidden (not shown, server refuses it)
-    // until CIG sets the price. Printful retail is $50 (13″) / $55 (15″) (set 10/20); per-size prices go in sizePrices.
-    hidden: true,
-    name: "CIG Laptop Sleeve",
+    // Prices approved by CIG 10/21: 13″ $50, 15″ $55.
+    name: "Laptop Sleeve",
     shipping: "sleeve",
-    price: null,
+    price: 50.00,
+    sizePrices: { "13″": 50.00, "15″": 55.00 },
     salePrice: null,
     description: "Made to order.",
     image: "https://files.cdn.printful.com/files/ac5/ac5f5ee092884739f208a5b1b8b09537_preview.png",
@@ -535,12 +534,11 @@ const PRODUCTS = [
   {
     id: "FW26-PILLOW",
     sku: "FW26-PILLOW",
-    // PRICE TBD: not approved by CIG yet. Hidden (not shown, server refuses it)
-    // until CIG sets the price. Printful retail is $45/$48/$52/$48/$58 by size (set 10/20); per-size prices go in sizePrices. US only.
-    hidden: true,
-    name: "CIG Throw Pillow",
+    // Prices approved by CIG 10/21 (by size). US only.
+    name: "Throw Pillow",
     shipping: "pillow",
-    price: null,
+    price: 45.00,
+    sizePrices: { "14″×14″": 45.00, "16″×16″": 48.00, "18″×18″": 52.00, "20″×12″": 48.00, "22″×22″": 58.00 },
     salePrice: null,
     description: "Made to order. Ships to the US only.",
     image: "https://files.cdn.printful.com/files/dfe/dfe0bcb6a65f680f09a3e3d2a66863b6_preview.png",
