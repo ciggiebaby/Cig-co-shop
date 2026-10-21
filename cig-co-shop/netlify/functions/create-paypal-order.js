@@ -3,6 +3,9 @@
 // (from https://developer.paypal.com/dashboard/applications — use Live keys once you're ready to go live, Sandbox keys to test)
 // Optional: PAYPAL_API_BASE — defaults to live API. Set to https://api-m.sandbox.paypal.com while testing.
 
+const { isPodProduct } = require("../lib/printful.js");
+const POD_CARD_ONLY_MESSAGE = "Made-to-order items can only be paid by card for now.";
+
 const PAYPAL_API_BASE = process.env.PAYPAL_API_BASE || "https://api-m.paypal.com";
 
 async function getAccessToken() {
@@ -32,6 +35,10 @@ exports.handler = async (event) => {
     const { cart } = JSON.parse(event.body);
     if (!cart || cart.length === 0) {
       return { statusCode: 400, body: JSON.stringify({ error: "Cart is empty." }) };
+    }
+    // Print-on-demand items are fulfilled from the signed Stripe webhook only.
+    if (cart.some((item) => item && isPodProduct(item.productId))) {
+      return { statusCode: 400, body: JSON.stringify({ error: POD_CARD_ONLY_MESSAGE }) };
     }
 
     const subtotal = cart

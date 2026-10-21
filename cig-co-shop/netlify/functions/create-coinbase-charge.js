@@ -2,6 +2,9 @@
 // applied automatically, and returns the hosted checkout URL.
 // Requires env var: COINBASE_COMMERCE_API_KEY (from https://beta.commerce.coinbase.com/settings/security)
 
+const { isPodProduct } = require("../lib/printful.js");
+const POD_CARD_ONLY_MESSAGE = "Made-to-order items can only be paid by card for now.";
+
 const CRYPTO_DISCOUNT = 0.20; // 20% off for crypto payments, always
 
 exports.handler = async (event) => {
@@ -13,6 +16,10 @@ exports.handler = async (event) => {
     const { cart, customer } = JSON.parse(event.body);
     if (!cart || cart.length === 0) {
       return { statusCode: 400, body: JSON.stringify({ error: "Cart is empty." }) };
+    }
+    // Print-on-demand items are fulfilled from the signed Stripe webhook only.
+    if (cart.some((item) => item && isPodProduct(item.productId))) {
+      return { statusCode: 400, body: JSON.stringify({ error: POD_CARD_ONLY_MESSAGE }) };
     }
 
     const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
