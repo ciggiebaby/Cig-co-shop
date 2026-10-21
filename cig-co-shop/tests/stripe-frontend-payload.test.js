@@ -1234,7 +1234,7 @@ test("sleeve and pillow prices follow the picked size; the case picker is labell
   assert.match(source, /<label>\$\{p\.sizeLabel \|\| "Size"\}<\/label>/);
 });
 
-test("before the drop, FW26 cards show a 'Drops Oct 30' badge; no SKUs anywhere; heading reads New Collection", () => {
+test("before the drop, FW26 cards show a 'Drops Oct 30' badge; no SKUs anywhere; heading reads FW26/27 COLLECTION", () => {
   const frontend = loadFrontend();
   frontend.context.renderProductGrid();
   const html = frontend.checkoutFields["product-grid"].innerHTML;
@@ -1245,7 +1245,7 @@ test("before the drop, FW26 cards show a 'Drops Oct 30' badge; no SKUs anywhere;
   const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   assert.doesNotMatch(app, /SKU: \$\{p\.sku\}/);
   const index = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
-  assert.match(index, /<h2 class="section-title reveal">New Collection<\/h2>/);
+  assert.match(index, /<h2 class="section-title reveal">FW26\/27 COLLECTION<\/h2>/);
   assert.doesNotMatch(index, /Shop the Archive/);
   assert.match(index, /id="drop-test-row"[^>]*hidden/);
 });

@@ -204,7 +204,7 @@ Any time you want to add backstock, remove a sold-out item, or change a price: e
 
 ## FW26/27 drop lock and pre-launch test order
 
-- `DROP_AT` at the top of `products.js` (currently a **placeholder**: Oct 30, 12:00 PM ET) locks the four FW26/27 products. Before that time they show a "Drops Oct 30" badge, Add to Bag is disabled, and the Stripe/PayPal/crypto checkouts refuse them with a 400. At `DROP_AT` everything opens automatically (no deploy needed).
+- `DROP_AT` at the top of `products.js` (Oct 30, 12:00 PM ET, confirmed by CIG 10/21) locks the four FW26/27 products. Before that time they show a "Drops Oct 30" badge, Add to Bag is disabled, and the Stripe/PayPal/crypto checkouts refuse them with a 400. At `DROP_AT` everything opens automatically (no deploy needed).
 - **One real test order before launch:**
   1. In Netlify, set env var `DROP_TEST_CODE` to a private code (8+ characters), then redeploy so it takes effect. If it's unset, there is no bypass at all.
   2. Open `https://cigcompany.com/?droptest`. That tab can add FW26/27 items to the bag and shows a "Drop test code" box at checkout.

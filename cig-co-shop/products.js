@@ -52,8 +52,7 @@
 // FW26/27 drop lock. Products with `dropAt: DROP_AT` show on the site with a
 // "Drops Oct 30" badge but can't be added to the bag or checked out before this
 // time (the server refuses them too), so merging early doesn't open the drop.
-// *** PLACEHOLDER: CIG hasn't picked the drop time yet. Change this one line
-// when he does (keep the -04:00 Eastern offset; Oct 30 is still EDT). ***
+// Drop time confirmed by CIG 2026-10-21: Fri Oct 30, 12:00 PM ET (-04:00 = EDT).
 // Test order before launch: see DROP_TEST_CODE in README / netlify/lib/drop-lock.js.
 const DROP_AT = "2026-10-30T12:00:00-04:00";
 
