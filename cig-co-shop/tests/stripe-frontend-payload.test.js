@@ -58,6 +58,8 @@ function loadFrontend({
     "checkout-city": { value: "Test City" },
     "checkout-state": { value: "tx" },
     "checkout-zip": { value: "78701" },
+    "checkout-duties-note": { hidden: true },
+    "checkout-pccc-row": { hidden: true },
   };
   for (const [id, value] of Object.entries(fieldOverrides)) {
     checkoutFields[id] = { value };
@@ -163,6 +165,7 @@ function loadFrontend({
   }
 
   return {
+    checkoutFields,
     context,
     countrySelect,
     shippingNoteElement,
@@ -976,6 +979,64 @@ test("card and PayPal send the chosen country; US payloads stay unchanged", asyn
   frontend.countrySelect.value = "US";
   await frontend.paymentButtons[0].click();
   assert.equal(requests[1].body.shipCountry, undefined);
+});
+
+test("international carts show the duties notice and no crypto line; US carts don't", () => {
+  const frontend = loadFrontend({ shipCountry: "CA", storedCart: [bagItem] });
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.checkoutFields["checkout-duties-note"].hidden, false);
+  assert.doesNotMatch(frontend.summaryElement.innerHTML, /Crypto/);
+  for (const country of ["GB", "DE", "AU", "JP", "KR"]) {
+    frontend.countrySelect.value = country;
+    frontend.context.renderCheckoutSummary();
+    assert.equal(frontend.checkoutFields["checkout-duties-note"].hidden, false, country);
+    assert.doesNotMatch(frontend.summaryElement.innerHTML, /Crypto/, country);
+  }
+  frontend.countrySelect.value = "US";
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.checkoutFields["checkout-duties-note"].hidden, true);
+});
+
+test("the PCCC field shows only for South Korea", () => {
+  const frontend = loadFrontend({ shipCountry: "KR", storedCart: [bagItem] });
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.checkoutFields["checkout-pccc-row"].hidden, false);
+  frontend.countrySelect.value = "JP";
+  frontend.context.renderCheckoutSummary();
+  assert.equal(frontend.checkoutFields["checkout-pccc-row"].hidden, true);
+});
+
+test("South Korea card checkout requires a valid PCCC and sends it; other countries never send it", async () => {
+  const requests = [];
+  const fetchImpl = async (url, init) => {
+    requests.push(JSON.parse(init.body));
+    return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } };
+  };
+  for (const bad of ["", "123456789012", "P12345678901", "P1234567890123", "Q123456789012"]) {
+    const frontend = loadFrontend({
+      fetchImpl, paymentMethods: ["paypal"], shipCountry: "KR", storedCart: [bagItem],
+      fieldOverrides: { "checkout-pccc": bad },
+    });
+    await frontend.paymentButtons[0].click();
+    assert.equal(requests.length, 0, bad);
+    assert.match(frontend.errorElement.textContent, /Personal Customs Clearance Code/);
+  }
+  const ok = loadFrontend({
+    fetchImpl, paymentMethods: ["paypal"], shipCountry: "KR", storedCart: [bagItem],
+    fieldOverrides: { "checkout-pccc": " p1234-5678-9012 " },
+  });
+  await ok.paymentButtons[0].click();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].shipCountry, "KR");
+  assert.equal(requests[0].customer.pccc, "P123456789012");
+
+  const jp = loadFrontend({
+    fetchImpl, paymentMethods: ["paypal"], shipCountry: "JP", storedCart: [bagItem],
+    fieldOverrides: { "checkout-pccc": "P123456789012" },
+  });
+  await jp.paymentButtons[0].click();
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].customer.pccc, undefined);
 });
 
 test("checkout won't start abroad when the bag has a pillow", async () => {

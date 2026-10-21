@@ -338,7 +338,7 @@ test("Japan and South Korea checkouts price shipping and keep pillows US-only", 
 
   const stripe = stripeStub();
   const stripeHandler = createStripeHandler({ stripeFactory: stripe.factory, siteUrl: "https://shop.test", logger: silent });
-  await stripeHandler(post({ items: [sleeve()], shipCountry: "KR" }));
+  await stripeHandler(post({ items: [sleeve()], shipCountry: "KR", customer: { pccc: "P123456789012" } }));
   assert.deepEqual(stripe.request.shipping_address_collection, { allowed_countries: ["KR"] });
   assert.equal(stripe.request.shipping_options[0].shipping_rate_data.fixed_amount.amount, 1800);
 });
@@ -374,7 +374,8 @@ test("Stripe accepts Japan and South Korea for bags, cases and sleeves, never pi
     for (const item of [bag(), phoneCase(), sleeve()]) {
       const stripe = stripeStub();
       const handler = createStripeHandler({ stripeFactory: stripe.factory, siteUrl: "https://shop.test", logger: silent });
-      const response = await handler(post({ items: [item], shipCountry: country, customer: { email: "a@b.co" } }));
+      const customer = { email: "a@b.co", ...(country === "KR" ? { pccc: "P123456789012" } : {}) };
+      const response = await handler(post({ items: [item], shipCountry: country, customer }));
       assert.equal(response.statusCode, 200, `${country} ${item.productId}`);
       assert.deepEqual(stripe.request.shipping_address_collection, { allowed_countries: [country] });
       assert.equal(stripe.request.metadata.ship_country, country);
@@ -386,4 +387,127 @@ test("Stripe accepts Japan and South Korea for bags, cases and sleeves, never pi
   const refused = await handler(post({ items: [pillow()], shipCountry: "JP" }));
   assert.equal(refused.statusCode, 400);
   assert.equal(stripe.request, undefined);
+});
+
+// ---------- Duties notice + South Korea customs code (CIG decision 10/21) ----------
+
+const { DUTIES_NOTICE, normalizePccc } = require("../shipping-rates.js");
+const { requireKoreaCustomsCode } = require("../netlify/lib/checkout-shipping.js");
+const { addKoreaCustomsCode, printfulRecipient } = require("../netlify/functions/printful-fulfillment.js");
+
+test("duties notice wording is in the checkout and the shipping policy on every page", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  assert.equal(
+    DUTIES_NOTICE,
+    "Duties and taxes may apply on delivery and are the buyer's responsibility. Shipping isn't refunded on refused parcels.",
+  );
+  const asHtml = "Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility. Shipping isn&rsquo;t refunded on refused parcels.";
+  const index = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  assert.ok(index.includes(`<p id="checkout-duties-note" class="checkout-note checkout-duties-note" hidden>${asHtml}</p>`));
+  for (const page of ["index.html", "gallery.html", "arcade.html"]) {
+    const html = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
+    assert.match(html, /id="shipping-policy"/, page);
+    assert.ok(html.includes(`<p>${asHtml}</p>`), page);
+  }
+  assert.match(index, /id="checkout-pccc"/);
+});
+
+test("PCCC must be P + 12 digits; spaces/dashes/lowercase are cleaned up", () => {
+  assert.equal(normalizePccc("P123456789012"), "P123456789012");
+  assert.equal(normalizePccc(" p1234-5678-9012 "), "P123456789012");
+  for (const bad of [undefined, null, "", "123456789012", "P12345678901", "P1234567890123", "PP23456789012", "P12345678901X", 123]) {
+    assert.equal(normalizePccc(bad), null, String(bad));
+  }
+  assert.equal(requireKoreaCustomsCode("p123456789012", "KR"), "P123456789012");
+  assert.throws(() => requireKoreaCustomsCode("", "KR"), /Personal Customs Clearance Code/);
+  assert.throws(() => requireKoreaCustomsCode("P123", "KR"), RequestValidationError);
+  assert.equal(requireKoreaCustomsCode(undefined, "JP"), null);
+  assert.equal(requireKoreaCustomsCode("P123456789012", "US"), null);
+});
+
+test("Stripe South Korea sessions require a PCCC and carry it in metadata; other countries never do", async () => {
+  for (const pccc of [undefined, "", "P12345"]) {
+    const stripe = stripeStub();
+    const handler = createStripeHandler({ stripeFactory: stripe.factory, siteUrl: "https://shop.test", logger: silent });
+    const response = await handler(post({ items: [bag()], shipCountry: "KR", customer: { email: "a@b.co", pccc } }));
+    assert.equal(response.statusCode, 400, String(pccc));
+    assert.match(JSON.parse(response.body).error, /PCCC/);
+    assert.equal(stripe.request, undefined);
+  }
+  const stripe = stripeStub();
+  const handler = createStripeHandler({ stripeFactory: stripe.factory, siteUrl: "https://shop.test", logger: silent });
+  const ok = await handler(post({ items: [bag()], shipCountry: "KR", customer: { email: "a@b.co", pccc: "p 1234 5678 9012" } }));
+  assert.equal(ok.statusCode, 200);
+  assert.equal(stripe.request.metadata.pccc, "P123456789012");
+  assert.equal(stripe.request.metadata.ship_country, "KR");
+
+  const jp = stripeStub();
+  const jpHandler = createStripeHandler({ stripeFactory: jp.factory, siteUrl: "https://shop.test", logger: silent });
+  await jpHandler(post({ items: [bag()], shipCountry: "JP", customer: { email: "a@b.co", pccc: "P123456789012" } }));
+  assert.equal(jp.request.metadata.pccc, undefined);
+});
+
+test("PayPal and crypto also refuse South Korea without a valid PCCC", async () => {
+  let created = 0;
+  const paypal = createPayPalOrderHandler({
+    paypalFactory: () => ({ createOrder: async () => { created += 1; return { links: [{ rel: "approve", href: "https://paypal.test/a" }] }; } }),
+    environment: ENV,
+    logger: silent,
+  });
+  const refused = await paypal(post({ items: [bag()], shipCountry: "KR" }));
+  assert.equal(refused.statusCode, 400);
+  assert.match(JSON.parse(refused.body).error, /PCCC/);
+  assert.equal(created, 0);
+  assert.equal((await paypal(post({ items: [bag()], shipCountry: "KR", customer: { pccc: "P123456789012" } }))).statusCode, 200);
+
+  const { handler, sent } = coinbaseHandler();
+  const krCustomer = { ...intlCustomer, country: "KR", zip: "04524" };
+  assert.equal((await handler(post({ items: [bag()], customer: krCustomer }))).statusCode, 400);
+  assert.equal(sent.length, 0);
+  const ok = await handler(post({ items: [bag()], customer: { ...krCustomer, pccc: "P123456789012" } }));
+  assert.equal(ok.statusCode, 200);
+  assert.equal(sent[0].metadata.pccc, "P123456789012");
+});
+
+function paidSession({ country = "KR", line2 = null, pccc = "P123456789012", line1 = "12 Teheran-ro" } = {}) {
+  return {
+    metadata: pccc === null ? {} : { pccc },
+    customer_details: { email: "buyer@example.com", name: "Kim Minji" },
+    collected_information: {
+      shipping_details: {
+        name: "Kim Minji",
+        address: { line1, line2, city: "Seoul", state: null, country, postal_code: "06236" },
+      },
+    },
+  };
+}
+
+test("Printful gets the PCCC on address2 (Printful's instruction) and as tax_number for South Korea", () => {
+  const plain = printfulRecipient(paidSession());
+  assert.equal(plain.address2, "PCCC P123456789012");
+  assert.equal(plain.tax_number, "P123456789012");
+  assert.equal(plain.country_code, "KR");
+
+  const shortLine2 = printfulRecipient(paidSession({ line2: "Apt 3" }));
+  assert.equal(shortLine2.address2, "Apt 3 PCCC P123456789012");
+  assert.ok(shortLine2.address2.length <= 30);
+
+  const moved = printfulRecipient(paidSession({ line2: "Gangnam Tower 1502" }));
+  assert.equal(moved.address1, "12 Teheran-ro, Gangnam Tower 1502");
+  assert.equal(moved.address2, "PCCC P123456789012");
+
+  const tooLong = addKoreaCustomsCode(
+    { address1: "123 A Very Long Street Name Road", address2: "Building 7, Unit 1502" },
+    "P123456789012",
+  );
+  assert.ok(tooLong.address2.startsWith("PCCC P123456789012"));
+});
+
+test("Printful fulfillment refuses a South Korea order with no PCCC; other countries are unchanged", () => {
+  assert.throws(() => printfulRecipient(paidSession({ pccc: null })), /missing a valid PCCC/);
+  assert.throws(() => printfulRecipient(paidSession({ pccc: "P12" })), /missing a valid PCCC/);
+  const jp = printfulRecipient(paidSession({ country: "JP", pccc: "P123456789012" }));
+  assert.equal(jp.tax_number, undefined);
+  assert.equal(jp.address2, undefined);
 });

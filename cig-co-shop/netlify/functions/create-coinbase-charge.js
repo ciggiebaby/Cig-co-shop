@@ -20,6 +20,7 @@ const {
 } = require("../lib/customer-utils.js");
 const {
   normalizeShipCountry,
+  requireKoreaCustomsCode,
   requireShippingAddress,
   resolveCheckoutShipping,
 } = require("../lib/checkout-shipping.js");
@@ -61,6 +62,7 @@ function createHandler({
       // No promo code here — crypto always gets its 20% instead.
       const pricing = priceCartForStripe(trustedCartItems(body), null);
       const shipping = resolveCheckoutShipping(pricing, country);
+      const pccc = requireKoreaCustomsCode(customer.pccc, country);
       // 20% off the items only; shipping is added at full price.
       const chargeCents = cryptoChargeCents(pricing.totalCents) + shipping.shippingCents;
       const discounted = (chargeCents / 100).toFixed(2);
@@ -95,6 +97,7 @@ function createHandler({
             shipping_zip: address.zip,
             shipping_country: address.country,
             shipping_cents: String(shipping.shippingCents),
+            ...(pccc ? { pccc } : {}),
             marketing_consent: customer.marketingConsent === true ? "true" : "false",
             items: JSON.stringify(lines),
           },

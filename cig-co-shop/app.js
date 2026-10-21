@@ -488,6 +488,10 @@ function updateShipToOptions(cart) {
     note.textContent = text;
     note.hidden = !text;
   }
+  const dutiesNote = document.getElementById("checkout-duties-note");
+  if (dutiesNote) dutiesNote.hidden = country === "US";
+  const pcccRow = document.getElementById("checkout-pccc-row");
+  if (pcccRow) pcccRow.hidden = country !== "KR";
   const stateEl = document.getElementById("checkout-state");
   const zipEl = document.getElementById("checkout-zip");
   if (stateEl) stateEl.placeholder = country === "US" ? "State (e.g. GA)" : "State / Province (optional)";
@@ -530,9 +534,6 @@ function renderCheckoutSummary() {
     ? "Not available"
     : shipping === 0 ? "Free" : `$${shipping.toFixed(2)}`;
   rows += `<div class="checkout-summary-row"><span>Shipping (${shipCountryNames()[country] || country})</span><span>${shippingLabel}</span></div>`;
-  if (shipping > 0) {
-    rows += `<div class="checkout-summary-row" style="color:#9a9a9a;font-size:12px;"><span>Crypto: 20% off items; shipping isn't discounted</span><span></span></div>`;
-  }
 
   rows += `<div class="checkout-summary-row" style="font-weight:700;"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
 
@@ -553,7 +554,16 @@ function getCheckoutFields() {
     state: checkoutFieldValue("checkout-state").toUpperCase(),
     zip: checkoutFieldValue("checkout-zip").toUpperCase(),
     country: selectedShipCountry(),
+    pccc: checkoutFieldValue("checkout-pccc").replace(/[\s-]/g, "").toUpperCase(),
   };
+}
+
+// South Korea customs code: P + 12 digits (the server checks it too).
+function validateKoreaCustomsCode(fields) {
+  if (fields.country !== "KR") return null;
+  return /^P\d{12}$/.test(fields.pccc || "")
+    ? null
+    : "South Korea orders need your Personal Customs Clearance Code (PCCC): P followed by 12 digits.";
 }
 
 function validateCheckoutFields(fields) {
@@ -730,6 +740,12 @@ paymentButtons.forEach((btn) => {
       return;
     }
 
+    const pcccError = validateKoreaCustomsCode(fields);
+    if (pcccError) {
+      errorEl.textContent = pcccError;
+      return;
+    }
+
     if (method === "crypto") {
       const shippingError = validateCryptoShipping(fields);
       if (shippingError) {
@@ -801,7 +817,9 @@ paymentButtons.forEach((btn) => {
 
       // Only crypto needs state/ZIP/country from us; card and PayPal collect the
       // shipping address on their own hosted pages (locked to the chosen country).
-      const { state, zip, country, ...baseFields } = fields;
+      // The PCCC is only sent for South Korea (customs needs it on the parcel).
+      const { state, zip, country, pccc, ...baseFields } = fields;
+      if (country === "KR") baseFields.pccc = pccc;
       const customerFields =
         method === "crypto" ? { ...baseFields, state, zip, country } : baseFields;
 

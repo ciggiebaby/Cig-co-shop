@@ -9,7 +9,11 @@ const {
   normalizeEmail,
 } = require("../lib/customer-utils.js");
 const { resolvePromo } = require("../lib/promo-codes.js");
-const { countryName, resolveCheckoutShipping } = require("../lib/checkout-shipping.js");
+const {
+  countryName,
+  requireKoreaCustomsCode,
+  resolveCheckoutShipping,
+} = require("../lib/checkout-shipping.js");
 
 const CHECKOUT_FINGERPRINT_PATTERN = /^v1:[a-f0-9]{64}$/;
 
@@ -103,6 +107,8 @@ function createHandler({
       // Stripe can't vary a rate by country within one session, so the session
       // is locked to that one country with a server-computed flat shipping fee.
       const shipping = resolveCheckoutShipping(pricing, body.shipCountry);
+      // South Korea customs code; printful-fulfillment puts it on the Printful order.
+      const pccc = requireKoreaCustomsCode(body.customer && body.customer.pccc, shipping.country);
       const marketingConsent =
         !!(body.customer && body.customer.marketingConsent === true);
       const checkoutFingerprint =
@@ -131,6 +137,7 @@ function createHandler({
         // US shipping stays free (no shipping option, same as before).
         sessionRequest.metadata.ship_country = shipping.country;
         sessionRequest.metadata.shipping_cents = String(shipping.shippingCents);
+        if (pccc) sessionRequest.metadata.pccc = pccc;
         sessionRequest.shipping_options = [{
           shipping_rate_data: {
             type: "fixed_amount",

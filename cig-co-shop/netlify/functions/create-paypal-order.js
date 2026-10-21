@@ -13,7 +13,7 @@ const { buildPayPalOrder, createPayPalClient } = require("../lib/paypal.js");
 const { checkoutSiteUrl, trustedCartItems } = require("../lib/checkout-request.js");
 const { RequestValidationError, normalizeEmail } = require("../lib/customer-utils.js");
 const { resolvePromo } = require("../lib/promo-codes.js");
-const { resolveCheckoutShipping } = require("../lib/checkout-shipping.js");
+const { requireKoreaCustomsCode, resolveCheckoutShipping } = require("../lib/checkout-shipping.js");
 const { assertPodAllowedWithoutCard } = require("../lib/pod-payment.js");
 
 function createHandler({
@@ -37,6 +37,7 @@ function createHandler({
       // Shipping is priced for the country picked on the site (US = free);
       // paypal-capture refuses to capture if PayPal's address is elsewhere.
       const shipping = resolveCheckoutShipping(pricing, body.shipCountry);
+      requireKoreaCustomsCode(body.customer && body.customer.pccc, shipping.country);
       const siteUrl = checkoutSiteUrl(environment.SITE_URL);
       const order = await paypalFactory({ environment }).createOrder(
         buildPayPalOrder(pricing, {

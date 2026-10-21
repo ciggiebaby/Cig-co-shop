@@ -39,6 +39,21 @@ const INTERNATIONAL_SHIPPING_PER_ITEM_USD = {
   // pillow: US only (Printful: CA 12.69, GB 11.49, DE 13.79, AU 37.59, JP 55.99, KR 51.99)
 };
 
+// Shown at checkout for every non-US ship-to country and in the shipping &
+// returns policy (CIG decision 2026-10-21: international orders ship DDU).
+const DUTIES_NOTICE =
+  "Duties and taxes may apply on delivery and are the buyer's responsibility. Shipping isn't refunded on refused parcels.";
+
+// South Korea customs needs the buyer's Personal Customs Clearance Code
+// (PCCC): the letter P followed by 12 digits. Returns the cleaned code
+// ("P123456789012") or null if it isn't valid.
+const PCCC_PATTERN = /^P\d{12}$/;
+function normalizePccc(value) {
+  if (typeof value !== "string") return null;
+  const code = value.replace(/[\s-]/g, "").toUpperCase();
+  return PCCC_PATTERN.test(code) ? code : null;
+}
+
 // Slow routes: shown to the buyer at checkout so the wait isn't a surprise.
 // Printful's standard estimate for MagSafe cases to Japan/South Korea is up
 // to 30 days (bags and sleeves are ~8-11 days).
@@ -90,9 +105,12 @@ function slowDeliveryNote(lines, country) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    DUTIES_NOTICE,
     INTERNATIONAL_SHIPPING_PER_ITEM_USD,
+    PCCC_PATTERN,
     SHIP_TO_COUNTRIES,
     SLOW_DELIVERY,
+    normalizePccc,
     quoteShipping,
     slowDeliveryNote,
     shippingCentsPerItem,

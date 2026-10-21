@@ -5,7 +5,7 @@
 // US: free shipping, any product. International (CA, GB, DE, AU, JP, KR only): allowed
 // only when every product in the cart has an international shipping class;
 // pillows (and products without a class) are US only.
-const { SHIP_TO_COUNTRIES, quoteShipping } = require("../../shipping-rates.js");
+const { SHIP_TO_COUNTRIES, normalizePccc, quoteShipping } = require("../../shipping-rates.js");
 const { RequestValidationError } = require("./customer-utils.js");
 
 const US_STATES = new Set([
@@ -83,12 +83,27 @@ function requireShippingAddress(customer = {}, country) {
   return { state: state || "", zip: postal, country };
 }
 
+const PCCC_REQUIRED_MESSAGE =
+  "South Korea orders need your Personal Customs Clearance Code (PCCC): P followed by 12 digits.";
+
+// South Korea: the buyer's PCCC is required for customs and must be P + 12
+// digits. Returns the cleaned code for KR, or null for every other country
+// (a code sent for another country is ignored, never stored).
+function requireKoreaCustomsCode(value, country) {
+  if (country !== "KR") return null;
+  const code = normalizePccc(value);
+  if (!code) throw new RequestValidationError(PCCC_REQUIRED_MESSAGE);
+  return code;
+}
+
 module.exports = {
+  PCCC_REQUIRED_MESSAGE,
   POSTAL_CODE_PATTERNS,
   UNSUPPORTED_COUNTRY_MESSAGE,
   US_STATES,
   countryName,
   normalizeShipCountry,
+  requireKoreaCustomsCode,
   requireShippingAddress,
   resolveCheckoutShipping,
 };
