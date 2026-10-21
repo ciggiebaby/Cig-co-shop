@@ -24,6 +24,8 @@ const {
   resolveCheckoutShipping,
 } = require("../lib/checkout-shipping.js");
 
+const { assertPodAllowedWithoutCard } = require("../lib/pod-payment.js");
+
 const CRYPTO_DISCOUNT = 0.20; // 20% off for crypto payments, always
 
 function cryptoChargeCents(totalCents) {
@@ -43,9 +45,10 @@ function createHandler({
     if (event.httpMethod !== "POST") {
       return { statusCode: 405, body: "Method Not Allowed" };
     }
-
     try {
       const body = JSON.parse(event.body || "{}");
+      // Print-on-demand items are card-only while POD_CARD_ONLY (products.js) is true.
+      assertPodAllowedWithoutCard(trustedCartItems(body));
       const customer = body.customer || {};
       // The order record and receipt email go to this address, so require it.
       const email = normalizeEmail(customer.email);

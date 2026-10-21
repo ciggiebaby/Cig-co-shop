@@ -170,6 +170,7 @@ function resolveRequestedItem(rawItem) {
     componentRequirements,
     componentAvailability,
     stripeName,
+    pod: !!product.pod,
   };
 }
 
@@ -230,10 +231,22 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
     subtotalCents += item.unitAmount * item.quantity;
     totalCents += chargedUnitAmount * item.quantity;
 
+    const productData = { name: item.stripeName };
+    if (item.pod) {
+      // Read back by printful-fulfillment.js to know what to send to Printful.
+      productData.metadata = {
+        pod: "true",
+        product_id: item.productId,
+        style: item.style || "",
+        color: item.color || "",
+        size: item.size || "",
+      };
+    }
+
     return {
       price_data: {
         currency: "usd",
-        product_data: { name: item.stripeName },
+        product_data: productData,
         unit_amount: chargedUnitAmount,
       },
       quantity: item.quantity,

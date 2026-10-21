@@ -15,7 +15,7 @@ per-transaction processing fees from whichever payment method the customer picks
 - `products.js` — **edit this to add/change backstock.** Plain English, no code experience needed beyond copy-pasting the pattern.
 - `assets/logo-spin.mp4` — your spinning logo, used in the hero section.
 - `assets/products/placeholder.svg` — shows until you add real photos.
-- `netlify/functions/` — checkout, signed Stripe webhook, Arcade, Kit/Resend, shipment, and protected export endpoints.
+- `netlify/functions/` — checkout, signed Stripe webhooks (orders + Printful print-on-demand), Arcade, Kit/Resend, shipment, and protected export endpoints.
 - `supabase/migrations/` — the unified customer, order, Arcade, and integration schema.
 - `docs/customer-system-setup.md` — Supabase, Stripe webhook, Kit, Resend, and protected export setup.
 - `.env.example` — list of the secret keys you'll need (see below). Never put real keys directly in this file.
@@ -118,6 +118,44 @@ Setup:
    use `https://cigcompany.com/.netlify/functions/coinbase-webhook`, and copy
    the **shared secret** into Netlify as `COINBASE_COMMERCE_WEBHOOK_SECRET`.
 3. Redeploy, then place a small test order with each method.
+
+## Print-on-demand (Printful)
+
+Products with a `pod: { ... }` block in `products.js` are made to order by
+Printful — no stock to track (see the comment at the top of `products.js` for
+the format). When a customer pays **by card**, Stripe calls
+`/.netlify/functions/printful-fulfillment`, which checks the signature,
+confirms the payment is paid, and creates a Printful order for just the
+print-on-demand items, shipped to the address the customer entered at Stripe
+checkout. Archive items in the same order are untouched and ship from you as
+before.
+
+- **Drafts by default.** Orders land in Printful as drafts, so nothing is
+  printed or billed to your Printful account until you click Confirm there.
+  Set `PRINTFUL_AUTO_CONFIRM=true` to send paid orders straight to print.
+- **No duplicates.** The Printful order's External ID is the Stripe payment id,
+  so a retried webhook reuses the existing order.
+- **Card only for now.** PayPal and crypto checkout refuse carts with
+  print-on-demand items, because Printful orders are only created from the
+  signed Stripe webhook. The switch is `POD_CARD_ONLY` at the bottom of
+  `products.js` (it covers both the site and the server).
+
+Setup:
+
+1. In Netlify (**Site settings > Environment variables**) add
+   `PRINTFUL_API_TOKEN` (Printful > Developers > API token), `PRINTFUL_STORE_ID`
+   (your Printful store id), and `PRINTFUL_AUTO_CONFIRM=false`.
+2. In Stripe (**Developers > Webhooks > Add endpoint**) add
+   `https://cigcompany.com/.netlify/functions/printful-fulfillment` with the
+   events `checkout.session.completed` and
+   `checkout.session.async_payment_succeeded`. Copy its signing secret into
+   Netlify as `STRIPE_PRINTFUL_WEBHOOK_SECRET`, then redeploy.
+3. Add a product with a `pod` block, place a test order, and check it shows up
+   as a draft in Printful > Orders.
+
+To check the Printful connection from your computer (creates a draft order and
+cancels it right away; nothing is charged):
+`PRINTFUL_API_TOKEN=... node scripts/printful-live-test.js`
 
 ## Step 1 — Add your real product photos
 

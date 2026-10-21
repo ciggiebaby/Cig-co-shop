@@ -11,6 +11,25 @@
 // shipping: the product's shipping class from shipping-rates.js
 //   ("bag", "case", "sleeve", or "pillow"). Only bag/case/sleeve can ship
 //   internationally; pillows and products with no class ship to the US only.
+//
+// pod: { ... } — print-on-demand (made to order by Printful, no stock to track).
+//   Leave out `stock` so it never sells out. Paid card orders are sent to
+//   Printful automatically (see "Print-on-demand (Printful)" in README.md).
+//   Each `variants` key is the buyer's choices joined with " / " — style, then
+//   color, then size (e.g. "Black / M"), or "default" if the product has none.
+//   The value is either a Printful catalog variant id (printed with `files`)
+//   or { syncVariantId: 123 } for a product already designed inside Printful.
+//   `options` is only needed for products Printful requires it on (all-over prints).
+//
+//   pod: {
+//     files: [{ type: "default", url: "https://cigcompany.com/assets/pod/paisley-hoodie.png" }],
+//     options: { stitch_color: "black" },
+//     variants: { "M": 10871, "L": 10872, "XL": { syncVariantId: 1234567890 } },
+//   },
+//
+// POD_CARD_ONLY (bottom of this file): while true, carts with any `pod` item can
+//   only be paid by card (PayPal and crypto refuse them, on the site and on the
+//   server). Flip it to false to allow PayPal/crypto for made-to-order items.
 
 const PRODUCTS = [
   {
@@ -261,6 +280,10 @@ const PRODUCTS = [
   },
 ];
 
+// Made-to-order (`pod`) items can only be paid by card while this is true.
+// One switch for the checkout page and the server. See the note at the top.
+const POD_CARD_ONLY = true;
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { PRODUCTS };
+  module.exports = { POD_CARD_ONLY, PRODUCTS };
 }

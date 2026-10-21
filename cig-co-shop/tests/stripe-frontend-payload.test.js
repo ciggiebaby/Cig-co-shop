@@ -755,6 +755,40 @@ test("unknown or missing checkout values leave the banner and URL untouched", ()
   }
 });
 
+test("PayPal and crypto buttons refuse print-on-demand items before calling the server", async () => {
+  const podProduct = {
+    id: "test-pod-frontend",
+    sku: "TEST-POD",
+    name: "Test POD Hoodie",
+    price: 65,
+    image: "",
+    colors: [],
+    sizes: ["M"],
+    pod: { files: [{ url: "https://example.com/a.png" }], variants: { "M": 1 } },
+  };
+  PRODUCTS.push(podProduct);
+  try {
+    let fetchCalls = 0;
+    const frontend = loadFrontend({
+      fetchImpl: async () => {
+        fetchCalls += 1;
+        return { ok: true, async json() { return { url: "https://pay.test" }; } };
+      },
+      paymentMethods: ["paypal", "crypto"],
+      storedCart: [
+        { productId: podProduct.id, name: podProduct.name, price: 65, image: "", color: null, size: "M", style: null, qty: 1 },
+      ],
+    });
+    for (const button of frontend.paymentButtons) {
+      await button.click();
+      assert.equal(frontend.errorElement.textContent, "Made-to-order items can only be paid by card for now.");
+    }
+    assert.equal(fetchCalls, 0);
+  } finally {
+    PRODUCTS.splice(PRODUCTS.indexOf(podProduct), 1);
+  }
+});
+
 test("an entered code that isn't in promo.js shows 'invalid' and applies no discount", () => {
   const { context, promoMessageElement } = loadFrontend({ promoCodes: {} });
   context.applyPromoCode("cig10");
@@ -962,4 +996,28 @@ test("a PayPal country-mismatch return explains nothing was charged", () => {
   assert.equal(frontend.statusElement.hidden, false);
   assert.match(frontend.statusElement.textContent, /didn’t match the country you picked/);
   assert.match(frontend.statusElement.textContent, /wasn’t taken/);
+});
+
+test("the storefront card-only check follows POD_CARD_ONLY", async () => {
+  const podProduct = {
+    id: "test-pod-toggle", sku: "TEST-POD-T", name: "Test POD Tee", price: 30, image: "",
+    colors: [], sizes: ["M"], pod: { files: [{ url: "https://example.com/a.png" }], variants: { "M": 1 } },
+  };
+  PRODUCTS.push(podProduct);
+  try {
+    let fetchCalls = 0;
+    const frontend = loadFrontend({
+      fetchImpl: async () => { fetchCalls += 1; return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } }; },
+      paymentMethods: ["paypal"],
+      storedCart: [{ productId: podProduct.id, name: podProduct.name, price: 30, image: "", color: null, size: "M", style: null, qty: 1 }],
+    });
+    frontend.context.POD_CARD_ONLY = true;
+    await frontend.paymentButtons[0].click();
+    assert.equal(fetchCalls, 0);
+    frontend.context.POD_CARD_ONLY = false;
+    await frontend.paymentButtons[0].click();
+    assert.equal(fetchCalls, 1);
+  } finally {
+    PRODUCTS.splice(PRODUCTS.indexOf(podProduct), 1);
+  }
 });

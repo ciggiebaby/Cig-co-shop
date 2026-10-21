@@ -736,6 +736,21 @@ paymentButtons.forEach((btn) => {
       return;
     }
 
+    // Print-on-demand items are only sent to Printful from a confirmed card
+    // payment. Toggle: POD_CARD_ONLY in products.js (missing = card only).
+    const podCardOnly = typeof POD_CARD_ONLY === "undefined" || POD_CARD_ONLY !== false;
+    if (
+      podCardOnly
+      && method !== "stripe"
+      && cart.some((item) => {
+        const product = PRODUCTS.find((entry) => entry.id === item.productId);
+        return product && product.pod;
+      })
+    ) {
+      errorEl.textContent = "Made-to-order items can only be paid by card for now.";
+      return;
+    }
+
     const shipQuote = cartShippingQuote(cart, fields.country);
     if (shipQuote.shippingCents === null) {
       errorEl.textContent = shipQuote.blocked.length

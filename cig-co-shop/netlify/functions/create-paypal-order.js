@@ -14,6 +14,7 @@ const { checkoutSiteUrl, trustedCartItems } = require("../lib/checkout-request.j
 const { RequestValidationError, normalizeEmail } = require("../lib/customer-utils.js");
 const { resolvePromo } = require("../lib/promo-codes.js");
 const { resolveCheckoutShipping } = require("../lib/checkout-shipping.js");
+const { assertPodAllowedWithoutCard } = require("../lib/pod-payment.js");
 
 function createHandler({
   paypalFactory = createPayPalClient,
@@ -25,9 +26,10 @@ function createHandler({
     if (event.httpMethod !== "POST") {
       return { statusCode: 405, body: "Method Not Allowed" };
     }
-
     try {
       const body = JSON.parse(event.body || "{}");
+      // Print-on-demand items are card-only while POD_CARD_ONLY (products.js) is true.
+      assertPodAllowedWithoutCard(trustedCartItems(body));
       // Arcade codes must belong to the email entered on the site.
       const email = body.customer && body.customer.email ? normalizeEmail(body.customer.email) : null;
       const promo = await promoResolver({ promoCode: body.promoCode, email });
