@@ -49,6 +49,14 @@
 //   crypto checkouts. To turn it on: set COINBASE_COMMERCE_API_KEY and
 //   COINBASE_COMMERCE_WEBHOOK_SECRET on Netlify, flip this to true, deploy.
 
+// FW26/27 drop lock. Products with `dropAt: DROP_AT` show on the site with a
+// "Drops Oct 30" badge but can't be added to the bag or checked out before this
+// time (the server refuses them too), so merging early doesn't open the drop.
+// *** PLACEHOLDER: CIG hasn't picked the drop time yet. Change this one line
+// when he does (keep the -04:00 Eastern offset; Oct 30 is still EDT). ***
+// Test order before launch: see DROP_TEST_CODE in README / netlify/lib/drop-lock.js.
+const DROP_AT = "2026-10-30T12:00:00-04:00";
+
 const PRODUCTS = [
   // ---------- FW26/27 drop (made to order by Printful, store 18936848) ----------
   // One site product per item type; each color (and size/model) maps to its own
@@ -57,6 +65,7 @@ const PRODUCTS = [
   {
     id: "FW26-BAG",
     sku: "FW26-BAG",
+    dropAt: DROP_AT,
     name: "Crossbody Bag",
     shipping: "bag",
     // Approved by CIG: solids $65, Multi $75.
@@ -106,6 +115,7 @@ const PRODUCTS = [
   {
     id: "FW26-CASE",
     sku: "FW26-CASE",
+    dropAt: DROP_AT,
     // Prices approved by CIG 10/21: $40 every model.
     name: "MagSafe Case",
     shipping: "case",
@@ -448,6 +458,7 @@ const PRODUCTS = [
   {
     id: "FW26-SLEEVE",
     sku: "FW26-SLEEVE",
+    dropAt: DROP_AT,
     // Prices approved by CIG 10/21: 13″ $50, 15″ $55.
     name: "Laptop Sleeve",
     shipping: "sleeve",
@@ -534,6 +545,7 @@ const PRODUCTS = [
   {
     id: "FW26-PILLOW",
     sku: "FW26-PILLOW",
+    dropAt: DROP_AT,
     // Prices approved by CIG 10/21 (by size). US only.
     name: "Throw Pillow",
     shipping: "pillow",
@@ -922,5 +934,5 @@ const POD_CARD_ONLY = true;
 const CRYPTO_ENABLED = false;
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { CRYPTO_ENABLED, POD_CARD_ONLY, PRODUCTS };
+  module.exports = { CRYPTO_ENABLED, DROP_AT, POD_CARD_ONLY, PRODUCTS };
 }

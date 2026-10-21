@@ -1,6 +1,37 @@
 const yearEl = document.getElementById("year");
 if (yearEl) yearEl.textContent = new Date().getFullYear();
 
+// ---------- FW26/27 drop lock (products.js DROP_AT) ----------
+// Before a product's dropAt time it shows a "Drops Oct 30" badge and can't be
+// added to the bag. The server enforces the same rule. Opening the site with
+// ?droptest unlocks Add to Bag in this tab and shows a "Drop test code" box at
+// checkout (the server only accepts the order if the code matches DROP_TEST_CODE).
+function dropTestMode() {
+  try {
+    const href = typeof window !== "undefined" && window.location ? window.location.href : "";
+    if (href && new URL(href).searchParams.has("droptest")) {
+      if (typeof sessionStorage !== "undefined") sessionStorage.setItem("cig_drop_test", "1");
+      return true;
+    }
+    return typeof sessionStorage !== "undefined" && sessionStorage.getItem("cig_drop_test") === "1";
+  } catch {
+    return false;
+  }
+}
+const DROP_TEST_MODE = dropTestMode();
+function dropLocked(p, now = Date.now()) {
+  if (!p || !p.dropAt) return false;
+  const at = Date.parse(p.dropAt);
+  return Number.isFinite(at) && now < at;
+}
+function dropBadgeText(p) {
+  const at = new Date(Date.parse(p.dropAt));
+  return `Drops ${at.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}`;
+}
+function addBlockedByDrop(p) {
+  return dropLocked(p) && !DROP_TEST_MODE;
+}
+
 // ---------- Product grid ----------
 function renderProductGrid() {
   const grid = document.getElementById("product-grid");
@@ -14,13 +45,12 @@ function renderProductGrid() {
     return `
     <div class="product-card reveal" data-id="${p.id}">
       <div class="product-card-image-wrap">
-        ${p.comingSoon ? `<div class="soldout-badge">Coming Soon</div>` : productTotalStock(p) <= 0 ? `<div class="soldout-badge">Sold Out</div>` : ""}
+        ${p.comingSoon ? `<div class="soldout-badge">Coming Soon</div>` : dropLocked(p) ? `<div class="soldout-badge drop-badge">${dropBadgeText(p)}</div>` : productTotalStock(p) <= 0 ? `<div class="soldout-badge">Sold Out</div>` : ""}
         <div class="product-card-parallax">
           <img src="${p.image}" alt="${p.name}" />
         </div>
       </div>
       <div class="product-card-body">
-        <div class="product-card-sku">SKU: ${p.sku}</div>
         <div class="product-card-name">${p.name}</div>
         <div class="product-card-price">${price}</div>
       </div>
@@ -166,7 +196,6 @@ function openProductModal(id) {
 
   document.getElementById("modal-content").innerHTML = `
     <div class="pd-carousel" id="pd-carousel"></div>
-    <div class="pd-sku">SKU: ${p.sku}</div>
     <h3 class="pd-name">${p.name}</h3>
     <div class="pd-price" id="pd-price"></div>
     ${p.description ? `<p class="pd-description">${p.description}</p>` : ""}
@@ -219,7 +248,11 @@ function openProductModal(id) {
     const avail = variantStock(p, modalState.style, modalState.color, modalState.size);
     const addBtn = document.getElementById("add-to-cart-btn");
     const qtyVal = document.getElementById("qty-value");
-    if (p.comingSoon) {
+    if (addBlockedByDrop(p)) {
+      addBtn.textContent = dropBadgeText(p);
+      addBtn.disabled = true;
+      addBtn.classList.add("btn-disabled");
+    } else if (p.comingSoon) {
       addBtn.textContent = "Coming Soon";
       addBtn.disabled = true;
       addBtn.classList.add("btn-disabled");
@@ -276,7 +309,7 @@ function openProductModal(id) {
     document.getElementById("qty-value").textContent = modalState.qty;
   });
   document.getElementById("add-to-cart-btn").addEventListener("click", () => {
-    if (p.comingSoon || variantStock(p, modalState.style, modalState.color, modalState.size) <= 0) return;
+    if (p.comingSoon || addBlockedByDrop(p) || variantStock(p, modalState.style, modalState.color, modalState.size) <= 0) return;
     addToCart({
       productId: p.id,
       sku: p.sku,
@@ -885,6 +918,9 @@ paymentButtons.forEach((btn) => {
       if (method === "crypto" || country !== "US") {
         requestBody.shipCountry = country;
       }
+      // Pre-launch test order only (see the drop lock above).
+      const dropTestCode = DROP_TEST_MODE ? checkoutFieldValue("drop-test-code") : "";
+      if (dropTestCode) requestBody.dropTestCode = dropTestCode;
       if (method === "stripe") {
         requestBody = await addCheckoutFingerprint(
           requestBody,
@@ -935,6 +971,21 @@ paymentButtons.forEach((btn) => {
 // ---------- Init ----------
 handleCheckoutResult();
 renderProductGrid();
+
+// Show the drop-test code box only in test mode.
+(function showDropTestRow() {
+  const row = typeof document !== "undefined" && document.getElementById ? document.getElementById("drop-test-row") : null;
+  if (row) row.hidden = !DROP_TEST_MODE;
+})();
+
+// Re-render when the drop opens, for shoppers who left the page open.
+(function scheduleDropOpen() {
+  const now = Date.now();
+  const upcoming = PRODUCTS.filter((p) => dropLocked(p, now)).map((p) => Date.parse(p.dropAt) - now);
+  if (!upcoming.length || typeof setTimeout !== "function") return;
+  const wait = Math.min.apply(null, upcoming) + 1000;
+  if (wait < 2147483647) setTimeout(() => renderProductGrid(), wait);
+})();
 if (typeof renderCart === "function") renderCart();
 
 if (typeof module !== "undefined" && module.exports) {
@@ -945,6 +996,7 @@ if (typeof module !== "undefined" && module.exports) {
     buildCheckoutRequestBody,
     componentVariantStock,
     currentPrice,
+    dropLocked,
     minPrice,
     handleCheckoutResult,
     productTotalStock,

@@ -1233,3 +1233,42 @@ test("sleeve and pillow prices follow the picked size; the case picker is labell
   const source = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   assert.match(source, /<label>\$\{p\.sizeLabel \|\| "Size"\}<\/label>/);
 });
+
+test("before the drop, FW26 cards show a 'Drops Oct 30' badge; no SKUs anywhere; heading reads New Collection", () => {
+  const frontend = loadFrontend();
+  frontend.context.renderProductGrid();
+  const html = frontend.checkoutFields["product-grid"].innerHTML;
+  const now = Date.now();
+  const dropOpen = now >= Date.parse(require("../products.js").DROP_AT);
+  if (!dropOpen) assert.equal((html.match(/drop-badge">Drops Oct 30</g) || []).length, 4);
+  assert.doesNotMatch(html, /SKU/);
+  const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.doesNotMatch(app, /SKU: \$\{p\.sku\}/);
+  const index = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  assert.match(index, /<h2 class="section-title reveal">New Collection<\/h2>/);
+  assert.doesNotMatch(index, /Shop the Archive/);
+  assert.match(index, /id="drop-test-row"[^>]*hidden/);
+});
+
+test("dropLocked follows the product's dropAt", () => {
+  const { context } = loadFrontend();
+  const p = { dropAt: "2026-10-30T12:00:00-04:00" };
+  assert.equal(context.dropLocked(p, Date.parse("2026-10-30T11:59:59-04:00")), true);
+  assert.equal(context.dropLocked(p, Date.parse("2026-10-30T12:00:00-04:00")), false);
+  assert.equal(context.dropLocked({}, 0), false);
+});
+
+test("the drop test code is only sent in ?droptest mode", async () => {
+  const requests = [];
+  const fetchImpl = async (url, init) => {
+    requests.push(JSON.parse(init.body));
+    return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } };
+  };
+  const cart = [{ productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 }];
+  const normal = loadFrontend({ fetchImpl, paymentMethods: ["paypal"], storedCart: cart, fieldOverrides: { "drop-test-code": "abc12345" } });
+  await normal.paymentButtons[0].click();
+  assert.equal(requests[0].dropTestCode, undefined);
+  const testMode = loadFrontend({ href: "https://shop.test/?droptest", fetchImpl, paymentMethods: ["paypal"], storedCart: cart, fieldOverrides: { "drop-test-code": " abc12345 " } });
+  await testMode.paymentButtons[0].click();
+  assert.equal(requests[1].dropTestCode, "abc12345");
+});
