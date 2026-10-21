@@ -30,8 +30,8 @@ time you drop a new visualizer or music video.
 
 ## Promo codes
 
-Promo codes live in `promo.js` under `PROMO_CODES`. **No codes are active
-right now** (CIG5, CIG10 and CIG20 were retired), so any code a customer types
+Store-wide promo codes live in `promo.js` under `PROMO_CODES` (Arcade codes
+are separate; see below). **No store-wide codes are active right now** (CIG5, CIG10 and CIG20 were retired), so any code a customer types
 shows "That code isn't valid." To add one, add a line inside the braces and
 deploy:
 
@@ -50,19 +50,27 @@ ignores any promo code.
 ## Arcade page + email list
 
 Visitors enter their email to unlock three games — a spin wheel, a scratch
-card, and mystery boxes. **Every visitor's first play is a guaranteed 10% or
-20% off** (picked randomly between the two) — a hook to get people playing.
-Every play after that is pure chance across the full prize pool, including a
-"try again" outcome. **Playing any one of the three counts as your play**
-and locks the whole Arcade for seven days — a live countdown shows on the page
-until the next play unlocks. Prizes are
-defined in `promo.js` under `PRIZES` (and in the Supabase `arcade_prizes`
-table, which is what actually picks the prize): 5%, 10%, and 20% off codes
-(CIG5/CIG10/CIG20 — **retired from checkout for now**, see "Promo codes"
-above), plus "Free Merch" and
-"Mystery Gift" prizes that have no automatic fulfillment — winners are told
-to screenshot their result and email or DM you to claim it, so keep an eye
-out for those.
+card, and mystery boxes. It's built to capture emails without giving away much:
+
+- **First play:** a guaranteed **10% off** code.
+- **Every play after that** (one every seven days): mostly free perks —
+  **Early Access** to the next drop or a **Giveaway Entry** for that month's
+  free item — with a rare **15% off** code (about 1 play in 20).
+- No 20% codes, no free merch, no "try again".
+
+Every discount code is **unique** (e.g. `CIG10-7KQ4XW2M`), works **once**, only
+with **the email that won it**, and **expires 7 days** after it's issued.
+Codes are stored in the Supabase `arcade_codes` table, checked by the server at
+checkout, and marked used when the paid order is recorded. Like every promo
+code, they never stack with the 20% crypto discount. **Playing any one of the
+three games counts as your play** and locks the whole Arcade for seven days.
+
+Supabase's `arcade_prizes` table picks the prize (the `weight` column sets the
+odds; `is_first_play_eligible` marks the first-play prize). `PRIZES` in
+`promo.js` is only the display copy for the wheel, so keep its ids in sync.
+To find giveaway entrants or the early-access list, filter `arcade_plays` by
+`prize_id = 'giveaway'` or `'early'`. See `docs/arcade-codes-rollout.md` for
+the database rollout.
 
 **Winners get their code by email immediately** after Supabase confirms the
 play. Supabase is authoritative for Arcade identity, first-play eligibility,

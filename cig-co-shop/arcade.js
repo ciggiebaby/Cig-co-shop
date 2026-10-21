@@ -13,12 +13,12 @@ let activeClaimPromise = null;
 
 function renderPrizeBanner(prize) {
   if (!prize) return "";
-  const isWin = prize.type === "discount" || prize.type === "merch" || prize.type === "gift";
+  const isWin = ["discount", "perk", "merch", "gift"].includes(prize.type);
   return `
     <div class="prize-banner ${isWin ? "prize-win" : "prize-none"}">
       <div class="prize-label">${prize.label}</div>
       <div class="prize-detail">${prize.detail}</div>
-      ${prize.type === "discount" ? `<div class="prize-code">${prize.code}</div>` : ""}
+      ${prize.type === "discount" && prize.code ? `<div class="prize-code">${prize.code}</div>` : ""}
     </div>`;
 }
 

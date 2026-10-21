@@ -58,6 +58,36 @@ test("PayPal order creation rejects unknown products and sold-out stock", async 
   assert.equal((await handler(post({ cart: [{ productId: "0003", color: "Black", qty: 1 }] }))).statusCode, 400);
 });
 
+test("PayPal checkout applies a valid Arcade code bound to the site email", async () => {
+  const { resolvePromo } = require("../netlify/lib/promo-codes.js");
+  let sent;
+  const checks = [];
+  const handler = createPayPalOrderHandler({
+    paypalFactory: () => ({
+      createOrder: async (order) => {
+        sent = order;
+        return { links: [{ rel: "approve", href: "https://paypal.test/approve" }] };
+      },
+    }),
+    promoResolver: (args) => resolvePromo({
+      ...args,
+      storeFactory: () => ({
+        checkArcadeCode: async (code, email) => {
+          checks.push({ code, email });
+          return { valid: true, code, discountBasisPoints: 1500 };
+        },
+      }),
+    }),
+    environment: ENV,
+    logger: silent,
+  });
+  const response = await handler(post({ cart: tamperedCart, customer, promoCode: "CIG15-ABCDEFGH" }));
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(checks, [{ code: "CIG15-ABCDEFGH", email: "buyer@example.com" }]);
+  assert.equal(sent.purchase_units[0].amount.value, "17.00"); // $10 x2, 15% off
+  assert.deepEqual(JSON.parse(sent.purchase_units[0].custom_id), { p: "CIG15-ABCDEFGH", m: 0 });
+});
+
 // ---------- PayPal capture + recording ----------
 
 function completedOrder(overrides = {}) {

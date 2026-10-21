@@ -11,9 +11,12 @@ const {
 } = require("../lib/stripe-pricing.js");
 const { buildPayPalOrder, createPayPalClient } = require("../lib/paypal.js");
 const { checkoutSiteUrl, trustedCartItems } = require("../lib/checkout-request.js");
+const { RequestValidationError, normalizeEmail } = require("../lib/customer-utils.js");
+const { resolvePromo } = require("../lib/promo-codes.js");
 
 function createHandler({
   paypalFactory = createPayPalClient,
+  promoResolver = resolvePromo,
   environment = process.env,
   logger = console,
 } = {}) {
@@ -24,7 +27,10 @@ function createHandler({
 
     try {
       const body = JSON.parse(event.body || "{}");
-      const pricing = priceCartForStripe(trustedCartItems(body), body.promoCode);
+      // Arcade codes must belong to the email entered on the site.
+      const email = body.customer && body.customer.email ? normalizeEmail(body.customer.email) : null;
+      const promo = await promoResolver({ promoCode: body.promoCode, email });
+      const pricing = priceCartForStripe(trustedCartItems(body), body.promoCode, promo);
       const siteUrl = checkoutSiteUrl(environment.SITE_URL);
       const order = await paypalFactory({ environment }).createOrder(
         buildPayPalOrder(pricing, {
@@ -37,7 +43,11 @@ function createHandler({
       if (!approveLink) throw new Error("PayPal did not return an approval link");
       return { statusCode: 200, body: JSON.stringify({ url: approveLink.href }) };
     } catch (err) {
-      if (err instanceof PricingValidationError || err instanceof SyntaxError) {
+      if (
+        err instanceof PricingValidationError
+        || err instanceof RequestValidationError
+        || err instanceof SyntaxError
+      ) {
         return { statusCode: 400, body: JSON.stringify({ error: err.message }) };
       }
       logger.error("PayPal order creation failed.", { error: err && err.name });

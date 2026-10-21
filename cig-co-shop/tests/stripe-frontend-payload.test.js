@@ -761,3 +761,31 @@ test("crypto checkout never stacks a promo code with the 20% crypto discount", a
   assert.match(paypal.url, /create-paypal-order/);
   assert.equal(paypal.body.promoCode, "CIG10");
 });
+
+test("Arcade codes are checked with the server before they're applied", async () => {
+  const { isArcadeCode } = require("../promo.js");
+  const requests = [];
+  let reply = { valid: true, code: "CIG10-HXRN5K63", discount: 0.1, label: "10% off" };
+  const { context, promoMessageElement } = loadFrontend({
+    promoCodes: {},
+    fetchImpl: async (url, init) => {
+      requests.push({ url, body: JSON.parse(init.body) });
+      return { ok: true, async json() { return reply; } };
+    },
+  });
+  context.isArcadeCode = isArcadeCode;
+  context.savePromoWin = () => {};
+  context.clearSavedPromo = () => {};
+
+  await context.applyPromoCode("cig10-hxrn5k63");
+  assert.deepEqual(requests, [{ url: "/.netlify/functions/validate-promo", body: { code: "CIG10-HXRN5K63" } }]);
+  assert.equal(vm.runInContext("promoState", context), "CIG10-HXRN5K63");
+  assert.equal(vm.runInContext("promoDetails('CIG10-HXRN5K63').discount", context), 0.1);
+  assert.match(promoMessageElement.textContent, /Code applied — 10% off/);
+
+  reply = { valid: false, error: "This code has already been used." };
+  await context.applyPromoCode("CIG15-ABCDEFGH");
+  assert.equal(vm.runInContext("promoState", context), null);
+  assert.equal(promoMessageElement.textContent, "This code has already been used.");
+  assert.equal(promoMessageElement.classes.has("promo-error"), true);
+});

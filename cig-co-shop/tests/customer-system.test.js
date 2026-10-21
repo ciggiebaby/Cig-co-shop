@@ -774,8 +774,12 @@ test("migration defines uniqueness and atomic processing contracts", () => {
   assert.match(sql, /insert into public\.orders[\s\S]*on conflict do nothing/i);
   assert.match(sql, /cigco_reserve_integration/i);
   assert.match(sql, /redemption_status text not null/i);
+  const arcadeCodesSql = fs.readFileSync(path.join(
+    __dirname,
+    "../supabase/migrations/202610210002_arcade_codes_activate.sql",
+  ), "utf8");
   for (const prize of PRIZES) {
-    assert.match(sql, new RegExp(`'${prize.id}'`));
+    assert.match(`${sql}\n${arcadeCodesSql}`, new RegExp(`'${prize.id}'`));
   }
 
   const cooldownSql = fs.readFileSync(path.join(
