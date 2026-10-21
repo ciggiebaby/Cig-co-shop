@@ -10,7 +10,7 @@ per-transaction processing fees from whichever payment method the customer picks
 - `index.html`, `styles.css`, `app.js`, `cart.js` — the actual site.
 - `gallery.html`, `gallery-data.js`, `gallery.js` — the Gallery page.
 - `arcade.html`, `arcade.js` — the Arcade page (email-gated games).
-- `promo.js` — discount codes and Arcade prizes, shared by checkout and the Arcade.
+- `promo.js` — discount codes (none active right now) and Arcade prizes, shared by checkout and the Arcade.
 - `email-list.js` — legacy Netlify Forms capture retained for non-Stripe checkout compatibility.
 - `products.js` — **edit this to add/change backstock.** Plain English, no code experience needed beyond copy-pasting the pattern.
 - `assets/logo-spin.mp4` — your spinning logo, used in the hero section.
@@ -28,6 +28,25 @@ the placeholder `{ ... }` blocks, point `image` at a file in `assets/gallery/`
 top of the page is set in `gallery.html` — swap the YouTube link there any
 time you drop a new visualizer or music video.
 
+## Promo codes
+
+Promo codes live in `promo.js` under `PROMO_CODES`. **No codes are active
+right now** (CIG5, CIG10 and CIG20 were retired), so any code a customer types
+shows "That code isn't valid." To add one, add a line inside the braces and
+deploy:
+
+```js
+const PROMO_CODES = {
+  SUMMER15: { discount: 0.15, label: "15% off" },
+};
+```
+
+`discount` is the fraction off (0.15 = 15%). Write the code in UPPERCASE;
+customers can type it in any case. The checkout server reads the same file, so
+a code works for card and PayPal as soon as it's deployed. **Promo codes never
+stack with the 20% crypto discount.** Crypto checkout always uses its 20% and
+ignores any promo code.
+
 ## Arcade page + email list
 
 Visitors enter their email to unlock three games — a spin wheel, a scratch
@@ -37,8 +56,10 @@ Every play after that is pure chance across the full prize pool, including a
 "try again" outcome. **Playing any one of the three counts as your play**
 and locks the whole Arcade for seven days — a live countdown shows on the page
 until the next play unlocks. Prizes are
-defined in `promo.js` under `PRIZES`: 5%, 10%, and 20% off codes (the same
-codes usable at checkout — nothing higher, by design), plus "Free Merch" and
+defined in `promo.js` under `PRIZES` (and in the Supabase `arcade_prizes`
+table, which is what actually picks the prize): 5%, 10%, and 20% off codes
+(CIG5/CIG10/CIG20 — **retired from checkout for now**, see "Promo codes"
+above), plus "Free Merch" and
 "Mystery Gift" prizes that have no automatic fulfillment — winners are told
 to screenshot their result and email or DM you to claim it, so keep an eye
 out for those.

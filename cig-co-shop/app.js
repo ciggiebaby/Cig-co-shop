@@ -350,7 +350,7 @@ function applyPromoCode(rawCode) {
   if (typeof PROMO_CODES !== "undefined" && PROMO_CODES[code]) {
     promoState = code;
     if (typeof savePromoWin === "function") savePromoWin(code);
-    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label}.`; messageEl.classList.remove("promo-error"); }
+    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label}. (Crypto checkout gets its 20% off instead.)`; messageEl.classList.remove("promo-error"); }
   } else {
     promoState = null;
     if (messageEl) { messageEl.textContent = "That code isn't valid."; messageEl.classList.add("promo-error"); }
@@ -601,7 +601,9 @@ paymentButtons.forEach((btn) => {
           ? "/.netlify/functions/create-paypal-order"
           : "/.netlify/functions/create-coinbase-charge";
 
-      const discountFraction = promoState && typeof PROMO_CODES !== "undefined" && PROMO_CODES[promoState] ? PROMO_CODES[promoState].discount : 0;
+      // Promo codes never stack with the 20% crypto discount.
+      const checkoutPromo = method === "crypto" ? null : promoState;
+      const discountFraction = checkoutPromo && typeof PROMO_CODES !== "undefined" && PROMO_CODES[checkoutPromo] ? PROMO_CODES[checkoutPromo].discount : 0;
       const cartToCharge = discountFraction > 0
         ? cart.map((item) => ({ ...item, price: Math.round(item.price * (1 - discountFraction) * 100) / 100 }))
         : cart;
@@ -611,7 +613,7 @@ paymentButtons.forEach((btn) => {
         cart,
         cartToCharge,
         fields,
-        promoState,
+        checkoutPromo,
       );
       if (method === "stripe") {
         requestBody = {

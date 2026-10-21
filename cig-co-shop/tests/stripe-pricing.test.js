@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+require("./promo-fixture.js");
 
 const {
   MAX_CART_LINES,

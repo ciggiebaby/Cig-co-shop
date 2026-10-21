@@ -1,11 +1,16 @@
 // CIG & CO. — promo codes + arcade prizes
 // Shared by the checkout (index.html) and the Arcade games (arcade.html).
 // discount is a fraction off the subtotal (0.10 = 10% off).
+//
+// No codes are active right now — every code entered at checkout shows
+// "That code isn't valid." To add one, put a line inside the braces, e.g.
+//   SUMMER15: { discount: 0.15, label: "15% off" },
+// Codes are UPPERCASE; customers can type them in any case. The server checks
+// this same list, so a code only works once it's here and deployed.
+// Promo codes never stack with the 20% crypto discount — crypto checkout
+// always uses the crypto discount instead of a promo code.
 
 const PROMO_CODES = {
-  CIG5:  { discount: 0.05, label: "5% off" },
-  CIG10: { discount: 0.10, label: "10% off" },
-  CIG20: { discount: 0.20, label: "20% off" },
 };
 
 const PROMO_STORAGE_KEY = "cig_co_promo_v1";

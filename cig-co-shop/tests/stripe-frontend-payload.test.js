@@ -13,8 +13,17 @@ function loadFrontend({
   href,
   paymentMethods = [],
   promoCode = null,
+  promoCodes = { CIG10: { discount: 0.1, label: "10% off" } },
   storedCart,
 } = {}) {
+  const promoMessageElement = {
+    textContent: "",
+    classes: new Set(),
+    classList: {
+      add(name) { promoMessageElement.classes.add(name); },
+      remove(name) { promoMessageElement.classes.delete(name); },
+    },
+  };
   const statusElement = { hidden: true, textContent: "" };
   const errorElement = { textContent: "" };
   const loadingElement = { hidden: true };
@@ -90,9 +99,7 @@ function loadFrontend({
   }
   const context = vm.createContext({
     PRODUCTS,
-    PROMO_CODES: {
-      CIG10: { discount: 0.1, label: "10% off" },
-    },
+    PROMO_CODES: promoCodes,
     URL,
     console: {
       error(...args) {
@@ -106,6 +113,7 @@ function loadFrontend({
         if (id === "checkout-loading") return loadingElement;
         if (id === "checkout-optin") return optinElement;
         if (id === "product-modal") return productModalElement;
+        if (id === "promo-message") return promoMessageElement;
         return checkoutFields[id] || null;
       },
       querySelectorAll: (selector) =>
@@ -141,6 +149,7 @@ function loadFrontend({
     loadingElement,
     paymentButtons,
     productModalElement,
+    promoMessageElement,
     statusElement,
     storage,
     storageWrites: () => storageWrites,
@@ -719,4 +728,36 @@ test("unknown or missing checkout values leave the banner and URL untouched", ()
     assert.deepEqual(frontend.historyCalls, []);
     assert.equal(frontend.storageWrites(), 0);
   }
+});
+
+test("an entered code that isn't in promo.js shows 'invalid' and applies no discount", () => {
+  const { context, promoMessageElement } = loadFrontend({ promoCodes: {} });
+  context.applyPromoCode("cig10");
+  assert.equal(promoMessageElement.textContent, "That code isn't valid.");
+  assert.equal(promoMessageElement.classes.has("promo-error"), true);
+  assert.equal(vm.runInContext("promoState", context), null);
+});
+
+test("crypto checkout never stacks a promo code with the 20% crypto discount", async () => {
+  const requests = [];
+  const frontend = loadFrontend({
+    fetchImpl: async (url, init) => {
+      requests.push({ url, body: JSON.parse(init.body) });
+      return { ok: true, async json() { return { url: "https://pay.test" }; } };
+    },
+    paymentMethods: ["crypto", "paypal"],
+    promoCode: "CIG10",
+    storedCart: [
+      { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 2 },
+    ],
+  });
+  await frontend.paymentButtons[0].click();
+  await frontend.paymentButtons[1].click();
+  const [crypto, paypal] = requests;
+  assert.match(crypto.url, /create-coinbase-charge/);
+  assert.equal(crypto.body.promoCode, null);
+  assert.equal(crypto.body.cart[0].price, 10);
+  assert.match(paypal.url, /create-paypal-order/);
+  assert.equal(paypal.body.promoCode, "CIG10");
+  assert.equal(paypal.body.cart[0].price, 9);
 });
