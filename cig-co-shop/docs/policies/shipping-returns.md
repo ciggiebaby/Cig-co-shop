@@ -18,6 +18,7 @@ Every FW26/27 piece is printed and made just for you after you order. Because we
 | United States | about 5 to 9 business days | Free |
 | Canada, UK, Germany, Australia, Japan, South Korea | about 7 to 25 business days | Calculated at checkout |
 
+- **Masks:** In-stock masks ship to the US only, and their shipping is different. Any order with a mask in it has $8.95 shipping, which is free when the order total after any promo code is over $75.
 - All delivery times are estimates, not guarantees. Carrier delays, weather, holidays, and customs can push delivery past the estimate.
 - Once your order ships, you'll get a tracking link by email. It usually starts updating within 24 hours.
 - An order with several items may arrive in more than one package.

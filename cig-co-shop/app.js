@@ -518,17 +518,30 @@ function cartShippingLines(cart) {
       name: product ? product.name : item.name,
       shipping: product && typeof product.shipping === "string" ? product.shipping : null,
       quantity: item.qty,
+      // In-hand backstock (masks): US only, flat fee under $75 (shipping-rates.js).
+      mask: !!(product && product.liveStock),
     };
   });
 }
 
+// Items total after promo, in cents, rounded per unit exactly like the server
+// (stripe-pricing.js discountedUnitAmount), so the $75 threshold matches.
+function cartMerchandiseCents(cart, promoInfo) {
+  const basisPoints = promoInfo && promoInfo.discount ? Math.round(promoInfo.discount * 10000) : 0;
+  return cart.reduce((sum, item) => {
+    const unit = Math.round(Number(item.price) * 100);
+    return sum + Math.round((unit * (10000 - basisPoints)) / 10000) * item.qty;
+  }, 0);
+}
+
 function cartShippingQuote(cart, country) {
   const lines = cartShippingLines(cart);
-  if (country === "US") return { shippingCents: 0, blocked: [] };
+  const merchandiseCents = cartMerchandiseCents(cart, promoDetails(promoState));
   if (typeof quoteShipping !== "function") {
+    if (country === "US") return { shippingCents: lines.some((l) => l.mask) ? null : 0, blocked: [] };
     return { shippingCents: null, blocked: lines.map((line) => line.name) };
   }
-  const quote = quoteShipping(lines, country);
+  const quote = quoteShipping(lines, country, { merchandiseCents });
   return { shippingCents: quote.shippingCents, blocked: quote.blocked };
 }
 
@@ -560,6 +573,11 @@ function updateShipToOptions(cart) {
     note.textContent = text;
     note.hidden = !text;
   }
+  const maskNote = document.getElementById("checkout-mask-shipping-note");
+  if (maskNote) {
+    if (typeof MASK_SHIPPING_NOTE === "string") maskNote.textContent = MASK_SHIPPING_NOTE;
+    maskNote.hidden = !cartShippingLines(cart).some((line) => line.mask);
+  }
   const dutiesNote = document.getElementById("checkout-duties-note");
   if (dutiesNote) dutiesNote.hidden = country === "US";
   const pcccRow = document.getElementById("checkout-pccc-row");
@@ -586,8 +604,9 @@ function renderCheckoutSummary() {
   const subtotal = cartSubtotal(cart);
   const promoInfo = promoDetails(promoState);
   const discountFraction = promoInfo ? promoInfo.discount : 0;
-  const discountAmount = subtotal * discountFraction;
-  const total = subtotal - discountAmount + shipping;
+  const merchandise = cartMerchandiseCents(cart, promoInfo) / 100;
+  const discountAmount = subtotal - merchandise;
+  const total = merchandise + shipping;
 
   let rows = cart
     .map((item) => {

@@ -25,7 +25,7 @@ These are estimates, not guarantees:
 Bags, cases, and sleeves ship to the US, Canada, the UK, Germany, Australia, Japan, and South Korea. Pillows ship to the US only, so any order with a pillow needs a US address.
 
 **How much is shipping?**
-US shipping is free. International shipping is calculated at checkout.
+US shipping is free on FW26 collection pieces. International shipping on those pieces is calculated at checkout. Masks ship to the US only, and any order with a mask in it has $8.95 shipping. That shipping is free once your order total after any promo code is over $75. At exactly $75, the $8.95 still applies.
 
 **Will I pay customs or duties?**
 On international orders, any customs duties, import taxes, and brokerage fees are paid by the customer. Customs can also slow down delivery.
