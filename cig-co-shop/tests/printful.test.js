@@ -1,3 +1,4 @@
+require("./legacy-fixture.js");
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
@@ -33,9 +34,9 @@ test.before(() => PRODUCTS.push(POD_PRODUCT));
 test.after(() => PRODUCTS.splice(PRODUCTS.indexOf(POD_PRODUCT), 1));
 
 test("archive items are priced exactly as before (no POD metadata)", () => {
-  const pricing = priceCartForStripe([{ productId: "0003", color: "Red", quantity: 1 }]);
+  const pricing = priceCartForStripe([{ productId: "TEST-PILLOW", color: "Red", quantity: 1 }]);
   assert.deepEqual(pricing.lineItems[0].price_data.product_data, {
-    name: "CIG Pillow Case — Red",
+    name: "Test Pillow Case — Red",
   });
 });
 
@@ -69,7 +70,7 @@ test("maps selections to Printful catalog or sync variants", () => {
     555,
   );
   assert.throws(() => printfulItemForLine({ productId: POD_PRODUCT.id, size: "XL", quantity: 1 }));
-  assert.throws(() => printfulItemForLine({ productId: "0003", color: "Red", quantity: 1 }));
+  assert.throws(() => printfulItemForLine({ productId: "TEST-PILLOW", color: "Red", quantity: 1 }));
 });
 
 test("product-level options are sent with catalog variants", () => {

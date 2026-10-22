@@ -1,4 +1,5 @@
 // FW26/27 drop lock: DROP_AT in products.js, enforced by every checkout.
+require("./legacy-fixture.js");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -55,7 +56,7 @@ test("before DROP_AT, Stripe refuses FW26 items with a clear 400 and never calls
   assert.equal(JSON.parse(response.body).error, "The FW26/27 collection drops Oct 30 at 12:00 PM ET. It can't be bought yet. Check back then!");
   assert.equal(s.request, undefined);
   // Older products are unaffected.
-  assert.equal((await s.handler(post({ items: [{ productId: "0003", color: "Red", quantity: 1 }] }))).statusCode, 200);
+  assert.equal((await s.handler(post({ items: [{ productId: "TEST-PILLOW", color: "Red", quantity: 1 }] }))).statusCode, 200);
 });
 
 test("before DROP_AT, PayPal refuses FW26 items with a clear 400", async () => {
@@ -103,10 +104,10 @@ test("with DROP_TEST_CODE set, only that exact code lets an order through early,
 });
 
 test("assertDropOpen checks every item in the cart", () => {
-  const items = [{ productId: "0003" }, { productId: "FW26-PILLOW" }];
+  const items = [{ productId: "TEST-PILLOW" }, { productId: "FW26-PILLOW" }];
   assert.throws(() => assertDropOpen(items, { environment: {}, now: BEFORE }), /drops Oct 30/);
   assert.doesNotThrow(() => assertDropOpen(items, { environment: {}, now: AFTER }));
-  assert.doesNotThrow(() => assertDropOpen([{ productId: "0003" }], { environment: {}, now: BEFORE }));
+  assert.doesNotThrow(() => assertDropOpen([{ productId: "TEST-PILLOW" }], { environment: {}, now: BEFORE }));
   assert.equal(dropTestCodeValid(CODE, { DROP_TEST_CODE: CODE }), true);
   assert.equal(dropTestCodeValid(CODE, {}), false);
 });

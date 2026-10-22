@@ -3,12 +3,25 @@
 
 const CART_KEY = "cig_co_cart_v1";
 
-function getCart() {
+function readStoredCart() {
   try {
-    return JSON.parse(localStorage.getItem(CART_KEY)) || [];
+    const cart = JSON.parse(localStorage.getItem(CART_KEY));
+    return Array.isArray(cart) ? cart : [];
   } catch (e) {
     return [];
   }
+}
+
+// A bag saved before a product was taken off the site (e.g. the old pillow
+// case and puffer jacket) still holds those lines. Drop anything that isn't
+// a live, listed product so checkout never sees it.
+function getCart() {
+  const cart = readStoredCart();
+  if (typeof PRODUCTS === "undefined" || !Array.isArray(PRODUCTS)) return cart;
+  const listed = new Set(PRODUCTS.filter((p) => !p.hidden).map((p) => p.id));
+  const kept = cart.filter((item) => item && listed.has(item.productId));
+  if (kept.length !== cart.length) localStorage.setItem(CART_KEY, JSON.stringify(kept));
+  return kept;
 }
 
 function saveCart(cart) {

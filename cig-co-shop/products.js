@@ -107,7 +107,7 @@ const PRODUCTS = [
       "Gold": "https://files.cdn.printful.com/files/d38/d38370793971808f55f5748b18e35326_thumb.png",
       "Burnt Orange": "https://files.cdn.printful.com/files/3f6/3f6722b47380bb65ba0244cd01a98e06_thumb.png",
       "Espresso": "https://files.cdn.printful.com/files/3b9/3b9066c63624c96ec4d31060bc2cfaa2_thumb.png",
-      "Multi": "https://files.cdn.printful.com/files/6aa/6aac2c3c795d892f99e788ec8dab9eca_thumb.png",
+      "Multi": "assets/products/fw26/crossbody_multi_swatch.webp",
     },
     pod: {
       variants: {
@@ -153,10 +153,10 @@ const PRODUCTS = [
       "Burgundy": "https://files.cdn.printful.com/files/395/395cf528ebb0aaa6fd2530acb087be93_thumb.png",
       "Navy": "https://files.cdn.printful.com/files/aaf/aaf5dc8b3ce809705c31300180485796_thumb.png",
       "Hunter": "https://files.cdn.printful.com/files/e0d/e0d531ea691480972949b2cf4cc48408_thumb.png",
-      "Grape": "https://files.cdn.printful.com/files/1fe/1fe4b88d136827c6f2be81865e2698fd_thumb.png",
+      "Grape": "assets/products/fw26/case_grape_swatch.webp",
       "Gold": "https://files.cdn.printful.com/files/1eb/1ebae1c742f2720d10cee784f36fb174_thumb.png",
       "Burnt Orange": "https://files.cdn.printful.com/files/a14/a147f44c0b9475e0f8e6f9a69ca691b5_thumb.png",
-      "Espresso": "https://files.cdn.printful.com/files/6ba/6ba01b06fb44afa5630efafb59059050_thumb.png",
+      "Espresso": "assets/products/fw26/case_espresso_swatch.webp",
     },
     pod: {
       variants: {
@@ -342,7 +342,7 @@ const PRODUCTS = [
     },
     colorSwatches: {
       "Black": "https://files.cdn.printful.com/files/ac5/ac5f5ee092884739f208a5b1b8b09537_thumb.png",
-      "Burgundy": "https://files.cdn.printful.com/files/424/424e3d35abb05da320c39f248b28615c_thumb.png",
+      "Burgundy": "assets/products/fw26/sleeve_burgundy_swatch.webp",
       "Navy": "https://files.cdn.printful.com/files/011/011e71ce6761fb20a1130c93a6af7045_thumb.png",
       "Hunter": "https://files.cdn.printful.com/files/fbc/fbc42251e5920b96fd8519c096f7551e_thumb.png",
       "Grape": "https://files.cdn.printful.com/files/1d3/1d3412388612b399d9691cf96995f8b5_thumb.png",
@@ -468,25 +468,6 @@ const PRODUCTS = [
     },
   },
   {
-    id: "0003",
-    sku: "0003",
-    stock: { "Red": 67, "Blue": 58, "Purple": 67, "Teal": 74, "Black": 0 },
-    name: "CIG Pillow Case",
-    shipping: "pillow", // US only
-    price: 20.00,
-    salePrice: 10.00,
-    image: "assets/products/pillow-black.jpg",
-    colors: ["Red", "Blue", "Purple", "Teal", "Black"],
-    sizes: [],
-    colorImages: {
-      "Red": "assets/products/pillow-red.jpg",
-      "Blue": "assets/products/pillow-blue.jpg",
-      "Purple": "assets/products/pillow-purple.jpg",
-      "Teal": "assets/products/pillow-teal.jpg",
-      "Black": "assets/products/pillow-black.jpg",
-    },
-  },
-  {
     id: "0004",
     sku: "0004",
     name: "CIG Silky Bonnet & Durag",
@@ -604,23 +585,6 @@ const PRODUCTS = [
       "Red": ["assets/products/skimask-red-back.jpg"],
       "Gold": ["assets/products/skimask-gold-back.jpg"],
       "Green": ["assets/products/skimask-green-back.jpg"],
-    },
-  },
-  {
-    id: "0009",
-    sku: "0009",
-    comingSoon: true,
-    name: "CIG Metallic Puffer Jacket",
-    price: 150.00,
-    salePrice: null,
-    image: "assets/products/puffer-jacket-front.jpg",
-    colors: ["Blue"],
-    sizes: [],
-    colorImages: {
-      "Blue": "assets/products/puffer-jacket-front.jpg",
-    },
-    gallery: {
-      "Blue": ["assets/products/puffer-jacket-back.jpg", "assets/products/puffer-jacket-lining.jpg"],
     },
   },
   {

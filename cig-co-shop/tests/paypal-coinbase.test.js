@@ -1,3 +1,4 @@
+require("./legacy-fixture.js");
 const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
 const test = require("node:test");
@@ -24,7 +25,7 @@ const customer = {
   country: "US",
 };
 // Browser prices are deliberately wrong; the server must ignore them.
-const tamperedCart = [{ productId: "0003", color: "Red", size: null, style: null, qty: 2, price: 0.01, name: "x" }];
+const tamperedCart = [{ productId: "TEST-PILLOW", color: "Red", size: null, style: null, qty: 2, price: 0.01, name: "x" }];
 
 function post(body, headers = {}) {
   return { httpMethod: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body) };
@@ -64,7 +65,7 @@ test("PayPal order creation rejects unknown products and sold-out stock", async 
     logger: silent,
   });
   assert.equal((await handler(post({ cart: [{ productId: "nope", qty: 1 }] }))).statusCode, 400);
-  assert.equal((await handler(post({ cart: [{ productId: "0003", color: "Black", qty: 1 }] }))).statusCode, 400);
+  assert.equal((await handler(post({ cart: [{ productId: "TEST-PILLOW", color: "Black", qty: 1 }] }))).statusCode, 400);
 });
 
 test("PayPal checkout applies a valid Arcade code bound to the site email", async () => {
@@ -107,7 +108,7 @@ function completedOrder(overrides = {}) {
     purchase_units: [{
       amount: { currency_code: "USD", value: "18.00" },
       custom_id: JSON.stringify({ p: "CIG10", m: 0 }),
-      items: [{ name: "CIG Pillow Case — Red", quantity: "2", unit_amount: { currency_code: "USD", value: "9.00" } }],
+      items: [{ name: "Test Pillow Case — Red", quantity: "2", unit_amount: { currency_code: "USD", value: "9.00" } }],
       shipping: {
         name: { full_name: "Ada Lovelace" },
         address: { address_line_1: "1 Main St", admin_area_2: "Austin", admin_area_1: "TX", postal_code: "78701", country_code: "US" },
@@ -134,7 +135,7 @@ test("captured PayPal orders map to the same order record as Stripe", () => {
   assert.equal(paid.amountTotalCents, 1800);
   assert.equal(paid.promoCode, "CIG10");
   assert.equal(paid.marketingConsent, false);
-  assert.deepEqual(paid.items, [{ description: "CIG Pillow Case — Red", quantity: 2, amountTotalCents: 1800, currency: "usd" }]);
+  assert.deepEqual(paid.items, [{ description: "Test Pillow Case — Red", quantity: 2, amountTotalCents: 1800, currency: "usd" }]);
   assert.equal(paid.shippingDestination.line1, "1 Main St");
   assert.equal(paid.shippingDestination.summary, "Austin, TX, 78701, US");
 });
@@ -368,7 +369,7 @@ test("Coinbase charges use server prices and never stack a promo code with the 2
   assert.equal(sent.metadata.shipping_zip, "78701");
   assert.equal(sent.metadata.shipping_country, "US");
   assert.equal(sent.metadata.promo_code, undefined);
-  assert.deepEqual(JSON.parse(sent.metadata.items), [["CIG Pillow Case — Red", 2]]);
+  assert.deepEqual(JSON.parse(sent.metadata.items), [["Test Pillow Case — Red", 2]]);
   assert.equal(sent.redirect_url, "https://shop.test/?checkout=success");
 });
 
@@ -382,7 +383,7 @@ test("Coinbase charges without promo are 20% off the catalog price", async () =>
     environment: ENV,
     logger: silent,
   });
-  await handler(post({ cart: [{ productId: "0003", color: "Red", qty: 1 }], customer }));
+  await handler(post({ cart: [{ productId: "TEST-PILLOW", color: "Red", qty: 1 }], customer }));
   assert.equal(sent.local_price.amount, "8.00");
 });
 
@@ -445,7 +446,7 @@ function paidCharge(status = "COMPLETED") {
       shipping_zip: "78701",
       shipping_country: "US",
       marketing_consent: "true",
-      items: JSON.stringify([["CIG Pillow Case — Red", 2]]),
+      items: JSON.stringify([["Test Pillow Case — Red", 2]]),
     },
   };
 }
@@ -489,7 +490,7 @@ test("Coinbase webhook records confirmed charges with shipping from metadata", a
   assert.equal(order.shippingDestination.postalCode, "78701");
   assert.equal(order.shippingDestination.country, "US");
   assert.equal(order.shippingDestination.summary, "Austin, TX, 78701, US");
-  assert.deepEqual(order.items.map((item) => [item.description, item.quantity]), [["CIG Pillow Case — Red", 2]]);
+  assert.deepEqual(order.items.map((item) => [item.description, item.quantity]), [["Test Pillow Case — Red", 2]]);
 });
 
 test("Coinbase webhook ignores pending events and unpaid charges", async () => {

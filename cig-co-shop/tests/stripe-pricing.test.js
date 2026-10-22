@@ -1,3 +1,4 @@
+require("./legacy-fixture.js");
 const test = require("node:test");
 const assert = require("node:assert/strict");
 require("./promo-fixture.js");
@@ -20,7 +21,7 @@ function assertValidationError(fn, pattern) {
 }
 
 test("uses sale price before regular price", () => {
-  const priced = priceCartForStripe([item("0003", "Red", null, null, 2)]);
+  const priced = priceCartForStripe([item("TEST-PILLOW", "Red", null, null, 2)]);
   assert.equal(priced.lineItems[0].price_data.unit_amount, 1000);
   assert.equal(priced.subtotalCents, 2000);
   assert.equal(priced.totalCents, 2000);
@@ -91,7 +92,7 @@ test("normalizes and applies promo codes in integer cents", () => {
 
 test("ignores client display and monetary fields", () => {
   const priced = priceCartForStripe([
-    item("0003", "Red", null, null, 1, {
+    item("TEST-PILLOW", "Red", null, null, 1, {
       name: "Attacker Product",
       price: 0.01,
       subtotal: 1,
@@ -101,7 +102,7 @@ test("ignores client display and monetary fields", () => {
     }),
   ]);
   const line = priced.lineItems[0];
-  assert.equal(line.price_data.product_data.name, "CIG Pillow Case — Red");
+  assert.equal(line.price_data.product_data.name, "Test Pillow Case — Red");
   assert.equal(line.price_data.unit_amount, 1000);
   assert.equal(priced.totalCents, 1000);
 });
@@ -124,15 +125,15 @@ test("rejects missing, unknown, and unexpected options", () => {
   assertValidationError(() => priceCartForStripe([item("0011", "Red", "L", "Dress")]), /Invalid style/);
   assertValidationError(() => priceCartForStripe([item("0011", "Blue", "L", "Set")]), /Invalid color/);
   assertValidationError(() => priceCartForStripe([item("0011", "Red", "XXL", "Set")]), /Invalid size/);
-  assertValidationError(() => priceCartForStripe([item("0003", "Red", "L")]), /does not support size/);
-  assertValidationError(() => priceCartForStripe([item("0003", "Red", null, "Set")]), /does not support style/);
+  assertValidationError(() => priceCartForStripe([item("TEST-PILLOW", "Red", "L")]), /does not support size/);
+  assertValidationError(() => priceCartForStripe([item("TEST-PILLOW", "Red", null, "Set")]), /does not support style/);
 });
 
 test("rejects unavailable products and variants", () => {
-  assertValidationError(() => priceCartForStripe([item("0009", "Blue")]), /not available for purchase/);
+  assertValidationError(() => priceCartForStripe([item("TEST-COMING-SOON", "Blue")]), /not available for purchase/);
   // 0012 is off-site backstock: in the catalog, in stock, but never purchasable.
   assertValidationError(() => priceCartForStripe([item("0012", "Red")]), /not available for purchase/);
-  assertValidationError(() => priceCartForStripe([item("0003", "Black")]), /quantity is unavailable/);
+  assertValidationError(() => priceCartForStripe([item("TEST-PILLOW", "Black")]), /quantity is unavailable/);
   assertValidationError(() => priceCartForStripe([item("0004", "Gold", null, "Bonnet")]), /quantity is unavailable/);
   assertValidationError(() => priceCartForStripe([item("0004", "Gold", null, "Set")]), /quantity is unavailable/);
   assertValidationError(() => priceCartForStripe([item("0004", "Red", null, "Bonnet")]), /quantity is unavailable/);

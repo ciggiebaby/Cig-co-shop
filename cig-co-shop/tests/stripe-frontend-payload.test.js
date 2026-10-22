@@ -1,3 +1,4 @@
+require("./legacy-fixture.js");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -349,8 +350,8 @@ test("adds a fingerprint generated only from Stripe identity items and promo", a
 test("integrated fingerprints remain stable across line order and duplicates", async () => {
   const duplicateCart = [
     {
-      productId: "0003",
-      name: "CIG Pillow Case",
+      productId: "TEST-PILLOW",
+      name: "Test Pillow Case",
       price: 10,
       color: "Red",
       size: null,
@@ -367,8 +368,8 @@ test("integrated fingerprints remain stable across line order and duplicates", a
       qty: 1,
     },
     {
-      productId: "0003",
-      name: "CIG Pillow Case",
+      productId: "TEST-PILLOW",
+      name: "Test Pillow Case",
       price: 10,
       color: "Red",
       size: null,
@@ -427,8 +428,8 @@ test("does not derive a style from parentheses on a non-styled product", () => {
     "stripe",
     [
       {
-        productId: "0003",
-        name: "CIG Pillow Case (Limited)",
+        productId: "TEST-PILLOW",
+        name: "Test Pillow Case (Limited)",
         color: "Red",
         size: null,
         qty: 1,
@@ -488,8 +489,8 @@ test("rejects a styled legacy item with no recoverable catalog style", () => {
 test("PayPal and Coinbase send the same catalog-only payload as Stripe (no prices)", () => {
   const cart = [
     {
-      productId: "0003",
-      name: "CIG Pillow Case",
+      productId: "TEST-PILLOW",
+      name: "Test Pillow Case",
       price: 10,
       image: "pillow-red.jpg",
       color: "Red",
@@ -501,7 +502,7 @@ test("PayPal and Coinbase send the same catalog-only payload as Stripe (no price
   const cartToCharge = [{ ...cart[0], price: 0.01 }];
   const expected = {
     items: [
-      { productId: "0003", color: "Red", size: null, style: null, quantity: 2 },
+      { productId: "TEST-PILLOW", color: "Red", size: null, style: null, quantity: 2 },
     ],
     promoCode: "CIG10",
     customer,
@@ -602,8 +603,8 @@ test("does not send checkout when fingerprint generation fails", async () => {
     paymentMethods: ["stripe"],
     storedCart: [
       {
-        productId: "0003",
-        name: "CIG Pillow Case",
+        productId: "TEST-PILLOW",
+        name: "Test Pillow Case",
         price: 10,
         image: "pillow.jpg",
         color: "Red",
@@ -657,8 +658,8 @@ test("blocks rapid duplicate submissions while fingerprinting is pending", async
     paymentMethods: ["stripe", "paypal"],
     storedCart: [
       {
-        productId: "0003",
-        name: "CIG Pillow Case",
+        productId: "TEST-PILLOW",
+        name: "Test Pillow Case",
         price: 10,
         image: "pillow.jpg",
         color: "Red",
@@ -690,8 +691,8 @@ test("blocks rapid duplicate submissions while fingerprinting is pending", async
 test("shows cancelled wording, preserves the cart, and cleans only checkout", () => {
   const cart = [
     {
-      productId: "0003",
-      name: "CIG Pillow Case",
+      productId: "TEST-PILLOW",
+      name: "Test Pillow Case",
       price: 10,
       color: "Red",
       size: null,
@@ -821,7 +822,7 @@ test("crypto checkout never stacks a promo code with the 20% crypto discount", a
     paymentMethods: ["crypto", "paypal"],
     promoCode: "CIG10",
     storedCart: [
-      { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 2 },
+      { productId: "TEST-PILLOW", name: "Test Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 2 },
     ],
   });
   await frontend.paymentButtons[0].click();
@@ -871,7 +872,7 @@ test("crypto checkout sends a US state, ZIP, and country", async () => {
     },
     paymentMethods: ["crypto"],
     storedCart: [
-      { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 },
+      { productId: "TEST-PILLOW", name: "Test Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 },
     ],
   });
   await frontend.paymentButtons[0].click();
@@ -889,7 +890,7 @@ test("crypto checkout needs a US state and ZIP before it calls the server", asyn
       paymentMethods: ["crypto"],
       fieldOverrides,
       storedCart: [
-        { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 },
+        { productId: "TEST-PILLOW", name: "Test Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 },
       ],
     });
     await frontend.paymentButtons[0].click();
@@ -907,7 +908,7 @@ test("server checkout rejections (like US-only shipping) are shown to the shoppe
     }),
     paymentMethods: ["crypto"],
     storedCart: [
-      { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 },
+      { productId: "TEST-PILLOW", name: "Test Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 },
     ],
   });
   await frontend.paymentButtons[0].click();
@@ -923,7 +924,7 @@ test("a PayPal us-only return shows a friendly banner and cleans the URL", () =>
 });
 
 const bagItem = { productId: "T-BAG", name: "Test Crossbody Bag", price: 45, image: "", color: null, size: null, style: null, qty: 2 };
-const pillowItem = { productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 };
+const pillowItem = { productId: "TEST-PILLOW", name: "Test Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 };
 
 test("checkout summary shows the shipping cost for the chosen country before paying", () => {
   const frontend = loadFrontend({ shipCountry: "CA", storedCart: [bagItem] });
@@ -945,7 +946,7 @@ test("a pillow in the bag disables non-US countries and explains why", () => {
     [["US", false], ["CA", true], ["GB", true], ["DE", true], ["AU", true], ["JP", true], ["KR", true]],
   );
   assert.equal(frontend.shippingNoteElement.hidden, false);
-  assert.match(frontend.shippingNoteElement.textContent, /CIG Pillow Case ships to the US only/);
+  assert.match(frontend.shippingNoteElement.textContent, /Test Pillow Case ships to the US only/);
 });
 
 test("Japan and South Korea are selectable for bags, cases and sleeves; cases warn about ~30 days", () => {
@@ -1131,7 +1132,7 @@ test("with crypto off, the crypto button and 20%-off copy are hidden and the but
     cryptoEnabled: false,
     fetchImpl: async (url) => { requests.push(url); return { ok: true, async json() { return { url: "x" }; } }; },
     paymentMethods: ["stripe", "paypal", "crypto"],
-    storedCart: [{ productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 }],
+    storedCart: [{ productId: "TEST-PILLOW", name: "Test Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 }],
   });
   const [card, paypal, crypto] = frontend.paymentButtons;
   assert.equal(crypto.hidden, true);
@@ -1271,7 +1272,7 @@ test("the drop test code is only sent in ?droptest mode", async () => {
     requests.push(JSON.parse(init.body));
     return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } };
   };
-  const cart = [{ productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 }];
+  const cart = [{ productId: "TEST-PILLOW", name: "Test Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 }];
   const normal = loadFrontend({ fetchImpl, paymentMethods: ["paypal"], storedCart: cart, fieldOverrides: { "drop-test-code": "abc12345" } });
   await normal.paymentButtons[0].click();
   assert.equal(requests[0].dropTestCode, undefined);
