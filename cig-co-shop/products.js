@@ -616,7 +616,9 @@ const PRODUCTS = [
     name: "CIG Balaclava",
     price: 25.00,
     salePrice: null,
-    image: "assets/products/balaclava-blue-front.jpg",
+    // CIG 10/22: card and product view open on the black-and-gold balaclava.
+    defaultColor: "Gold",
+    image: "assets/products/balaclava-gold-front-upright.jpg",
     colors: ["Red", "Blue", "Gold", "Black"],
     sizes: [],
     colorImages: {
@@ -649,7 +651,9 @@ const PRODUCTS = [
     name: "CIG Ski Mask",
     price: 30.00,
     salePrice: null,
-    image: "assets/products/skimask-blue-1hole.jpg",
+    // CIG 10/22: "the Yellow Ski mask" = the Gold colorway (yellow with black print; there is no "Yellow").
+    defaultColor: "Gold",
+    image: "assets/products/skimask-gold-1hole.jpg",
     colors: ["Blue", "Red", "Green", "Gold"],
     sizes: ["1-Hole", "3-Hole", "Skully"],
     // Note: Green has no 1-Hole photo yet — it'll fall back to Green's 3-Hole shot until you send one.

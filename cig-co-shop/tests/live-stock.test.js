@@ -276,3 +276,18 @@ test("FW26 cards and product pages open on CIG's colors", () => {
   const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   assert.match(app, /color: \(p\.defaultColor && p\.colors\.includes\(p\.defaultColor\) \? p\.defaultColor : p\.colors\[0\]\)/);
 });
+
+test("backstock masks open on CIG's colors (10/22): Gold balaclava, Gold (yellow) ski mask, both in stock", () => {
+  const balaclava = PRODUCTS.find((p) => p.id === "0005");
+  assert.equal(balaclava.defaultColor, "Gold");
+  assert.equal(balaclava.image, balaclava.colorImages.Gold);
+  assert.equal(balaclava.stock.Gold, 24);
+  const ski = PRODUCTS.find((p) => p.id === "0008");
+  assert.equal(ski.colors.includes("Yellow"), false); // "yellow" is the Gold colorway
+  assert.equal(ski.defaultColor, "Gold");
+  assert.equal(ski.sizes[0], "1-Hole");
+  assert.equal(ski.image, ski.colorImages.Gold["1-Hole"]);
+  assert.ok(ski.stock.Gold["1-Hole"] > 0);
+  const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.match(app, /color: \(p\.defaultColor && p\.colors\.includes\(p\.defaultColor\) \? p\.defaultColor : p\.colors\[0\]\)/);
+});
