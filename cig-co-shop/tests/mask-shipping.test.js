@@ -169,3 +169,15 @@ test("drop-test code: pre-drop FW26 + mask test order gets the same mask shippin
   // $90 with 20% off = $72 → $8.95; the test code doesn't change pricing or shipping.
   assert.equal(created.shipping_options[0].shipping_rate_data.fixed_amount.amount, 895);
 });
+
+test("tote counts as FW26: free alone, never flagged as a mask, and with a mask follows the $75 rule", () => {
+  const tote = (quantity = 1) => ({ productId: "FW26-TOTE", color: "Hunter", quantity });
+  assert.deepEqual(priceCartForStripe([tote(), balaclava()], null).shippingLines.map((l) => l.mask), [false, true]);
+  assert.equal(usShipping([tote()]), 0);                    // $35, tote only
+  assert.equal(usShipping([tote(3)]), 0);                   // $105, totes only
+  assert.equal(usShipping([tote(), balaclava()]), 895);     // $35 + $25 = $60: pays $8.95 once
+  assert.equal(usShipping([tote(2), balaclava()]), 0);      // $70 + $25 = $95: free
+  assert.equal(usShipping([tote(2), balaclava()], TEN_OFF), 0);   // $85.50 after promo: still free
+  assert.equal(usShipping([tote(), balaclava(2)]), 0);      // $85: free
+  assert.equal(usShipping([tote(), balaclava(2)], { code: "T20", discountBasisPoints: 2000 }), 895); // $85 -> $68 after promo: pays
+});
