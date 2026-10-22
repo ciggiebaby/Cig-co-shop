@@ -546,12 +546,15 @@ const PRODUCTS = [
     colorImages: {
       "Blue": "assets/products/balaclava-blue-front.jpg",
       "Red": "assets/products/balaclava-red-front-upright.jpg",
-      // Only Black photo on hand is a back view; swap in a front shot when CIG has one.
-      "Black": "assets/products/balaclava-black.jpg",
+      // OPEN WITH CIG: BG counts "Black" (24) and no Gold. The old "Gold" listing's
+      // photos show a BLACK balaclava with a gold print, so they're used for Black.
+      // (balaclava-black.jpg is a different black/white-print design, back view only.)
+      "Black": "assets/products/balaclava-gold-front-upright.jpg",
     },
     gallery: {
       "Blue": ["assets/products/balaclava-blue-back.jpg"],
       "Red": ["assets/products/balaclava-red-back-upright.jpg"],
+      "Black": ["assets/products/balaclava-gold-back-upright.jpg"],
     },
   },
   {

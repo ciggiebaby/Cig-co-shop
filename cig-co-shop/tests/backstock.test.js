@@ -19,6 +19,9 @@ test("balaclava: $25, Red 70 / Blue 68 / Black 24, Gold gone, every color has a 
   assert.deepEqual(p.stock, { Red: 70, Blue: 68, Black: 24 });
   for (const c of p.colors) assert.ok(fs.existsSync(path.join(root, p.colorImages[c])), c);
   assert.equal(p.colorImages.Gold, undefined);
+  // The old "Gold" listing's photos (black balaclava, gold print) now show as Black.
+  assert.equal(p.colorImages.Black, "assets/products/balaclava-gold-front-upright.jpg");
+  assert.deepEqual(p.gallery.Black, ["assets/products/balaclava-gold-back-upright.jpg"]);
 });
 
 test("ski mask: $30, 1-Hole/3-Hole counts from BG (BG 'Yellow' = site 'Gold'), Skully 0", () => {
