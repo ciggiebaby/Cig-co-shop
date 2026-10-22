@@ -1,3 +1,4 @@
+require("./soldout-fixture.js");
 require("./legacy-fixture.js");
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -53,9 +54,9 @@ test("prices Bonnet, Durag, and Set options independently", () => {
   assert.deepEqual(
     priced.lineItems.map((line) => line.price_data.product_data.name),
     [
-      "CIG Silky Bonnet & Durag (Set) — Pink",
-      "CIG Silky Bonnet & Durag (Bonnet) — Pink",
-      "CIG Silky Bonnet & Durag (Durag) — Pink",
+      "Silky Bonnet & Durag (Set) — Pink",
+      "Silky Bonnet & Durag (Bonnet) — Pink",
+      "Silky Bonnet & Durag (Durag) — Pink",
     ],
   );
 });
@@ -74,9 +75,9 @@ test("uses the selected Bikini style price and keeps styles distinct", () => {
   assert.deepEqual(
     priced.lineItems.map((line) => line.price_data.product_data.name),
     [
-      "CIG Paisley Bikini (Set) — Red — L",
-      "CIG Paisley Bikini (Top) — Red — L",
-      "CIG Paisley Bikini (Bottom) — Red — L",
+      "Paisley Bikini (Set) — Red — L",
+      "Paisley Bikini (Top) — Red — L",
+      "Paisley Bikini (Bottom) — Red — L",
     ]
   );
 });
@@ -109,7 +110,7 @@ test("ignores client display and monetary fields", () => {
 
 test("does not infer Bikini style from an untrusted product name", () => {
   assertValidationError(
-    () => priceCartForStripe([item("0011", "Red", "L", null, 1, { name: "CIG Paisley Bikini (Set)" })]),
+    () => priceCartForStripe([item("0011", "Red", "L", null, 1, { name: "Paisley Bikini (Set)" })]),
     /style is required/
   );
 });

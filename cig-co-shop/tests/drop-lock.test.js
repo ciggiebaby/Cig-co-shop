@@ -96,11 +96,12 @@ test("with DROP_TEST_CODE set, only that exact code lets an order through early,
   // Price is unchanged: the test code is not a discount.
   assert.equal(right.request.line_items[0].price_data.unit_amount, 7500);
 
-  // PayPal passes the drop lock with the code, then card-only (POD_CARD_ONLY) still applies.
+  // PayPal (on for FW26 since 10/22): locked without the code, through with it.
   const p = paypal(BEFORE, environment);
+  assert.equal((await p.handler(post({ items: [bag] }))).statusCode, 400);
+  assert.equal((await p.handler(post({ items: [bag], dropTestCode: CODE.toUpperCase() }))).statusCode, 400);
   const viaPayPal = await p.handler(post({ items: [bag], dropTestCode: CODE }));
-  assert.equal(viaPayPal.statusCode, 400);
-  assert.match(JSON.parse(viaPayPal.body).error, /only be paid by card/);
+  assert.equal(viaPayPal.statusCode, 200);
 });
 
 test("assertDropOpen checks every item in the cart", () => {

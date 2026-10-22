@@ -1,5 +1,6 @@
 // Live backstock counts for the masks (0005, 0008, 0013): checked at checkout
 // creation, decremented once per paid order (Stripe + PayPal), shown on the site.
+require("./soldout-fixture.js");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -113,7 +114,7 @@ function paidSession(metadata) {
     amount_total: 5000, currency: "usd", payment_intent: "pi_1",
     customer_details: { email: "buyer@example.com", name: "A B" },
     metadata: { marketing_consent: "false", ...metadata },
-    line_items: { data: [{ description: "CIG Paisley Balaclava — Blue", quantity: 2, amount_total: 5000, currency: "usd" }] },
+    line_items: { data: [{ description: "CIG Balaclava — Blue", quantity: 2, amount_total: 5000, currency: "usd" }] },
   };
 }
 function webhook(session, store, extra = {}) {

@@ -1,3 +1,4 @@
+require("./soldout-fixture.js");
 require("./legacy-fixture.js");
 const assert = require("node:assert/strict");
 require("./promo-fixture.js");
@@ -116,7 +117,7 @@ test("creates expected Stripe line items from valid identifiers", async () => {
         price_data: {
           currency: "usd",
           product_data: {
-            name: "CIG Paisley Bikini (Set) — Red — L",
+            name: "Paisley Bikini (Set) — Red — L",
           },
           unit_amount: 4050,
         },

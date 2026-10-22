@@ -67,7 +67,7 @@ test("international is unchanged and a mask is still refused as US-only", () => 
   for (const country of ["CA", "GB", "DE", "AU", "JP", "KR"]) {
     assert.throws(
       () => resolveCheckoutShipping(priceCartForStripe([balaclava(4), bag(1)], null), country),
-      /CIG Paisley Balaclava ships to the US only/,
+      /CIG Balaclava ships to the US only/,
       country,
     );
   }

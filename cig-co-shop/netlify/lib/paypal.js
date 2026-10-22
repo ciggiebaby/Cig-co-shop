@@ -3,6 +3,16 @@
 // Optional: PAYPAL_API_BASE (defaults to live), PAYPAL_WEBHOOK_ID (for paypal-webhook)
 const { commitOrderStock, payPalStockLines, payPalStockSku } = require("./live-stock.js");
 const { recordPaidOrder } = require("./order-recording.js");
+const { autoConfirmEnabled, createPrintfulClient, printfulItemForLine } = require("./printful.js");
+const { normalizePccc } = require("../../shipping-rates.js");
+
+// Made-to-order (Printful) lines carry their catalog selection in the PayPal
+// item sku ("pod:<productId>|<style>|<color>|<size>"), the same way live-stock
+// mask lines carry "stock:…", so the captured order can be sent to Printful.
+const PAYPAL_POD_SKU_PREFIX = "pod:";
+function payPalPodSku(meta) {
+  return `${PAYPAL_POD_SKU_PREFIX}${[meta.product_id, meta.style || "", meta.color || "", meta.size || ""].join("|")}`.slice(0, 127);
+}
 
 class PayPalError extends Error {
   constructor(message, { status = null, issue = null } = {}) {
@@ -114,9 +124,12 @@ function createPayPalClient({ environment = process.env, fetchImpl = fetch } = {
 // Each item's sku carries the catalog selection for the order record.
 // shipping ({ country, shippingCents }) comes from resolveCheckoutShipping; the
 // chosen country is stored in custom_id so capture can check PayPal's address.
-function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping = { country: "US", shippingCents: 0 } }) {
+// pccc: South Korea customs code (validated by create-paypal-order), kept for
+// the Printful draft. dropTest: CIG's pre-launch test order, flagged in PayPal.
+function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping = { country: "US", shippingCents: 0 }, pccc = null, dropTest = false }) {
   const items = pricing.lineItems.map((line, index) => {
     const stock = pricing.lineStock && pricing.lineStock[index];
+    const meta = line.price_data.product_data.metadata || {};
     return {
       name: line.price_data.product_data.name.slice(0, 127),
       quantity: String(line.quantity),
@@ -124,6 +137,8 @@ function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping
       category: "PHYSICAL_GOODS",
       // Live-stock variant, read back on capture to decrement (live-stock.js).
       ...(stock ? { sku: payPalStockSku(stock) } : {}),
+      // Printful variant selection, read back on capture to create the draft.
+      ...(!stock && meta.pod === "true" ? { sku: payPalPodSku(meta) } : {}),
     };
   });
   return {
@@ -140,11 +155,13 @@ function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping
               : {}),
           },
         },
-        description: "CIG & CO. order",
+        description: dropTest ? "CIG & CO. order (DROP TEST)" : "CIG & CO. order",
         custom_id: JSON.stringify({
           p: pricing.promoCode || "",
           m: marketingConsent ? 1 : 0,
           ...(shipping.country !== "US" ? { c: shipping.country } : {}),
+          ...(shipping.country === "KR" && pccc ? { k: pccc } : {}),
+          ...(dropTest ? { t: 1 } : {}),
         }),
         items,
       },
@@ -166,9 +183,11 @@ function parseCustomId(value) {
       promoCode: parsed.p || null,
       marketingConsent: parsed.m === 1,
       shipCountry: typeof parsed.c === "string" && parsed.c ? parsed.c : "US",
+      pccc: typeof parsed.k === "string" ? parsed.k : null,
+      dropTest: parsed.t === 1,
     };
   } catch {
-    return { promoCode: null, marketingConsent: false, shipCountry: "US" };
+    return { promoCode: null, marketingConsent: false, shipCountry: "US", pccc: null, dropTest: false };
   }
 }
 
@@ -242,7 +261,80 @@ function paidPayPalOrder(order) {
   };
 }
 
+// Made-to-order lines of a captured PayPal order, shaped like printful-
+// fulfillment's podLines (retail price = the unit price actually paid).
+function payPalPodLines(order) {
+  const unit = order && order.purchase_units && order.purchase_units[0];
+  const items = (unit && Array.isArray(unit.items)) ? unit.items : [];
+  return items
+    .filter((item) => typeof item.sku === "string" && item.sku.startsWith(PAYPAL_POD_SKU_PREFIX))
+    .map((item) => {
+      const [productId, style, color, size] = item.sku.slice(PAYPAL_POD_SKU_PREFIX.length).split("|");
+      return {
+        productId,
+        style: style || null,
+        color: color || null,
+        size: size || null,
+        quantity: Number(item.quantity) || 1,
+        retailPrice: item.unit_amount && item.unit_amount.value,
+      };
+    });
+}
+
+// Printful recipient from PayPal's shipping address (+ Korea customs code).
+function payPalPrintfulRecipient(order) {
+  const unit = order.purchase_units[0];
+  const shipping = unit.shipping || {};
+  const address = shipping.address || {};
+  if (!address.address_line_1 || !address.admin_area_2 || !address.country_code) {
+    throw new PayPalError("Captured PayPal order has no shipping address.");
+  }
+  const recipient = {
+    name: (shipping.name && shipping.name.full_name) || "",
+    address1: address.address_line_1,
+    address2: address.address_line_2 || undefined,
+    city: address.admin_area_2,
+    state_code: address.admin_area_1 || undefined,
+    country_code: address.country_code,
+    zip: address.postal_code || undefined,
+    email: (order.payer && order.payer.email_address) || undefined,
+  };
+  if (address.country_code === "KR") {
+    const pccc = normalizePccc(parseCustomId(unit.custom_id).pccc);
+    if (!pccc) throw new PayPalError("South Korea order is missing a valid PCCC.");
+    // Lazy: the helper lives with the Stripe Printful webhook.
+    return require("../functions/printful-fulfillment.js").addKoreaCustomsCode(recipient, pccc);
+  }
+  return recipient;
+}
+
+// Sends the made-to-order part of a captured PayPal order to Printful, as a
+// draft unless PRINTFUL_AUTO_CONFIRM=true (same switch as the Stripe path).
+// The capture id is the Printful external_id, so the return page and the
+// webhook (or a retry) never create a second order.
+async function sendPayPalPodOrder(order, { environment = process.env, printfulFactory = createPrintfulClient, logger = console } = {}) {
+  const lines = payPalPodLines(order);
+  if (!lines.length) return null;
+  const unit = order.purchase_units[0];
+  const capture = unit.payments.captures[0];
+  const result = await printfulFactory({ environment }).createOrder({
+    paymentId: `paypal:${capture.id}`,
+    recipient: payPalPrintfulRecipient(order),
+    items: lines.map(printfulItemForLine),
+    confirm: autoConfirmEnabled(environment),
+  });
+  logger.log("Printful order ready (PayPal).", {
+    printfulOrder: result && result.order && result.order.id,
+    status: result && result.order && result.order.status,
+    created: result && result.created,
+    dropTest: parseCustomId(unit.custom_id).dropTest,
+  });
+  return result;
+}
+
 // Records a captured PayPal order; returns false if it isn't paid yet.
+// A Printful failure throws so PayPal's webhook retries (recording and the
+// stock decrement are idempotent, and so is the Printful order).
 async function recordPayPalOrder(order, { eventId, eventType }, options = {}) {
   const paid = paidPayPalOrder(order);
   if (!paid) return false;
@@ -250,6 +342,11 @@ async function recordPayPalOrder(order, { eventId, eventType }, options = {}) {
   // Decrement live backstock once per PayPal order (replays are a no-op).
   await commitOrderStock(`paypal:${order.id}`, payPalStockLines(order), {
     stockStoreFactory: options.stockStoreFactory,
+    logger: options.logger,
+  });
+  await sendPayPalPodOrder(order, {
+    environment: options.environment,
+    printfulFactory: options.printfulFactory,
     logger: options.logger,
   });
   return true;
@@ -260,6 +357,9 @@ module.exports = {
   buildPayPalOrder,
   createPayPalClient,
   paidPayPalOrder,
+  payPalPodLines,
+  payPalPrintfulRecipient,
+  sendPayPalPodOrder,
   payPalChosenCountry,
   payPalShippingCountry,
   recordPayPalOrder,

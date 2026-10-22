@@ -44,9 +44,10 @@
 //   view shows a small "Photo coming soon" note while one is selected (point
 //   its colorImages entry at a neutral "photo coming soon" image, never another color's photo).
 //
-// POD_CARD_ONLY (bottom of this file): while true, carts with any `pod` item can
-//   only be paid by card (PayPal and crypto refuse them, on the site and on the
-//   server). Flip it to false to allow PayPal/crypto for made-to-order items.
+// POD_CARD_ONLY (bottom of this file): false since CIG turned PayPal on for the
+//   FW26 collection (10/22): made-to-order items take card or PayPal, and paid
+//   PayPal orders become Printful drafts like Stripe ones. Set it to true to go
+//   back to card only. Crypto never takes made-to-order items.
 //
 // CRYPTO_ENABLED (bottom of this file): crypto checkout (Coinbase Commerce,
 //   20% off) on/off. While false, the "Pay with Crypto" button and every
@@ -548,7 +549,9 @@ const PRODUCTS = [
   {
     id: "0004",
     sku: "0004",
-    name: "CIG Silky Bonnet & Durag",
+    name: "Silky Bonnet & Durag",
+    // CIG 10/22: sold out (whole product). Counts below are left as-is.
+    soldOut: true,
     image: "assets/products/bonnet-set-red.jpg",
     colors: ["Red", "Gold", "Black", "Pink", "Blue"],
     sizes: [],
@@ -610,7 +613,7 @@ const PRODUCTS = [
     // Black (white print) is sold out. Supabase gets the same numbers from
     // supabase/migrations/202610220001_live_stock.sql.
     stock: { "Red": 70, "Blue": 68, "Gold": 24, "Black": 0 },
-    name: "CIG Paisley Balaclava",
+    name: "CIG Balaclava",
     price: 25.00,
     salePrice: null,
     image: "assets/products/balaclava-blue-front.jpg",
@@ -643,7 +646,7 @@ const PRODUCTS = [
       "Green": { "1-Hole": 71, "3-Hole": 77, "Skully": 0 },
       "Gold":  { "1-Hole": 73, "3-Hole": 81, "Skully": 0 },
     },
-    name: "CIG Acrylic Ski Mask",
+    name: "CIG Ski Mask",
     price: 30.00,
     salePrice: null,
     image: "assets/products/skimask-blue-1hole.jpg",
@@ -683,7 +686,9 @@ const PRODUCTS = [
     id: "0010",
     sku: "0010",
     stock: { "Blue": 2, "Green": 0, "Red": 2, "Rainbow": 6 },
-    name: "CIG Toile Umbrella",
+    name: "Toile Umbrella",
+    // CIG 10/22: sold out (whole product). Counts below are left as-is.
+    soldOut: true,
     price: 35.00,
     salePrice: null,
     image: "assets/products/umbrella-blue-open.jpg",
@@ -705,7 +710,9 @@ const PRODUCTS = [
   {
     id: "0011",
     sku: "0011",
-    name: "CIG Paisley Bikini",
+    name: "Paisley Bikini",
+    // CIG 10/22: sold out (whole product). Counts below are left as-is.
+    soldOut: true,
     image: "assets/products/bandana-top-red-front.jpg",
     colors: ["Red", "Pink", "Green"],
     sizes: ["XS", "S", "M", "L", "XL"],
@@ -819,7 +826,8 @@ const PRODUCTS = [
 
 // Made-to-order (`pod`) items can only be paid by card while this is true.
 // One switch for the checkout page and the server. See the note at the top.
-const POD_CARD_ONLY = true;
+// CIG 10/22 4:34 PM ET: "Turn on PayPal for the FW26 collection".
+const POD_CARD_ONLY = false;
 
 // Crypto checkout (Coinbase Commerce) is off: CIG decided 2026-10-21 to set
 // it up later under a new LLC. One switch for the site and the server.

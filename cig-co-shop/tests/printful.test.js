@@ -248,22 +248,23 @@ test("webhook sends only POD lines to Printful with the shipping address", async
   assert.equal(orders[0].recipient.email, "buyer@example.com");
 });
 
-test("PayPal and Coinbase refuse POD items (card only)", async () => {
-  for (const fn of [paypal, coinbase]) {
-    const response = await fn.handler({
-      httpMethod: "POST",
-      headers: {},
-      body: JSON.stringify({ cart: [{ productId: POD_PRODUCT.id, size: "M", price: 65, qty: 1 }] }),
-    });
-    // Coinbase is switched off (CRYPTO_ENABLED=false), so it refuses everything with 503.
-    assert.equal(response.statusCode, fn === coinbase ? 503 : 400);
-    assert.match(JSON.parse(response.body).error, /card/);
-  }
+test("Coinbase refuses POD items (crypto is off, and has no Printful path anyway)", async () => {
+  const response = await coinbase.handler({
+    httpMethod: "POST",
+    headers: {},
+    body: JSON.stringify({ cart: [{ productId: POD_PRODUCT.id, size: "M", price: 65, qty: 1 }] }),
+  });
+  // Coinbase is switched off (CRYPTO_ENABLED=false), so it refuses everything with 503.
+  assert.equal(response.statusCode, 503);
+  assert.match(JSON.parse(response.body).error, /card or PayPal/);
+  const { assertPodAllowedForCrypto } = require("../netlify/lib/pod-payment.js");
+  assert.throws(() => assertPodAllowedForCrypto([{ productId: POD_PRODUCT.id }]), /card or PayPal/);
+  assert.doesNotThrow(() => assertPodAllowedForCrypto([{ productId: "0005" }]));
 });
 
 test("POD_CARD_ONLY in products.js is the one switch for the card-only rule", async () => {
   const catalog = require("../products.js");
-  assert.equal(catalog.POD_CARD_ONLY, true); // CIG hasn't changed the rule yet
+  assert.equal(catalog.POD_CARD_ONLY, false); // CIG 10/22: PayPal on for FW26
   const handler = paypal.createHandler({
     paypalFactory: () => ({ createOrder: async () => ({ links: [{ rel: "approve", href: "https://paypal.test/a" }] }) }),
     environment: { SITE_URL: "https://shop.test" },
@@ -274,11 +275,11 @@ test("POD_CARD_ONLY in products.js is the one switch for the card-only rule", as
     headers: {},
     body: JSON.stringify({ items: [{ productId: POD_PRODUCT.id, size: "M", quantity: 1 }] }),
   };
-  assert.equal((await handler(request)).statusCode, 400);
-  catalog.POD_CARD_ONLY = false;
+  assert.equal((await handler(request)).statusCode, 200);
+  catalog.POD_CARD_ONLY = true;
   try {
-    assert.equal((await handler(request)).statusCode, 200);
+    assert.equal((await handler(request)).statusCode, 400);
   } finally {
-    catalog.POD_CARD_ONLY = true;
+    catalog.POD_CARD_ONLY = false;
   }
 });

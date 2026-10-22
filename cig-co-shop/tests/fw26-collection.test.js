@@ -116,7 +116,7 @@ test("the server charges $65 for a solid and $75 for Multi, and tags each line f
   assert.deepEqual(multi.price_data.product_data.metadata, { pod: "true", product_id: "FW26-BAG", style: "", color: "Multi", size: "" });
   assert.equal(pricing.totalCents, 20500);
   assert.throws(() => priceCartForStripe([{ productId: "FW26-BAG", color: "Teal", quantity: 1 }]));
-  assert.equal(POD_CARD_ONLY, true);
+  assert.equal(POD_CARD_ONLY, false); // card or PayPal (CIG 10/22)
 });
 
 test("a paid Stripe line for the Multi crossbody becomes the Multi sync variant at Printful", () => {
@@ -188,7 +188,7 @@ test("the case uses one photo per colorway for every model (CIG: no per-model ph
   for (const c of p.colors) assert.equal(typeof p.colorImages[c], "string");
 });
 
-test("tote: card-only POD bag at CIG's $35 price (10/22)", () => {
+test("tote: POD bag at CIG's $35 price (10/22), card or PayPal", () => {
   const p = product("FW26-TOTE");
   assert.equal(p.dropAt, require("../products.js").DROP_AT);
   assert.equal(p.price, 35);
@@ -202,7 +202,7 @@ test("tote: card-only POD bag at CIG's $35 price (10/22)", () => {
   for (const color of p.colors) {
     assert.equal(priceCartForStripe([{ productId: "FW26-TOTE", color, quantity: 1 }]).lineItems[0].price_data.unit_amount, 3500, color);
   }
-  assert.equal(POD_CARD_ONLY, true);
+  assert.equal(POD_CARD_ONLY, false); // card or PayPal (CIG 10/22)
   const items = podLines(priced.lineItems.map((line) => ({
     quantity: line.quantity,
     amount_total: line.price_data.unit_amount * line.quantity,

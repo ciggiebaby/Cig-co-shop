@@ -74,10 +74,14 @@ test("cart pricing uses the new mask prices and caps quantity at the counts", ()
   assert.throws(() => priceCartForStripe([{ productId: "0008", color: "Red", size: "Skully", quantity: 1 }]));
 });
 
-test("masks take PayPal (not made-to-order), FW26 items stay card-only; the hero says so", () => {
+test("masks and FW26 items both take PayPal (CIG 10/22); the hero says card or PayPal", () => {
   assert.doesNotThrow(() => assertPodAllowedWithoutCard([{ productId: "0005" }, { productId: "0008" }]));
-  assert.throws(() => assertPodAllowedWithoutCard([{ productId: "FW26-BAG" }]), /only be paid by card/);
+  assert.doesNotThrow(() => assertPodAllowedWithoutCard([{ productId: "FW26-BAG" }, { productId: "FW26-TOTE" }]));
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.match(html, /data-crypto-off>Card only for the FW26\/27 drop\. Masks also take PayPal\.<\/p>/);
-  assert.doesNotMatch(html, /Pay with card or PayPal\./);
+  assert.match(html, /data-crypto-off>Pay with card or PayPal\.<\/p>/);
+  for (const file of ["index.html", "faq.html", "shipping-returns.html", "docs/policies/faq.md", "docs/policies/shipping-returns.md"]) {
+    const text = fs.readFileSync(path.join(root, file), "utf8");
+    assert.doesNotMatch(text, /Card only|card-only|Masks also take PayPal|only be paid by card/i, file);
+  }
+  assert.match(fs.readFileSync(path.join(root, "faq.html"), "utf8"), /<p>Card or PayPal at checkout, for everything in the store\.<\/p>/);
 });

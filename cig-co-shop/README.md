@@ -135,10 +135,12 @@ before.
   Set `PRINTFUL_AUTO_CONFIRM=true` to send paid orders straight to print.
 - **No duplicates.** The Printful order's External ID is the Stripe payment id,
   so a retried webhook reuses the existing order.
-- **Card only for now.** PayPal and crypto checkout refuse carts with
-  print-on-demand items, because Printful orders are only created from the
-  signed Stripe webhook. The switch is `POD_CARD_ONLY` at the bottom of
-  `products.js` (it covers both the site and the server).
+- **Card and PayPal (CIG 10/22).** Made-to-order items take card or PayPal.
+  Captured PayPal orders create the same Printful draft (external ID = the
+  PayPal capture id) from `paypal-capture` / `paypal-webhook`; if Printful
+  fails, the PayPal webhook retry tries again. Crypto never takes them. Set
+  `POD_CARD_ONLY` at the bottom of `products.js` back to `true` to return to
+  card only (it covers both the site and the server).
 
 Setup:
 
@@ -204,7 +206,7 @@ Any time you want to add backstock, remove a sold-out item, or change a price: e
 
 ## FW26/27 drop lock and pre-launch test order
 
-- `DROP_AT` at the top of `products.js` (Oct 30, 12:00 PM ET, confirmed by CIG 10/21) locks the four FW26/27 products. Before that time they show a "Drops Oct 30" badge, Add to Bag is disabled, and the Stripe/PayPal/crypto checkouts refuse them with a 400. At `DROP_AT` everything opens automatically (no deploy needed).
+- `DROP_AT` at the top of `products.js` (Oct 30, 12:00 PM ET, confirmed by CIG 10/21) locks the five FW26/27 products. Before that time they show a "Drops Oct 30" badge, Add to Bag is disabled, and the Stripe/PayPal/crypto checkouts refuse them with a 400. At `DROP_AT` everything opens automatically (no deploy needed).
 - **One real test order before launch:**
   1. In Netlify, set env var `DROP_TEST_CODE` to a private code (8+ characters), then redeploy so it takes effect. If it's unset, there is no bypass at all.
   2. Open `https://cigcompany.com/?droptest`. That tab can add FW26/27 items to the bag and shows a "Drop test code" box at checkout.
