@@ -36,11 +36,12 @@ test("ski mask: $30, 1-Hole/3-Hole counts from BG (BG 'Yellow' = site 'Gold'), S
   assert.match(p.colorImages.Gold["1-Hole"], /skimask-gold-/);
 });
 
-test("moto mask: $15, visible, real photo per color; Pink and Orange buyable with a placeholder + 'Photo coming soon'", () => {
+test("moto mask: $15, hidden while CIG reshoots; real photo per color; Pink and Orange buyable with a placeholder + 'Photo coming soon'", () => {
   const p = product("0013");
   assert.equal(p.name, "Moto Mask");
   assert.equal(p.price, 15);
-  assert.ok(!p.hidden);
+  assert.equal(p.hidden, true);
+  assert.throws(() => priceCartForStripe([{ productId: "0013", color: "Brown", quantity: 1 }]), /not available/);
   assert.deepEqual(p.stock, { Yellow: 17, Pink: 22, Brown: 16, Purple: 14, Green: 13, Orange: 12 });
   for (const c of ["Red", "Black", "Blue", "Rainbow"]) assert.ok(!p.colors.includes(c), c);
   assert.equal(p.defaultColor, "Brown");
@@ -58,9 +59,6 @@ test("moto mask: $15, visible, real photo per color; Pink and Orange buyable wit
     // A real photo is only ever used for its own color.
     else for (const img of imgs) assert.match(img, new RegExp(`moto-${c.toLowerCase()}-\\d\\.jpg$`), c);
   }
-  const priced = priceCartForStripe([{ productId: "0013", color: "Pink", quantity: 22 }]);
-  assert.equal(priced.lineItems[0].price_data.unit_amount, 1500);
-  assert.throws(() => priceCartForStripe([{ productId: "0013", color: "Pink", quantity: 23 }]));
 });
 
 test("cart pricing uses the new mask prices and caps quantity at the counts", () => {

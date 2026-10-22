@@ -198,10 +198,8 @@ test("the public stock endpoint returns live counts for listed live-stock produc
   ]);
   const res = await createStockEndpoint({ stockStoreFactory: () => store, logger: quiet })({ httpMethod: "GET" });
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(JSON.parse(res.body).items, [
-    { productId: "0005", color: "Blue", size: "", quantity: 0 },
-    { productId: "0013", color: "Pink", size: "", quantity: 22 },
-  ]);
+  // 0013 is hidden (reshoot) and 0010 isn't live-tracked: neither is listed.
+  assert.deepEqual(JSON.parse(res.body).items, [{ productId: "0005", color: "Blue", size: "", quantity: 0 }]);
   assert.match(res.headers["Cache-Control"], /max-age=20/);
   const down = await createStockEndpoint({ stockStoreFactory: () => ({ getStock: async () => { throw new Error("x"); } }), logger: quiet })({ httpMethod: "GET" });
   assert.equal(down.statusCode, 503);

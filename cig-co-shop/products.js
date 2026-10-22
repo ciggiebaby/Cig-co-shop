@@ -714,6 +714,9 @@ const PRODUCTS = [
     // Sold out per BG and left off: Red, Black, Blue, Rainbow.
     // Not the same listing as 0012 "CIG Corona Masks" as far as the data shows
     // (different colors and counts); CIG to confirm.
+    // HIDDEN again 10/22 PM: CIG is reshooting the photos. Flip to false (and
+    // swap in the new photos below) when they're in.
+    hidden: true,
     // Photos 10/22 (deck-assets/new8, shot on black): Yellow p8, Brown p1-p2,
     // Green p3-p4, Purple p7. Pink has no photo. Orange: the photos sent as
     // orange (p5-p6) show a RED mask, so they aren't used until CIG confirms.
