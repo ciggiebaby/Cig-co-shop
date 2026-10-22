@@ -146,7 +146,31 @@ test("images are 2000px Printful Mockup Generator renders, web-optimized and shi
       }
       assert.ok(!seen.has(p.colorImages[color]), `${id} ${color} has its own image`);
       seen.add(p.colorImages[color]);
-      assert.match(p.colorSwatches[color], /_thumb\.png$/);
+      const sw = p.colorSwatches[color];
+      if (sw.startsWith("assets/")) {
+        assert.equal(sw, `assets/products/fw26/${e.prefix}_${slug(color)}_swatch.webp`, `${id} ${color} swatch`);
+        const head = fs.readFileSync(path.join(root, sw)).subarray(0, 12).toString("latin1");
+        assert.ok(head.startsWith("RIFF") && head.endsWith("WEBP"), `${sw} is WebP`);
+      } else {
+        assert.match(sw, /^https:\/\/files\.cdn\.printful\.com\/files\/.+_thumb\.png$/, `${id} ${color} swatch`);
+      }
     }
   }
+});
+
+test("no swatch uses a Printful thumb with an opaque white background (they show as white circles on the dark site)", () => {
+  // Checked 10/22: these four Printful thumbs are opaque white; every other FW26 thumb is transparent.
+  const whiteThumbs = ["6aac2c3c795d892f99e788ec8dab9eca", "1fe4b88d136827c6f2be81865e2698fd", "6ba01b06fb44afa5630efafb59059050", "424e3d35abb05da320c39f248b28615c"];
+  const all = JSON.stringify(PRODUCTS);
+  for (const h of whiteThumbs) assert.ok(!all.includes(h), h);
+  assert.equal(product("FW26-BAG").colorSwatches.Multi, "assets/products/fw26/crossbody_multi_swatch.webp");
+  assert.equal(product("FW26-CASE").colorSwatches.Grape, "assets/products/fw26/case_grape_swatch.webp");
+  assert.equal(product("FW26-CASE").colorSwatches.Espresso, "assets/products/fw26/case_espresso_swatch.webp");
+  assert.equal(product("FW26-SLEEVE").colorSwatches.Burgundy, "assets/products/fw26/sleeve_burgundy_swatch.webp");
+});
+
+test("the case uses one photo per colorway for every model (CIG: no per-model photos)", () => {
+  const p = product("FW26-CASE");
+  assert.equal(p.sizes.length, 18);
+  for (const c of p.colors) assert.equal(typeof p.colorImages[c], "string");
 });
