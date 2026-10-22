@@ -18,7 +18,7 @@ Every FW26/27 piece is printed and made just for you after you order. Because we
 | United States | about 5 to 9 business days | Free |
 | Canada, UK, Germany, Australia, Japan, South Korea | about 7 to 25 business days | Calculated at checkout |
 
-- **Masks:** In-stock masks ship to the US only, and their shipping is different. Any order with a mask in it has $8.95 shipping, which is free when the order total after any promo code is over $75.
+- **Masks:** In-stock masks ship to the US only, and their shipping is different. Any order with a mask in it has $8.95 shipping, which is free when the order total after any promo code is over $75. [See the mask terms for details](#mask-terms).
 - All delivery times are estimates, not guarantees. Carrier delays, weather, holidays, and customs can push delivery past the estimate.
 - Once your order ships, you'll get a tracking link by email. It usually starts updating within 24 hours.
 - An order with several items may arrive in more than one package.
@@ -61,6 +61,37 @@ If your order arrives damaged or defective, has a print error, or isn't what you
 - We process approved refunds within 3 business days and email you once it's done.
 - We refund what you actually paid for the affected items. Shipping is refunded only for orders that arrived damaged, defective, or wrong, or that were lost in transit.
 - **Promo codes:** If you cancel an order before production starts, we'll send you a fresh one-time code to replace the one you used.
+
+## Masks: Shipping, Returns & Exchanges
+
+*These terms apply to our in-stock masks: the CIG Acrylic Ski Mask, the CIG Paisley Balaclava, and the Moto Mask. Masks ship from our own stock, so their terms differ from our made-to-order pieces.*
+
+### Shipping
+- In-stock masks ship within 1–2 business days of your order. Business days are Monday through Friday, not counting holidays.
+- You'll get a tracking link by email when your order ships.
+- **Where we ship:** Masks ship to US addresses only. Checkout won't accept an order with a mask in it if the address is outside the US.
+- **Cost:** Any order with a mask in it has $8.95 shipping. Shipping is free when your order total after any promo code is over $75. At exactly $75, the $8.95 still applies.
+- **Mixed orders:** If your order has masks and made-to-order pieces, they ship separately and arrive in different packages.
+
+### Returns & exchanges
+Masks are worn on the face, so for hygiene reasons we can only accept masks that are **unworn, unwashed, and in their original packaging**.
+
+- **Exchanges (different color or style):** Email orders@cigcompany.com within 14 days of delivery. Send the unworn mask back, and once we receive it we'll ship your new one, as long as it's still in stock. You pay to ship the mask back, and we pay to ship the replacement.
+- **Refunds:** Masks can be exchanged but not refunded. The exception is a mask that arrives damaged, defective, or wrong (see below).
+- **Sale and promo items:** The same rules apply.
+- We inspect every return. If a mask has been worn, washed, or damaged, or arrives without its packaging, we can't accept it and will ship it back to you at your cost.
+
+### Damaged, defective, or wrong items
+If your mask arrives damaged or defective, or you got the wrong color or style, email orders@cigcompany.com within 14 days of delivery with your order number and a photo. We'll send a replacement at no cost, or refund you if that color is sold out. You won't need to send the item back unless we ask.
+
+### Lost packages and wrong addresses
+These follow the same rules as the rest of the store. If the carrier confirms your package is lost, we'll replace it or refund you. If a package shows as delivered but you can't find it, please contact the carrier first. If an order went to a wrong address you entered, you pay to reship it.
+
+### Refunds
+Approved refunds go back to your original payment method within 3 business days. Your bank usually takes 5 to 10 business days to show it.
+
+### Wholesale (store orders)
+Store orders are paid upfront by invoice and ship once payment clears. Wholesale orders are final sale. The exception is a damaged or short-shipped case, which the store needs to report within 7 days of delivery.
 
 ## Contact
 Email orders@cigcompany.com and include your order number. We reply within 1 to 2 business days.
