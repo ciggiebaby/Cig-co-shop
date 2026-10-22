@@ -535,26 +535,29 @@ const PRODUCTS = [
     // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
     liveStock: true,
     // Backstock count 10/21 (bg/backstock_2026-10-21.csv); price approved by CIG 10/22.
-    // Stock is a static cap: it isn't decremented on sale.
-    stock: { "Red": 70, "Blue": 68, "Black": 24 },
+    // CIG's names: "Gold" = black balaclava with yellow/gold print; "Black" =
+    // black balaclava with white print. BG counted "Black 24" without saying
+    // which design, so Gold and Black stay at 0 (sold out) until CIG confirms.
+    // Then change the ONE line below (and run the matching UPDATE at the end of
+    // supabase/migrations/202610220001_live_stock.sql).
+    stock: { "Red": 70, "Blue": 68, "Gold": 0, "Black": 0 },
     name: "CIG Paisley Balaclava",
     price: 25.00,
     salePrice: null,
     image: "assets/products/balaclava-blue-front.jpg",
-    colors: ["Red", "Blue", "Black"],
+    colors: ["Red", "Blue", "Gold", "Black"],
     sizes: [],
     colorImages: {
       "Blue": "assets/products/balaclava-blue-front.jpg",
       "Red": "assets/products/balaclava-red-front-upright.jpg",
-      // OPEN WITH CIG: BG counts "Black" (24) and no Gold. The old "Gold" listing's
-      // photos show a BLACK balaclava with a gold print, so they're used for Black.
-      // (balaclava-black.jpg is a different black/white-print design, back view only.)
-      "Black": "assets/products/balaclava-gold-front-upright.jpg",
+      "Gold": "assets/products/balaclava-gold-front-upright.jpg",
+      // Only Black (white-print) photo on hand is a back view.
+      "Black": "assets/products/balaclava-black.jpg",
     },
     gallery: {
       "Blue": ["assets/products/balaclava-blue-back.jpg"],
       "Red": ["assets/products/balaclava-red-back-upright.jpg"],
-      "Black": ["assets/products/balaclava-gold-back-upright.jpg"],
+      "Gold": ["assets/products/balaclava-gold-back-upright.jpg"],
     },
   },
   {

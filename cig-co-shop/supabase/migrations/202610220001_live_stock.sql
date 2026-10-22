@@ -88,10 +88,14 @@ revoke execute on function public.cigco_commit_stock_order(text, jsonb) from pub
 
 -- Seed: BG backstock count 10/21 (bg/backstock_2026-10-21.csv).
 -- BG "Yellow" ski mask = site "Gold". Sold-out variants are seeded at 0.
+-- Balaclava Gold (black, gold print) and Black (black, white print) are both 0:
+-- BG's "Black 24" is ambiguous between them until CIG confirms (see the
+-- UPDATE at the end of this file).
 insert into public.live_stock (product_id, color, size, quantity) values
   ('0005', 'Red', '', 70),
   ('0005', 'Blue', '', 68),
-  ('0005', 'Black', '', 24),
+  ('0005', 'Gold', '', 0),
+  ('0005', 'Black', '', 0),
   ('0008', 'Red', '1-Hole', 59),
   ('0008', 'Red', '3-Hole', 80),
   ('0008', 'Red', 'Skully', 0),
@@ -111,3 +115,8 @@ insert into public.live_stock (product_id, color, size, quantity) values
   ('0013', 'Green', '', 13),
   ('0013', 'Orange', '', 12)
 on conflict (product_id, color, size) do nothing;
+
+-- When CIG confirms which balaclava design BG's 24 are, run ONE of these
+-- (and set the same number on that color's line in products.js):
+--   update public.live_stock set quantity = 24, updated_at = now() where product_id = '0005' and color = 'Gold';
+--   update public.live_stock set quantity = 24, updated_at = now() where product_id = '0005' and color = 'Black';

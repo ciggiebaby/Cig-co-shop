@@ -41,7 +41,7 @@ function fakeStockStore(rows) {
   };
 }
 const seed = () => fakeStockStore([
-  { product_id: "0005", color: "Black", size: "", quantity: 2 },
+  { product_id: "0005", color: "Blue", size: "", quantity: 2 },
   { product_id: "0005", color: "Red", size: "", quantity: 70 },
   { product_id: "0008", color: "Gold", size: "3-Hole", quantity: 1 },
 ]);
@@ -50,12 +50,12 @@ test("only the three backstock masks are live-tracked; Printful items never are"
   assert.deepEqual(PRODUCTS.filter((p) => p.liveStock).map((p) => p.id), ["0005", "0008", "0013"]);
   for (const p of PRODUCTS.filter((x) => x.pod)) assert.ok(!p.liveStock, p.id);
   const pricing = priceCartForStripe([
-    { productId: "0005", color: "Black", quantity: 1 },
+    { productId: "0005", color: "Blue", quantity: 1 },
     { productId: "0010", color: "Blue", quantity: 1 },
     { productId: "0008", color: "Gold", size: "3-Hole", quantity: 1 },
   ]);
   assert.deepEqual(pricing.stockLines, [
-    { productId: "0005", color: "Black", size: "", quantity: 1 },
+    { productId: "0005", color: "Blue", size: "", quantity: 1 },
     { productId: "0008", color: "Gold", size: "3-Hole", quantity: 1 },
   ]);
   assert.equal(pricing.lineStock[1], null);
@@ -63,9 +63,9 @@ test("only the three backstock masks are live-tracked; Printful items never are"
 
 test("checkout is refused when the live count is lower than the request, with a clear message", async () => {
   const store = seed();
-  await live.assertLiveStock([{ productId: "0005", color: "Black", size: "", quantity: 2 }], { stockStoreFactory: () => store });
-  await assert.rejects(live.assertLiveStock([{ productId: "0005", color: "Black", size: "", quantity: 3 }], { stockStoreFactory: () => store }), /Only 2 left of 0005 Black/);
-  await assert.rejects(live.assertLiveStock([{ productId: "0005", color: "Blue", size: "", quantity: 1 }], { stockStoreFactory: () => store }), /just sold out/);
+  await live.assertLiveStock([{ productId: "0005", color: "Blue", size: "", quantity: 2 }], { stockStoreFactory: () => store });
+  await assert.rejects(live.assertLiveStock([{ productId: "0005", color: "Blue", size: "", quantity: 3 }], { stockStoreFactory: () => store }), /Only 2 left of 0005 Blue/);
+  await assert.rejects(live.assertLiveStock([{ productId: "0005", color: "Gold", size: "", quantity: 1 }], { stockStoreFactory: () => store }), /just sold out/);
   await assert.rejects(
     live.assertLiveStock([{ productId: "0005", color: "Red", size: "", quantity: 1 }], { stockStoreFactory: () => ({ getStock: async () => { throw new Error("down"); } }), logger: quiet }),
     live.LiveStockUnavailableError,
@@ -85,9 +85,9 @@ test("Stripe: session creation checks live stock and carries the lines for the w
     logger: quiet,
   });
   const post = (items) => handler({ httpMethod: "POST", headers: {}, body: JSON.stringify({ items }) });
-  const ok = await post([{ productId: "0005", color: "Black", quantity: 2 }, { productId: "0008", color: "Gold", size: "3-Hole", quantity: 1 }]);
+  const ok = await post([{ productId: "0005", color: "Blue", quantity: 2 }, { productId: "0008", color: "Gold", size: "3-Hole", quantity: 1 }]);
   assert.equal(ok.statusCode, 200);
-  assert.equal(created.metadata.stock_0, "0005|Black||2;0008|Gold|3-Hole|1");
+  assert.equal(created.metadata.stock_0, "0005|Blue||2;0008|Gold|3-Hole|1");
   const over = await post([{ productId: "0008", color: "Gold", size: "3-Hole", quantity: 2 }]);
   assert.equal(over.statusCode, 400);
   assert.match(JSON.parse(over.body).error, /Only 1 left/);
@@ -113,7 +113,7 @@ function paidSession(metadata) {
     amount_total: 5000, currency: "usd", payment_intent: "pi_1",
     customer_details: { email: "buyer@example.com", name: "A B" },
     metadata: { marketing_consent: "false", ...metadata },
-    line_items: { data: [{ description: "CIG Paisley Balaclava — Black", quantity: 2, amount_total: 5000, currency: "usd" }] },
+    line_items: { data: [{ description: "CIG Paisley Balaclava — Blue", quantity: 2, amount_total: 5000, currency: "usd" }] },
   };
 }
 function webhook(session, store, extra = {}) {
@@ -133,17 +133,17 @@ function webhook(session, store, extra = {}) {
 
 test("Stripe webhook decrements once per session; replays don't double-count", async () => {
   const store = seed();
-  const session = paidSession({ stock_0: "0005|Black||2" });
+  const session = paidSession({ stock_0: "0005|Blue||2" });
   assert.equal((await webhook(session, store)).statusCode, 200);
-  assert.equal(store.counts.get(live.stockKey("0005", "Black", "")), 0);
+  assert.equal(store.counts.get(live.stockKey("0005", "Blue", "")), 0);
   assert.equal((await webhook(session, store)).statusCode, 200);
-  assert.equal(store.counts.get(live.stockKey("0005", "Black", "")), 0);
+  assert.equal(store.counts.get(live.stockKey("0005", "Blue", "")), 0);
   assert.deepEqual([...store.orders.keys()], ["stripe:cs_test_123"]);
 });
 
 test("Stripe webhook: a stock write failure returns 500 so Stripe retries; no-mask orders skip it", async () => {
   const failing = { commitOrder: async () => { throw new Error("db"); } };
-  assert.equal((await webhook(paidSession({ stock_0: "0005|Black||1" }), failing)).statusCode, 500);
+  assert.equal((await webhook(paidSession({ stock_0: "0005|Blue||1" }), failing)).statusCode, 500);
   assert.equal((await webhook(paidSession({}), failing)).statusCode, 200);
 });
 
@@ -165,14 +165,14 @@ test("PayPal: order creation checks live stock; items carry the variant sku; cap
     stockStoreFactory: () => store,
     logger: quiet,
   });
-  const over = await handler({ httpMethod: "POST", body: JSON.stringify({ items: [{ productId: "0005", color: "Black", quantity: 3 }] }) });
+  const over = await handler({ httpMethod: "POST", body: JSON.stringify({ items: [{ productId: "0005", color: "Blue", quantity: 3 }] }) });
   assert.equal(over.statusCode, 400);
-  assert.equal((await handler({ httpMethod: "POST", body: JSON.stringify({ items: [{ productId: "0005", color: "Black", quantity: 2 }] }) })).statusCode, 200);
+  assert.equal((await handler({ httpMethod: "POST", body: JSON.stringify({ items: [{ productId: "0005", color: "Blue", quantity: 2 }] }) })).statusCode, 200);
 
-  const pricing = priceCartForStripe([{ productId: "0010", color: "Blue", quantity: 1 }, { productId: "0005", color: "Black", quantity: 2 }]);
+  const pricing = priceCartForStripe([{ productId: "0010", color: "Blue", quantity: 1 }, { productId: "0005", color: "Blue", quantity: 2 }]);
   const built = buildPayPalOrder(pricing, { siteUrl: "https://cigcompany.com" });
   assert.equal(built.purchase_units[0].items[0].sku, undefined);
-  assert.equal(built.purchase_units[0].items[1].sku, "stock:0005|Black|");
+  assert.equal(built.purchase_units[0].items[1].sku, "stock:0005|Blue|");
 
   const unit = built.purchase_units[0];
   const order = {
@@ -186,18 +186,18 @@ test("PayPal: order creation checks live stock; items carry the variant sku; cap
   };
   assert.equal(await recordPayPalOrder(order, { eventId: "paypal-return:PAYPAL123", eventType: "x" }, deps), true);
   assert.equal(await recordPayPalOrder(order, { eventId: "paypal:WH-1", eventType: "y" }, deps), true);
-  assert.equal(store.counts.get(live.stockKey("0005", "Black", "")), 0);
+  assert.equal(store.counts.get(live.stockKey("0005", "Blue", "")), 0);
   assert.deepEqual([...store.orders.keys()], ["paypal:PAYPAL123"]);
 });
 
 test("the public stock endpoint returns live counts for listed live-stock products only", async () => {
   const store = fakeStockStore([
-    { product_id: "0005", color: "Black", size: "", quantity: 0 },
+    { product_id: "0005", color: "Blue", size: "", quantity: 0 },
     { product_id: "0013", color: "Pink", size: "", quantity: 22 },
   ]);
   const res = await createStockEndpoint({ stockStoreFactory: () => store, logger: quiet })({ httpMethod: "GET" });
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(JSON.parse(res.body).items, [{ productId: "0005", color: "Black", size: "", quantity: 0 }]);
+  assert.deepEqual(JSON.parse(res.body).items, [{ productId: "0005", color: "Blue", size: "", quantity: 0 }]);
   assert.match(res.headers["Cache-Control"], /max-age=20/);
   const down = await createStockEndpoint({ stockStoreFactory: () => ({ getStock: async () => { throw new Error("x"); } }), logger: quiet })({ httpMethod: "GET" });
   assert.equal(down.statusCode, 503);
@@ -206,19 +206,19 @@ test("the public stock endpoint returns live counts for listed live-stock produc
 test("the site swaps in live counts so a variant at 0 shows sold out; failures keep the static counts", async () => {
   const products = JSON.parse(JSON.stringify(PRODUCTS.filter((p) => ["0005", "0008", "0010"].includes(p.id))));
   const updated = applyLiveStock(products, [
-    { productId: "0005", color: "Black", size: "", quantity: 0 },
+    { productId: "0005", color: "Blue", size: "", quantity: 0 },
     { productId: "0005", color: "Red", size: "", quantity: 5 },
     { productId: "0008", color: "Gold", size: "1-Hole", quantity: 3 },
   ]);
   assert.deepEqual(updated, ["0005", "0008"]);
   const bala = products.find((p) => p.id === "0005");
-  assert.deepEqual(bala.stock, { Red: 5, Blue: 0, Black: 0 });
+  assert.deepEqual(bala.stock, { Red: 5, Blue: 0, Gold: 0, Black: 0 });
   assert.deepEqual(products.find((p) => p.id === "0008").stock.Gold, { "1-Hole": 3, "3-Hole": 0, Skully: 0 });
   assert.deepEqual(products.find((p) => p.id === "0010").stock, PRODUCTS.find((p) => p.id === "0010").stock);
 
   const keep = JSON.parse(JSON.stringify(PRODUCTS.filter((p) => p.id === "0005")));
   assert.deepEqual(await loadLiveStock({ products: keep, fetchImpl: async () => { throw new Error("offline"); } }), []);
-  assert.deepEqual(keep[0].stock, { Red: 70, Blue: 68, Black: 24 });
+  assert.deepEqual(keep[0].stock, { Red: 70, Blue: 68, Gold: 0, Black: 0 });
   const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
   assert.match(html, /<script src="app\.js"><\/script>\s*<script src="live-stock-client\.js"><\/script>/);
 });

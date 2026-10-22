@@ -12,16 +12,19 @@ const { assertPodAllowedWithoutCard } = require("../netlify/lib/pod-payment.js")
 const root = path.join(__dirname, "..");
 const product = (id) => PRODUCTS.find((p) => p.id === id);
 
-test("balaclava: $25, Red 70 / Blue 68 / Black 24, Gold gone, every color has a real photo", () => {
+test("balaclava: $25, Red 70 / Blue 68; Gold and Black both 0 until CIG says which design BG's 24 are", () => {
   const p = product("0005");
   assert.equal(p.price, 25);
-  assert.deepEqual(p.colors, ["Red", "Blue", "Black"]);
-  assert.deepEqual(p.stock, { Red: 70, Blue: 68, Black: 24 });
+  assert.deepEqual(p.colors, ["Red", "Blue", "Gold", "Black"]);
+  assert.deepEqual(p.stock, { Red: 70, Blue: 68, Gold: 0, Black: 0 });
   for (const c of p.colors) assert.ok(fs.existsSync(path.join(root, p.colorImages[c])), c);
-  assert.equal(p.colorImages.Gold, undefined);
-  // The old "Gold" listing's photos (black balaclava, gold print) now show as Black.
-  assert.equal(p.colorImages.Black, "assets/products/balaclava-gold-front-upright.jpg");
-  assert.deepEqual(p.gallery.Black, ["assets/products/balaclava-gold-back-upright.jpg"]);
+  // CIG's names: Gold = black with gold print, Black = black with white print.
+  assert.equal(p.colorImages.Gold, "assets/products/balaclava-gold-front-upright.jpg");
+  assert.deepEqual(p.gallery.Gold, ["assets/products/balaclava-gold-back-upright.jpg"]);
+  assert.equal(p.colorImages.Black, "assets/products/balaclava-black.jpg");
+  // The count is a one-line edit in products.js.
+  const src = fs.readFileSync(path.join(root, "products.js"), "utf8");
+  assert.match(src, /^    stock: \{ "Red": 70, "Blue": 68, "Gold": 0, "Black": 0 \},$/m);
 });
 
 test("ski mask: $30, 1-Hole/3-Hole counts from BG (BG 'Yellow' = site 'Gold'), Skully 0", () => {
@@ -49,12 +52,13 @@ test("moto mask is staged at $15 with in-stock colors but stays hidden until it 
 
 test("cart pricing uses the new mask prices and caps quantity at the counts", () => {
   const priced = priceCartForStripe([
-    { productId: "0005", color: "Black", quantity: 24 },
+    { productId: "0005", color: "Red", quantity: 70 },
     { productId: "0008", color: "Gold", size: "3-Hole", quantity: 1 },
   ]);
   assert.deepEqual(priced.lineItems.map((l) => l.price_data.unit_amount), [2500, 3000]);
-  assert.throws(() => priceCartForStripe([{ productId: "0005", color: "Black", quantity: 25 }]));
-  assert.throws(() => priceCartForStripe([{ productId: "0005", color: "Gold", quantity: 1 }]));
+  assert.throws(() => priceCartForStripe([{ productId: "0005", color: "Red", quantity: 71 }]));
+  assert.throws(() => priceCartForStripe([{ productId: "0005", color: "Gold", quantity: 1 }]), /unavailable/);
+  assert.throws(() => priceCartForStripe([{ productId: "0005", color: "Black", quantity: 1 }]), /unavailable/);
   assert.throws(() => priceCartForStripe([{ productId: "0008", color: "Red", size: "Skully", quantity: 1 }]));
 });
 
