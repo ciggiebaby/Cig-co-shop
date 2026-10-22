@@ -1,6 +1,7 @@
 // PayPal Orders v2 helpers shared by create-paypal-order, paypal-capture, and paypal-webhook.
 // Requires env vars: PAYPAL_CLIENT_ID, PAYPAL_SECRET
 // Optional: PAYPAL_API_BASE (defaults to live), PAYPAL_WEBHOOK_ID (for paypal-webhook)
+const { commitOrderStock, payPalStockLines, payPalStockSku } = require("./live-stock.js");
 const { recordPaidOrder } = require("./order-recording.js");
 
 class PayPalError extends Error {
@@ -114,12 +115,17 @@ function createPayPalClient({ environment = process.env, fetchImpl = fetch } = {
 // shipping ({ country, shippingCents }) comes from resolveCheckoutShipping; the
 // chosen country is stored in custom_id so capture can check PayPal's address.
 function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping = { country: "US", shippingCents: 0 } }) {
-  const items = pricing.lineItems.map((line) => ({
-    name: line.price_data.product_data.name.slice(0, 127),
-    quantity: String(line.quantity),
-    unit_amount: { currency_code: "USD", value: centsToValue(line.price_data.unit_amount) },
-    category: "PHYSICAL_GOODS",
-  }));
+  const items = pricing.lineItems.map((line, index) => {
+    const stock = pricing.lineStock && pricing.lineStock[index];
+    return {
+      name: line.price_data.product_data.name.slice(0, 127),
+      quantity: String(line.quantity),
+      unit_amount: { currency_code: "USD", value: centsToValue(line.price_data.unit_amount) },
+      category: "PHYSICAL_GOODS",
+      // Live-stock variant, read back on capture to decrement (live-stock.js).
+      ...(stock ? { sku: payPalStockSku(stock) } : {}),
+    };
+  });
   return {
     intent: "CAPTURE",
     purchase_units: [
@@ -241,6 +247,11 @@ async function recordPayPalOrder(order, { eventId, eventType }, options = {}) {
   const paid = paidPayPalOrder(order);
   if (!paid) return false;
   await recordPaidOrder({ ...paid, eventId, eventType }, options);
+  // Decrement live backstock once per PayPal order (replays are a no-op).
+  await commitOrderStock(`paypal:${order.id}`, payPalStockLines(order), {
+    stockStoreFactory: options.stockStoreFactory,
+    logger: options.logger,
+  });
   return true;
 }
 

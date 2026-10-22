@@ -133,7 +133,7 @@ test("images are 2000px Printful Mockup Generator renders, web-optimized and shi
   for (const [id, e] of Object.entries(expect)) {
     const p = product(id);
     const file = (c, v) => `assets/products/fw26/${e.prefix}_${slug(c)}${v}.webp`;
-    assert.equal(p.image, file("Black", e.primary));
+    assert.equal(p.image, file(p.defaultColor, e.primary));
     const seen = new Set();
     for (const color of p.colors) {
       assert.equal(p.colorImages[color], file(color, e.primary), `${id} ${color}`);

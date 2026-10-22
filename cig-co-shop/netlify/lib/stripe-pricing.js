@@ -182,6 +182,7 @@ function resolveRequestedItem(rawItem) {
     componentAvailability,
     stripeName,
     pod: !!product.pod,
+    liveStock: !!product.liveStock,
   };
 }
 
@@ -274,6 +275,17 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
     shippingLines: resolvedItems.map((item) => ({
       name: item.productName,
       shipping: item.shippingClass,
+      quantity: item.quantity,
+    })),
+    // Same order as lineItems: the live-stock line for each, or null.
+    lineStock: resolvedItems.map((item) => (item.liveStock
+      ? { productId: item.productId, color: item.color || "", size: item.size || "", quantity: item.quantity }
+      : null)),
+    // Backstock variants whose count lives in Supabase (live-stock.js).
+    stockLines: resolvedItems.filter((item) => item.liveStock).map((item) => ({
+      productId: item.productId,
+      color: item.color || "",
+      size: item.size || "",
       quantity: item.quantity,
     })),
     promoCode: promo ? promo.code : null,

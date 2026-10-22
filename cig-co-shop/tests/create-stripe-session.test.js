@@ -225,7 +225,7 @@ test("ignores a spoofed request host and falls back to the canonical site URL", 
     headers: { host: "attacker.example" },
     body: JSON.stringify({
       items: [{
-        productId: "0005",
+        productId: "0010",
         color: "Red",
         size: null,
         style: null,

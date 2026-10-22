@@ -192,7 +192,7 @@ function renderCarousel(p) {
 function openProductModal(id) {
   const p = PRODUCTS.find((x) => x.id === id);
   if (!p || p.hidden) return;
-  modalState = { style: (p.styles && p.styles[0].name) || null, color: p.colors[0] || null, size: p.sizes[0] || null, qty: 1, slide: 0 };
+  modalState = { style: (p.styles && p.styles[0].name) || null, color: (p.defaultColor && p.colors.includes(p.defaultColor) ? p.defaultColor : p.colors[0]) || null, size: p.sizes[0] || null, qty: 1, slide: 0 };
 
   document.getElementById("modal-content").innerHTML = `
     <div class="pd-carousel" id="pd-carousel"></div>

@@ -72,7 +72,9 @@ const PRODUCTS = [
     salePrice: null,
     colorPrices: { "Multi": 75.00 },
     description: "Made to order.",
-    image: "assets/products/fw26/crossbody_black_front.webp",
+    // Card photo and the color preselected when the product opens (CIG 10/22).
+    defaultColor: "Navy",
+    image: "assets/products/fw26/crossbody_navy_front.webp",
     colors: ["Black", "Burgundy", "Navy", "Hunter", "Grape", "Gold", "Burnt Orange", "Espresso", "Multi"],
     sizes: [],
     // 2000px Printful Mockup Generator renders, web-optimized to 1600px WebP.
@@ -134,7 +136,9 @@ const PRODUCTS = [
     sizeLabel: "Model",
     salePrice: null,
     description: "Made to order. MagSafe compatible. Shipping to Japan & South Korea takes about 30 days.",
-    image: "assets/products/fw26/case_black.webp",
+    // Card photo and the color preselected when the product opens (CIG 10/22).
+    defaultColor: "Burgundy",
+    image: "assets/products/fw26/case_burgundy.webp",
     colors: ["Black", "Burgundy", "Navy", "Hunter", "Grape", "Gold", "Burnt Orange", "Espresso"],
     sizes: ["iPhone 14", "iPhone 14 Plus", "iPhone 14 Pro", "iPhone 14 Pro Max", "iPhone 15", "iPhone 15 Plus", "iPhone 15 Pro", "iPhone 15 Pro Max", "iPhone 16", "iPhone 16 Plus", "iPhone 16 Pro", "iPhone 16 Pro Max", "iPhone 17", "iPhone 17 Air", "iPhone 17 Pro", "iPhone 17 Pro Max", "iPhone 18 Pro", "iPhone 18 Pro Max"],
     // 2000px Printful Mockup Generator renders, web-optimized to 1600px WebP.
@@ -326,7 +330,9 @@ const PRODUCTS = [
     sizePrices: { "13″": 50.00, "15″": 55.00 },
     salePrice: null,
     description: "Made to order.",
-    image: "assets/products/fw26/sleeve_black.webp",
+    // Card photo and the color preselected when the product opens (CIG 10/22).
+    defaultColor: "Grape",
+    image: "assets/products/fw26/sleeve_grape.webp",
     colors: ["Black", "Burgundy", "Navy", "Hunter", "Grape", "Gold", "Burnt Orange", "Espresso"],
     sizes: ["13″", "15″"],
     // 2000px Printful Mockup Generator renders, web-optimized to 1600px WebP.
@@ -390,6 +396,8 @@ const PRODUCTS = [
     sizePrices: { "14″×14″": 45.00, "16″×16″": 48.00, "18″×18″": 52.00, "20″×12″": 48.00, "22″×22″": 58.00 },
     salePrice: null,
     description: "Made to order. Ships to the US only.",
+    // Card photo and the color preselected when the product opens (CIG 10/22).
+    defaultColor: "Black",
     image: "assets/products/fw26/pillow_black_front.webp",
     colors: ["Black", "Burgundy", "Navy", "Hunter", "Grape", "Gold", "Burnt Orange", "Espresso"],
     sizes: ["14″×14″", "16″×16″", "18″×18″", "20″×12″", "22″×22″"],
@@ -524,6 +532,8 @@ const PRODUCTS = [
   {
     id: "0005",
     sku: "0005",
+    // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
+    liveStock: true,
     // Backstock count 10/21 (bg/backstock_2026-10-21.csv); price approved by CIG 10/22.
     // Stock is a static cap: it isn't decremented on sale.
     stock: { "Red": 70, "Blue": 68, "Black": 24 },
@@ -547,6 +557,8 @@ const PRODUCTS = [
   {
     id: "0008",
     sku: "0008",
+    // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
+    liveStock: true,
     // Backstock count 10/21 (bg/backstock_2026-10-21.csv); price approved by CIG 10/22.
     // BG's "Yellow" is the site's "Gold" (photos are skimask-gold-*). Stock is a
     // static cap: it isn't decremented on sale.
@@ -685,6 +697,8 @@ const PRODUCTS = [
   {
     id: "0013",
     sku: "0013",
+    // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
+    liveStock: true,
     // Moto mask backstock (bg/backstock_2026-10-21.csv, CIG counts 10/21 PM);
     // $15 approved by CIG 10/22. Name is a DRAFT pending CIG.
     // HIDDEN until photos exist: there are no moto-mask photos in assets/ for
