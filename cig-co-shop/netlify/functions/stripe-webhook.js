@@ -8,6 +8,7 @@ const {
   sendOrderTransaction,
   syncContactToKit,
 } = require("../lib/integrations.js");
+const { commitOrderStock, createStockStore, decodeStockMetadata } = require("../lib/live-stock.js");
 
 const SUPPORTED_EVENTS = new Set([
   "checkout.session.completed",
@@ -67,6 +68,7 @@ function createHandler({
   storeFactory = createCustomerStore,
   syncKit = syncContactToKit,
   sendOrder = sendOrderTransaction,
+  stockStoreFactory = createStockStore,
   environment = process.env,
   logger = console,
 } = {}) {
@@ -135,6 +137,11 @@ function createHandler({
         promoCode: session.metadata && session.metadata.promo_code,
         paidAt: new Date(stripeEvent.created * 1000).toISOString(),
       });
+
+      // Decrement live backstock once per Checkout Session (replays are a
+      // no-op in Supabase). A failure here returns 500 so Stripe retries;
+      // the order above is already de-duplicated.
+      await commitOrderStock(`stripe:${session.id}`, decodeStockMetadata(session.metadata), { stockStoreFactory, logger });
 
       const contact = result.contact;
       const order = result.order;

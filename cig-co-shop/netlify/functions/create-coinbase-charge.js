@@ -72,6 +72,11 @@ function createHandler({
       const address = requireShippingAddress(customer, country);
       // No promo code here — crypto always gets its 20% instead.
       const pricing = priceCartForStripe(trustedCartItems(body), null);
+      // Live-stock backstock isn't decremented by the Coinbase webhook, so keep
+      // it to card/PayPal (crypto is off anyway; see CRYPTO_ENABLED).
+      if (pricing.stockLines.length) {
+        throw new RequestValidationError("Masks can be paid by card or PayPal.");
+      }
       const shipping = resolveCheckoutShipping(pricing, country);
       const pccc = requireKoreaCustomsCode(customer.pccc, country);
       // 20% off the items only; shipping is added at full price.

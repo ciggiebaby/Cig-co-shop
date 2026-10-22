@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 const { PRODUCTS } = require("../products.js");
 const { createPrintfulClient, printfulItemForLine } = require("../netlify/lib/printful.js");
 
-const PLACEHOLDER_URL = "https://cigcompany.com/assets/og-card.jpg";
+const PLACEHOLDER_URL = "https://cigcompany.com/assets/og-fw26.jpg";
 const AOP_HOODIE_M = 10871; // Printful catalog: All-Over Print Unisex Hoodie (M)
 
 async function main() {

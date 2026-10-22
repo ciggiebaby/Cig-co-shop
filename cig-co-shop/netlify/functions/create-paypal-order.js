@@ -16,10 +16,12 @@ const { assertDropOpen } = require("../lib/drop-lock.js");
 const { resolvePromo } = require("../lib/promo-codes.js");
 const { requireKoreaCustomsCode, resolveCheckoutShipping } = require("../lib/checkout-shipping.js");
 const { assertPodAllowedWithoutCard } = require("../lib/pod-payment.js");
+const { LiveStockUnavailableError, assertLiveStock, createStockStore } = require("../lib/live-stock.js");
 
 function createHandler({
   paypalFactory = createPayPalClient,
   promoResolver = resolvePromo,
+  stockStoreFactory = createStockStore,
   environment = process.env,
   logger = console,
   now = () => Date.now(),
@@ -39,6 +41,8 @@ function createHandler({
       const email = body.customer && body.customer.email ? normalizeEmail(body.customer.email) : null;
       const promo = await promoResolver({ promoCode: body.promoCode, email });
       const pricing = priceCartForStripe(trustedCartItems(body), body.promoCode, promo);
+      // Backstock masks: refuse if the live Supabase count is lower than asked.
+      await assertLiveStock(pricing.stockLines, { stockStoreFactory, logger });
       // Shipping is priced for the country picked on the site (US = free);
       // paypal-capture refuses to capture if PayPal's address is elsewhere.
       const shipping = resolveCheckoutShipping(pricing, body.shipCountry);
@@ -56,6 +60,9 @@ function createHandler({
       if (!approveLink) throw new Error("PayPal did not return an approval link");
       return { statusCode: 200, body: JSON.stringify({ url: approveLink.href }) };
     } catch (err) {
+      if (err instanceof LiveStockUnavailableError) {
+        return { statusCode: 503, body: JSON.stringify({ error: err.message }) };
+      }
       if (
         err instanceof PricingValidationError
         || err instanceof RequestValidationError

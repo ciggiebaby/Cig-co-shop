@@ -36,7 +36,7 @@ test("uses style, regular, and sized-product prices", () => {
   ]);
   assert.deepEqual(
     priced.lineItems.map((line) => line.price_data.unit_amount),
-    [1200, 5000, 5000, 3500]
+    [1200, 2500, 3000, 3500]
   );
 });
 

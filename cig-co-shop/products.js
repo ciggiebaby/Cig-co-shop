@@ -38,6 +38,11 @@
 // sizeLabel: label for the size picker (default "Size"; the case uses "Model").
 // colorSwatches: { color: image URL } — small swatch image on each color button
 //   (clicking a color also swaps the product photo via colorImages).
+// colorHex: { color: "#rrggbb" } — plain color dot on the button instead of a
+//   swatch image.
+// photoComingSoon: [color, ...] — colors without a real photo yet: the product
+//   view shows a small "Photo coming soon" note while one is selected (point
+//   its colorImages entry at a neutral "photo coming soon" image, never another color's photo).
 //
 // POD_CARD_ONLY (bottom of this file): while true, carts with any `pod` item can
 //   only be paid by card (PayPal and crypto refuse them, on the site and on the
@@ -72,7 +77,9 @@ const PRODUCTS = [
     salePrice: null,
     colorPrices: { "Multi": 75.00 },
     description: "Made to order.",
-    image: "assets/products/fw26/crossbody_black_front.webp",
+    // Card photo and the color preselected when the product opens (CIG 10/22).
+    defaultColor: "Navy",
+    image: "assets/products/fw26/crossbody_navy_front.webp",
     colors: ["Black", "Burgundy", "Navy", "Hunter", "Grape", "Gold", "Burnt Orange", "Espresso", "Multi"],
     sizes: [],
     // 2000px Printful Mockup Generator renders, web-optimized to 1600px WebP.
@@ -134,7 +141,9 @@ const PRODUCTS = [
     sizeLabel: "Model",
     salePrice: null,
     description: "Made to order. MagSafe compatible. Shipping to Japan & South Korea takes about 30 days.",
-    image: "assets/products/fw26/case_black.webp",
+    // Card photo and the color preselected when the product opens (CIG 10/22).
+    defaultColor: "Burgundy",
+    image: "assets/products/fw26/case_burgundy.webp",
     colors: ["Black", "Burgundy", "Navy", "Hunter", "Grape", "Gold", "Burnt Orange", "Espresso"],
     sizes: ["iPhone 14", "iPhone 14 Plus", "iPhone 14 Pro", "iPhone 14 Pro Max", "iPhone 15", "iPhone 15 Plus", "iPhone 15 Pro", "iPhone 15 Pro Max", "iPhone 16", "iPhone 16 Plus", "iPhone 16 Pro", "iPhone 16 Pro Max", "iPhone 17", "iPhone 17 Air", "iPhone 17 Pro", "iPhone 17 Pro Max", "iPhone 18 Pro", "iPhone 18 Pro Max"],
     // 2000px Printful Mockup Generator renders, web-optimized to 1600px WebP.
@@ -326,7 +335,9 @@ const PRODUCTS = [
     sizePrices: { "13″": 50.00, "15″": 55.00 },
     salePrice: null,
     description: "Made to order.",
-    image: "assets/products/fw26/sleeve_black.webp",
+    // Card photo and the color preselected when the product opens (CIG 10/22).
+    defaultColor: "Grape",
+    image: "assets/products/fw26/sleeve_grape.webp",
     colors: ["Black", "Burgundy", "Navy", "Hunter", "Grape", "Gold", "Burnt Orange", "Espresso"],
     sizes: ["13″", "15″"],
     // 2000px Printful Mockup Generator renders, web-optimized to 1600px WebP.
@@ -390,6 +401,8 @@ const PRODUCTS = [
     sizePrices: { "14″×14″": 45.00, "16″×16″": 48.00, "18″×18″": 52.00, "20″×12″": 48.00, "22″×22″": 58.00 },
     salePrice: null,
     description: "Made to order. Ships to the US only.",
+    // Card photo and the color preselected when the product opens (CIG 10/22).
+    defaultColor: "Black",
     image: "assets/products/fw26/pillow_black_front.webp",
     colors: ["Black", "Burgundy", "Navy", "Hunter", "Grape", "Gold", "Burnt Orange", "Espresso"],
     sizes: ["14″×14″", "16″×16″", "18″×18″", "20″×12″", "22″×22″"],
@@ -524,17 +537,26 @@ const PRODUCTS = [
   {
     id: "0005",
     sku: "0005",
-    stock: { "Blue": 30, "Red": 34, "Gold": 22 },
+    // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
+    liveStock: true,
+    // Backstock count 10/21 (bg/backstock_2026-10-21.csv); price approved by CIG 10/22.
+    // CIG's names: "Gold" = black balaclava with yellow/gold print; "Black" =
+    // black balaclava with white print. CIG confirmed 10/22: BG's 24 are Gold;
+    // Black (white print) is sold out. Supabase gets the same numbers from
+    // supabase/migrations/202610220001_live_stock.sql.
+    stock: { "Red": 70, "Blue": 68, "Gold": 24, "Black": 0 },
     name: "CIG Paisley Balaclava",
-    price: 50.00,
+    price: 25.00,
     salePrice: null,
     image: "assets/products/balaclava-blue-front.jpg",
-    colors: ["Blue", "Red", "Gold"],
+    colors: ["Red", "Blue", "Gold", "Black"],
     sizes: [],
     colorImages: {
       "Blue": "assets/products/balaclava-blue-front.jpg",
       "Red": "assets/products/balaclava-red-front-upright.jpg",
       "Gold": "assets/products/balaclava-gold-front-upright.jpg",
+      // Only Black (white-print) photo on hand is a back view.
+      "Black": "assets/products/balaclava-black.jpg",
     },
     gallery: {
       "Blue": ["assets/products/balaclava-blue-back.jpg"],
@@ -545,14 +567,19 @@ const PRODUCTS = [
   {
     id: "0008",
     sku: "0008",
+    // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
+    liveStock: true,
+    // Backstock count 10/21 (bg/backstock_2026-10-21.csv); price approved by CIG 10/22.
+    // BG's "Yellow" is the site's "Gold" (photos are skimask-gold-*). Stock is a
+    // static cap: it isn't decremented on sale.
     stock: {
-      "Blue":  { "1-Hole": 51, "3-Hole": 62, "Skully": 0 },
-      "Red":   { "1-Hole": 58, "3-Hole": 79, "Skully": 0 },
-      "Green": { "1-Hole": 70, "3-Hole": 74, "Skully": 0 },
-      "Gold":  { "1-Hole": 70, "3-Hole": 80, "Skully": 0 },
+      "Blue":  { "1-Hole": 56, "3-Hole": 70, "Skully": 0 },
+      "Red":   { "1-Hole": 59, "3-Hole": 80, "Skully": 0 },
+      "Green": { "1-Hole": 71, "3-Hole": 77, "Skully": 0 },
+      "Gold":  { "1-Hole": 73, "3-Hole": 81, "Skully": 0 },
     },
     name: "CIG Acrylic Ski Mask",
-    price: 50.00,
+    price: 30.00,
     salePrice: null,
     image: "assets/products/skimask-blue-1hole.jpg",
     colors: ["Blue", "Red", "Green", "Gold"],
@@ -676,6 +703,52 @@ const PRODUCTS = [
     colors: ["Blue", "Red", "Black/Rainbow", "White/Rainbow"],
     sizes: [],
     colorImages: {},
+  },
+  {
+    id: "0013",
+    sku: "0013",
+    // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
+    liveStock: true,
+    // Moto mask backstock (bg/backstock_2026-10-21.csv, CIG counts 10/21 PM);
+    // $15 approved by CIG 10/22. Name is a DRAFT pending CIG.
+    // Sold out per BG and left off: Red, Black, Blue, Rainbow.
+    // Not the same listing as 0012 "CIG Corona Masks" as far as the data shows
+    // (different colors and counts); CIG to confirm.
+    // HIDDEN again 10/22 PM: CIG is reshooting the photos. Flip to false (and
+    // swap in the new photos below) when they're in.
+    hidden: true,
+    // Photos 10/22 (deck-assets/new8, shot on black): Yellow p8, Brown p1-p2,
+    // Green p3-p4, Purple p7. Pink has no photo. Orange: the photos sent as
+    // orange (p5-p6) show a RED mask, so they aren't used until CIG confirms.
+    // Pink and Orange stay buyable with a plain swatch, a neutral "photo coming soon" image
+    // and a "Photo coming soon" note (photoComingSoon below).
+    stock: { "Yellow": 17, "Pink": 22, "Brown": 16, "Purple": 14, "Green": 13, "Orange": 12 },
+    name: "Moto Mask",
+    price: 15.00,
+    salePrice: null,
+    defaultColor: "Brown",
+    // Card photo is Brown: Yellow and Purple are landscape shots and crop badly on the portrait card.
+    image: "assets/products/moto-brown-1.jpg",
+    colors: ["Yellow", "Pink", "Brown", "Purple", "Green", "Orange"],
+    sizes: [],
+    colorImages: {
+      "Yellow": "assets/products/moto-yellow-1.jpg",
+      "Brown": "assets/products/moto-brown-1.jpg",
+      "Green": "assets/products/moto-green-1.jpg",
+      "Purple": "assets/products/moto-purple-1.jpg",
+      "Pink": "assets/products/moto-photo-coming-soon.jpg",
+      "Orange": "assets/products/moto-photo-coming-soon.jpg",
+    },
+    gallery: {
+      "Brown": ["assets/products/moto-brown-2.jpg"],
+      "Green": ["assets/products/moto-green-2.jpg"],
+    },
+    photoComingSoon: ["Pink", "Orange"],
+    // Plain color dots on the color buttons (no swatch photo needed).
+    colorHex: {
+      "Yellow": "#d8b15a", "Pink": "#f2a7c3", "Brown": "#b58865",
+      "Purple": "#6a3f86", "Green": "#8dbc80", "Orange": "#e8803a",
+    },
   },
 ];
 

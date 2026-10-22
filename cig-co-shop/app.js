@@ -192,10 +192,11 @@ function renderCarousel(p) {
 function openProductModal(id) {
   const p = PRODUCTS.find((x) => x.id === id);
   if (!p || p.hidden) return;
-  modalState = { style: (p.styles && p.styles[0].name) || null, color: p.colors[0] || null, size: p.sizes[0] || null, qty: 1, slide: 0 };
+  modalState = { style: (p.styles && p.styles[0].name) || null, color: (p.defaultColor && p.colors.includes(p.defaultColor) ? p.defaultColor : p.colors[0]) || null, size: p.sizes[0] || null, qty: 1, slide: 0 };
 
   document.getElementById("modal-content").innerHTML = `
     <div class="pd-carousel" id="pd-carousel"></div>
+    ${p.photoComingSoon ? `<p class="pd-photo-note" id="pd-photo-note" hidden>Photo coming soon</p>` : ""}
     <h3 class="pd-name">${p.name}</h3>
     <div class="pd-price" id="pd-price"></div>
     ${p.description ? `<p class="pd-description">${p.description}</p>` : ""}
@@ -212,7 +213,9 @@ function openProductModal(id) {
         <div class="pd-options" id="pd-colors">
           ${p.colors.map((c) => {
             const swatch = p.colorSwatches && p.colorSwatches[c];
-            return `<button class="pd-option${swatch ? " pd-swatch" : ""}${c === modalState.color ? " selected" : ""}${colorStock(p, modalState.style, c) <= 0 ? " soldout" : ""}" data-color="${c}" title="${c}">${swatch ? `<img class="pd-swatch-img" src="${swatch}" alt="" loading="lazy" />` : ""}<span>${c}</span></button>`;
+            const hex = !swatch && p.colorHex && p.colorHex[c];
+            const dot = swatch ? `<img class="pd-swatch-img" src="${swatch}" alt="" loading="lazy" />` : hex ? `<span class="pd-swatch-dot" style="background:${hex}"></span>` : "";
+            return `<button class="pd-option${dot ? " pd-swatch" : ""}${c === modalState.color ? " selected" : ""}${colorStock(p, modalState.style, c) <= 0 ? " soldout" : ""}" data-color="${c}" title="${c}">${dot}<span>${c}</span></button>`;
           }).join("")}
         </div>
       </div>` : ""}
@@ -237,6 +240,8 @@ function openProductModal(id) {
   renderCarousel(p);
 
   function refreshAvailability() {
+    const photoNote = document.getElementById("pd-photo-note");
+    if (photoNote) photoNote.hidden = !p.photoComingSoon.includes(modalState.color);
     document.querySelectorAll("#pd-sizes .pd-option").forEach((b) => {
       b.classList.toggle("soldout", variantStock(p, modalState.style, modalState.color, b.dataset.size) <= 0);
     });

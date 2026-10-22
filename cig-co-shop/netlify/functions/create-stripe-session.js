@@ -9,6 +9,12 @@ const {
   normalizeEmail,
 } = require("../lib/customer-utils.js");
 const { assertDropOpen, dropTestCodeValid } = require("../lib/drop-lock.js");
+const {
+  LiveStockUnavailableError,
+  assertLiveStock,
+  createStockStore,
+  encodeStockMetadata,
+} = require("../lib/live-stock.js");
 const { resolvePromo } = require("../lib/promo-codes.js");
 const {
   countryName,
@@ -62,6 +68,7 @@ function checkoutSiteUrl(value) {
 function createHandler({
   stripeFactory = defaultStripeFactory,
   promoResolver = resolvePromo,
+  stockStoreFactory = createStockStore,
   siteUrl,
   environment = process.env,
   logger = console,
@@ -108,6 +115,8 @@ function createHandler({
       // DROP_TEST_CODE env var is set and sent as dropTestCode.
       assertDropOpen(trustedItems, { dropTestCode: body.dropTestCode, environment, now: now() });
       const pricing = priceCartForStripe(trustedItems, body.promoCode, promo);
+      // Backstock masks: refuse if the live Supabase count is lower than asked.
+      await assertLiveStock(pricing.stockLines, { stockStoreFactory, logger });
       // Ship-to country is picked on the site before checkout (US by default).
       // Stripe can't vary a rate by country within one session, so the session
       // is locked to that one country with a server-computed flat shipping fee.
@@ -133,6 +142,8 @@ function createHandler({
           cart_fingerprint: checkoutFingerprint || "",
           marketing_consent: marketingConsent ? "true" : "false",
           promo_code: pricing.promoCode || "",
+          // Read back by stripe-webhook to decrement live stock once paid.
+          ...encodeStockMetadata(pricing.stockLines),
         },
         shipping_address_collection: { allowed_countries: [shipping.country] },
         success_url: `${resolvedSiteUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
@@ -160,6 +171,9 @@ function createHandler({
         body: JSON.stringify({ url: session.url }),
       };
     } catch (err) {
+      if (err instanceof LiveStockUnavailableError) {
+        return { statusCode: 503, body: JSON.stringify({ error: err.message }) };
+      }
       if (
         err instanceof PricingValidationError
         || err instanceof RequestValidationError

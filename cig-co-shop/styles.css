@@ -593,6 +593,8 @@ a { color: inherit; text-decoration: none; }
 .pd-description { font-size: 13px; color: var(--gray); margin: 6px 0 14px; line-height: 1.5; }
 .pd-option.pd-swatch { display: inline-flex; align-items: center; gap: 8px; }
 .pd-swatch-img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); }
+.pd-swatch-dot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); flex: none; }
+.pd-photo-note { margin: -8px 0 16px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); text-align: center; }
 [data-crypto-only][hidden], [data-crypto-off][hidden] { display: none !important; }
 .checkout-pccc-row { display: flex; flex-direction: column; gap: 6px; }
 .checkout-pccc-row[hidden] { display: none; }
