@@ -23,6 +23,9 @@ cart_drawer = between("<!-- Cart drawer -->", '<div id="cart-backdrop" class="ba
 checkout_modal = between("<!-- Checkout modal -->", "</div>\n  </div>\n</div>\n")
 footer = between('<footer class="site-footer">', "</footer>")
 
+HEADING_IDS = {"Masks: Shipping, Returns &amp; Exchanges": "mask-terms"}
+
+
 def render(md_text, faq=False):
     if faq:
         # A bold line on its own is a question: make it an <h3> (same words).
@@ -44,6 +47,9 @@ def render(md_text, faq=False):
     m = re.match(r"\s*<h1>(.*?)</h1>\s*", body, re.S)
     title = m.group(1) if m else ""
     body = body[m.end():] if m else body
+    # Stable anchors for sections other copy links to (e.g. "#mask-terms").
+    for heading, anchor in HEADING_IDS.items():
+        body = body.replace(f"<h2>{heading}</h2>", f'<h2 id="{anchor}">{heading}</h2>')
     # Wrap tables so they scroll on phones.
     body = body.replace("<table>", '<div class="policy-table-wrap"><table>').replace("</table>", "</table></div>")
     return title, body

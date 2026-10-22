@@ -63,6 +63,7 @@ function loadFrontend({
     "checkout-zip": { value: "78701" },
     "checkout-duties-note": { hidden: true },
     "checkout-pccc-row": { hidden: true },
+    "checkout-mask-shipping-note": { hidden: true, textContent: "" },
     "product-grid": { innerHTML: "", querySelectorAll: () => [] },
   };
   for (const [id, value] of Object.entries(fieldOverrides)) {
@@ -130,6 +131,7 @@ function loadFrontend({
     CRYPTO_ENABLED: cryptoEnabled,
     SHIP_TO_COUNTRIES: shippingRates.SHIP_TO_COUNTRIES,
     quoteShipping: shippingRates.quoteShipping,
+    MASK_SHIPPING_NOTE: shippingRates.MASK_SHIPPING_NOTE,
     slowDeliveryNote: shippingRates.slowDeliveryNote,
     URL,
     console: {
@@ -1279,4 +1281,44 @@ test("the drop test code is only sent in ?droptest mode", async () => {
   const testMode = loadFrontend({ href: "https://shop.test/?droptest", fetchImpl, paymentMethods: ["paypal"], storedCart: cart, fieldOverrides: { "drop-test-code": " abc12345 " } });
   await testMode.paymentButtons[0].click();
   assert.equal(requests[1].dropTestCode, "abc12345");
+});
+
+// Masks (liveStock backstock): $8.95 per US order unless the items total after
+// promo is over $75 — the same shipping-rates.js rule the server charges.
+const maskItem = (qty) => ({ productId: "0005", name: "CIG Paisley Balaclava", price: 25, image: "", color: "Red", size: null, style: null, qty });
+
+test("checkout summary shows mask shipping: $8.95 at or under $75, free over $75, back after a promo", () => {
+  const under = loadFrontend({ storedCart: [maskItem(3)] });
+  under.context.renderCheckoutSummary();
+  const maskNote = under.context.document.getElementById("checkout-mask-shipping-note");
+  assert.match(under.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>\$8\.95/);
+  assert.match(under.summaryElement.innerHTML, /Total<\/span><span>\$83\.95/);
+  assert.equal(maskNote.hidden, false);
+  assert.match(maskNote.textContent, /\$8\.95.*free over \$75/);
+
+  const over = loadFrontend({ storedCart: [maskItem(4)] });
+  over.context.renderCheckoutSummary();
+  assert.match(over.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>Free/);
+  assert.match(over.summaryElement.innerHTML, /Total<\/span><span>\$100\.00/);
+
+  // $100 with CIG10 = $90 → still free; $80 with CIG10 = $72 → $8.95.
+  const promoOver = loadFrontend({ storedCart: [maskItem(4)], promoCode: "CIG10" });
+  promoOver.context.renderCheckoutSummary();
+  assert.match(promoOver.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>Free/);
+  const promoUnder = loadFrontend({ storedCart: [maskItem(2), { ...maskItem(1), productId: "0008", name: "CIG Acrylic Ski Mask", price: 30, size: "3-Hole" }], promoCode: "CIG10" });
+  promoUnder.context.renderCheckoutSummary();
+  assert.match(promoUnder.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>\$8\.95/);
+  assert.match(promoUnder.summaryElement.innerHTML, /Total<\/span><span>\$80\.95/);
+});
+
+test("a mask in the bag disables non-US countries; FW26-only US stays free with no mask note", () => {
+  const frontend = loadFrontend({ storedCart: [maskItem(1), bagItem] });
+  frontend.context.renderCheckoutSummary();
+  assert.ok(frontend.countrySelect.options.filter((o) => o.value !== "US").every((o) => o.disabled));
+  assert.match(frontend.shippingNoteElement.textContent, /CIG Paisley Balaclava ships to the US only/);
+  const fw = loadFrontend({ storedCart: [bagItem] });
+  fw.context.renderCheckoutSummary();
+  const maskNote = fw.context.document.getElementById("checkout-mask-shipping-note");
+  assert.match(fw.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>Free/);
+  assert.equal(maskNote.hidden, true);
 });
