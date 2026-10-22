@@ -82,6 +82,7 @@ function componentVariantStock(p, style, color) {
 }
 
 function variantStock(p, style, color, size) {
+  if (p.soldOut) return 0;                     // whole product marked sold out (CIG)
   if (p.componentStock) return componentVariantStock(p, style, color);
   if (!p.stock) return Infinity;              // products without a stock block are always available
   let node = p.stock;
@@ -94,6 +95,7 @@ function variantStock(p, style, color, size) {
 }
 function colorStock(p, style, color) { return variantStock(p, style, color, null); }
 function productTotalStock(p) {
+  if (p.soldOut) return 0;
   if (p.componentStock) {
     return Object.values(p.componentStock).reduce(
       (total, components) => total + Object.values(components).reduce((sum, count) => sum + count, 0),
@@ -198,6 +200,7 @@ function openProductModal(id) {
     <div class="pd-carousel" id="pd-carousel"></div>
     ${p.photoComingSoon ? `<p class="pd-photo-note" id="pd-photo-note" hidden>Photo coming soon</p>` : ""}
     <h3 class="pd-name">${p.name}</h3>
+    ${p.soldOut ? `<div class="soldout-badge pd-soldout-badge">Sold Out</div>` : ""}
     <div class="pd-price" id="pd-price"></div>
     ${p.description ? `<p class="pd-description">${p.description}</p>` : ""}
     ${p.styles ? `
@@ -861,18 +864,20 @@ paymentButtons.forEach((btn) => {
       return;
     }
 
-    // Print-on-demand items are only sent to Printful from a confirmed card
-    // payment. Toggle: POD_CARD_ONLY in products.js (missing = card only).
+    // Print-on-demand items are sent to Printful from a paid card or PayPal
+    // order. Toggle: POD_CARD_ONLY in products.js (missing = card only; false
+    // since CIG turned PayPal on for FW26, 10/22). Crypto never takes them.
     const podCardOnly = typeof POD_CARD_ONLY === "undefined" || POD_CARD_ONLY !== false;
-    if (
-      podCardOnly
-      && method !== "stripe"
-      && cart.some((item) => {
-        const product = PRODUCTS.find((entry) => entry.id === item.productId);
-        return product && product.pod;
-      })
-    ) {
+    const cartHasPod = cart.some((item) => {
+      const product = PRODUCTS.find((entry) => entry.id === item.productId);
+      return product && product.pod;
+    });
+    if (cartHasPod && podCardOnly && method !== "stripe") {
       errorEl.textContent = "Made-to-order items can only be paid by card for now.";
+      return;
+    }
+    if (cartHasPod && method === "crypto") {
+      errorEl.textContent = "Made-to-order items can be paid by card or PayPal.";
       return;
     }
 

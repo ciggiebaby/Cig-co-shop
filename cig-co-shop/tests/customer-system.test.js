@@ -349,7 +349,7 @@ function paidSession(overrides = {}) {
     },
     line_items: {
       data: [{
-        description: "CIG Paisley Bikini (Set) — Red — L",
+        description: "Paisley Bikini (Set) — Red — L",
         quantity: 1,
         amount_total: 4500,
         currency: "usd",

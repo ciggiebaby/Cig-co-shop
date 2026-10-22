@@ -32,6 +32,7 @@ const SHIP_TO_COUNTRIES = {
 
 const INTERNATIONAL_SHIPPING_PER_ITEM_USD = {
   // crossbody bags (incl. Multi; all are Printful product 744, variant 19256)
+  // and the tote (Printful product 274, variant 9039; quoted identically 10/22)
   //   Printful per-unit: CA 7.29  GB 4.59  DE 4.99  AU 7.99 | JP 4.89  KR 12.49
   bag:    { CA: 8,  GB: 5, DE: 5, AU: 8,  JP: 5, KR: 13 },
   // MagSafe phone cases (JP/KR delivery is slow: ~30 days)

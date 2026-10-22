@@ -12,7 +12,8 @@ const {
 const { buildPayPalOrder, createPayPalClient } = require("../lib/paypal.js");
 const { checkoutSiteUrl, trustedCartItems } = require("../lib/checkout-request.js");
 const { RequestValidationError, normalizeEmail } = require("../lib/customer-utils.js");
-const { assertDropOpen } = require("../lib/drop-lock.js");
+const { assertDropOpen, dropTestCodeValid } = require("../lib/drop-lock.js");
+const { normalizePccc } = require("../../shipping-rates.js");
 const { resolvePromo } = require("../lib/promo-codes.js");
 const { requireKoreaCustomsCode, resolveCheckoutShipping } = require("../lib/checkout-shipping.js");
 const { assertPodAllowedWithoutCard } = require("../lib/pod-payment.js");
@@ -35,7 +36,8 @@ function createHandler({
       // FW26/27 items can't be bought before DROP_AT (products.js) unless the
       // DROP_TEST_CODE env var is set and sent as dropTestCode.
       assertDropOpen(trustedCartItems(body), { dropTestCode: body.dropTestCode, environment, now: now() });
-      // Print-on-demand items are card-only while POD_CARD_ONLY (products.js) is true.
+      // Made-to-order items: allowed on PayPal while POD_CARD_ONLY (products.js)
+      // is false (CIG 10/22); captured orders become Printful drafts.
       assertPodAllowedWithoutCard(trustedCartItems(body));
       // Arcade codes must belong to the email entered on the site.
       const email = body.customer && body.customer.email ? normalizeEmail(body.customer.email) : null;
@@ -53,6 +55,8 @@ function createHandler({
           siteUrl,
           marketingConsent: !!(body.customer && body.customer.marketingConsent === true),
           shipping,
+          pccc: shipping.country === "KR" ? normalizePccc(body.customer && body.customer.pccc) : null,
+          dropTest: dropTestCodeValid(body.dropTestCode, environment),
         }),
       );
 

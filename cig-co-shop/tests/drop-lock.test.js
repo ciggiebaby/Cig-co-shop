@@ -40,9 +40,9 @@ function paypal(now, environment = {}) {
   return { handler, created: () => created };
 }
 
-test("DROP_AT is the confirmed Oct 30 noon ET drop and applies to exactly the four FW26 products", () => {
+test("DROP_AT is the confirmed Oct 30 noon ET drop and applies to exactly the five FW26 products", () => {
   assert.equal(DROP_AT, "2026-10-30T12:00:00-04:00");
-  assert.deepEqual(PRODUCTS.filter((p) => p.dropAt).map((p) => p.id), ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW"]);
+  assert.deepEqual(PRODUCTS.filter((p) => p.dropAt).map((p) => p.id), ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE"]);
   assert.ok(PRODUCTS.filter((p) => p.dropAt).every((p) => p.dropAt === DROP_AT));
   assert.match(fs.readFileSync(path.join(__dirname, "..", "products.js"), "utf8"), /Drop time confirmed by CIG 2026-10-21/);
   assert.doesNotMatch(fs.readFileSync(path.join(__dirname, "..", "products.js"), "utf8"), /PLACEHOLDER|hasn't picked/i);
@@ -96,11 +96,12 @@ test("with DROP_TEST_CODE set, only that exact code lets an order through early,
   // Price is unchanged: the test code is not a discount.
   assert.equal(right.request.line_items[0].price_data.unit_amount, 7500);
 
-  // PayPal passes the drop lock with the code, then card-only (POD_CARD_ONLY) still applies.
+  // PayPal (on for FW26 since 10/22): locked without the code, through with it.
   const p = paypal(BEFORE, environment);
+  assert.equal((await p.handler(post({ items: [bag] }))).statusCode, 400);
+  assert.equal((await p.handler(post({ items: [bag], dropTestCode: CODE.toUpperCase() }))).statusCode, 400);
   const viaPayPal = await p.handler(post({ items: [bag], dropTestCode: CODE }));
-  assert.equal(viaPayPal.statusCode, 400);
-  assert.match(JSON.parse(viaPayPal.body).error, /only be paid by card/);
+  assert.equal(viaPayPal.statusCode, 200);
 });
 
 test("assertDropOpen checks every item in the cart", () => {

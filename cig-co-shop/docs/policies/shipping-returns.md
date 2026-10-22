@@ -57,14 +57,14 @@ If your order arrives damaged or defective, has a print error, or isn't what you
 - If a package comes back to us as undeliverable or unclaimed, we'll email you. Once you confirm the right address and pay the reshipping cost, we'll send it again. We hold returned packages for up to 30 days. After that, the order can't be reshipped or refunded.
 
 ## Refunds
-- Approved refunds go back to your original payment method. Card refunds usually take 5 to 10 business days to show up, depending on your bank.
+- Approved refunds go back to your original payment method (card or PayPal). Card refunds usually take 5 to 10 business days to show up, depending on your bank.
 - We process approved refunds within 3 business days and email you once it's done.
 - We refund what you actually paid for the affected items. Shipping is refunded only for orders that arrived damaged, defective, or wrong, or that were lost in transit.
 - **Promo codes:** If you cancel an order before production starts, we'll send you a fresh one-time code to replace the one you used.
 
 ## Masks: Shipping, Returns & Exchanges
 
-*These terms apply to our in-stock masks: the CIG Acrylic Ski Mask, the CIG Paisley Balaclava, and the Moto Mask. Masks ship from our own stock, so their terms differ from our made-to-order pieces.*
+*These terms apply to our in-stock masks: the CIG Ski Mask, the CIG Balaclava, and the Moto Mask. Masks ship from our own stock, so their terms differ from our made-to-order pieces.*
 
 ### Shipping
 - In-stock masks ship within 1–2 business days of your order. Business days are Monday through Friday, not counting holidays.

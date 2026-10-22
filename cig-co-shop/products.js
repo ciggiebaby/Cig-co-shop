@@ -44,9 +44,10 @@
 //   view shows a small "Photo coming soon" note while one is selected (point
 //   its colorImages entry at a neutral "photo coming soon" image, never another color's photo).
 //
-// POD_CARD_ONLY (bottom of this file): while true, carts with any `pod` item can
-//   only be paid by card (PayPal and crypto refuse them, on the site and on the
-//   server). Flip it to false to allow PayPal/crypto for made-to-order items.
+// POD_CARD_ONLY (bottom of this file): false since CIG turned PayPal on for the
+//   FW26 collection (10/22): made-to-order items take card or PayPal, and paid
+//   PayPal orders become Printful drafts like Stripe ones. Set it to true to go
+//   back to card only. Crypto never takes made-to-order items.
 //
 // CRYPTO_ENABLED (bottom of this file): crypto checkout (Coinbase Commerce,
 //   20% off) on/off. While false, the "Pay with Crypto" button and every
@@ -481,9 +482,76 @@ const PRODUCTS = [
     },
   },
   {
+    id: "FW26-TOTE",
+    sku: "FW26-TOTE",
+    dropAt: DROP_AT,
+    // Last product in the FW26/27 collection (CIG 10/22). Printful product 274
+    // (All-Over Print Large Tote Bag w/ Pocket, 16″×20″, black handles).
+    name: "Tote Bag",
+    shipping: "bag",
+    // CIG set $35 (10/22 4:22 PM ET). Printful cost 10/22: $15.86 + $5.09 US
+    // shipping (US shipping is free to the customer).
+    price: 35.00,
+    salePrice: null,
+    description: "Made to order.",
+    // Card photo and the color preselected when the product opens: green, i.e.
+    // the collection's "Hunter" colorway (CIG 10/22: "make it green").
+    defaultColor: "Hunter",
+    image: "assets/products/fw26/tote_hunter_front.webp",
+    colors: ["Black", "Burgundy", "Navy", "Hunter", "Grape", "Gold", "Burnt Orange", "Espresso"],
+    sizes: [],
+    // Printful Mockup Generator renders (transparent, shown on the site's black
+    // background): front, then the angled "Standing" 3/4 view, back, a close-up
+    // and the inside pocket.
+    colorImages: {
+      "Black": "assets/products/fw26/tote_black_front.webp",
+      "Burgundy": "assets/products/fw26/tote_burgundy_front.webp",
+      "Navy": "assets/products/fw26/tote_navy_front.webp",
+      "Hunter": "assets/products/fw26/tote_hunter_front.webp",
+      "Grape": "assets/products/fw26/tote_grape_front.webp",
+      "Gold": "assets/products/fw26/tote_gold_front.webp",
+      "Burnt Orange": "assets/products/fw26/tote_burnt-orange_front.webp",
+      "Espresso": "assets/products/fw26/tote_espresso_front.webp",
+    },
+    gallery: {
+      "Black": ["assets/products/fw26/tote_black_angle.webp", "assets/products/fw26/tote_black_back.webp", "assets/products/fw26/tote_black_detail.webp", "assets/products/fw26/tote_black_pocket.webp"],
+      "Burgundy": ["assets/products/fw26/tote_burgundy_angle.webp", "assets/products/fw26/tote_burgundy_back.webp", "assets/products/fw26/tote_burgundy_detail.webp", "assets/products/fw26/tote_burgundy_pocket.webp"],
+      "Navy": ["assets/products/fw26/tote_navy_angle.webp", "assets/products/fw26/tote_navy_back.webp", "assets/products/fw26/tote_navy_detail.webp", "assets/products/fw26/tote_navy_pocket.webp"],
+      "Hunter": ["assets/products/fw26/tote_hunter_angle.webp", "assets/products/fw26/tote_hunter_back.webp", "assets/products/fw26/tote_hunter_detail.webp", "assets/products/fw26/tote_hunter_pocket.webp"],
+      "Grape": ["assets/products/fw26/tote_grape_angle.webp", "assets/products/fw26/tote_grape_back.webp", "assets/products/fw26/tote_grape_detail.webp", "assets/products/fw26/tote_grape_pocket.webp"],
+      "Gold": ["assets/products/fw26/tote_gold_angle.webp", "assets/products/fw26/tote_gold_back.webp", "assets/products/fw26/tote_gold_detail.webp", "assets/products/fw26/tote_gold_pocket.webp"],
+      "Burnt Orange": ["assets/products/fw26/tote_burnt-orange_angle.webp", "assets/products/fw26/tote_burnt-orange_back.webp", "assets/products/fw26/tote_burnt-orange_detail.webp", "assets/products/fw26/tote_burnt-orange_pocket.webp"],
+      "Espresso": ["assets/products/fw26/tote_espresso_angle.webp", "assets/products/fw26/tote_espresso_back.webp", "assets/products/fw26/tote_espresso_detail.webp", "assets/products/fw26/tote_espresso_pocket.webp"],
+    },
+    colorSwatches: {
+      "Black": "assets/products/fw26/tote_black_swatch.webp",
+      "Burgundy": "assets/products/fw26/tote_burgundy_swatch.webp",
+      "Navy": "assets/products/fw26/tote_navy_swatch.webp",
+      "Hunter": "assets/products/fw26/tote_hunter_swatch.webp",
+      "Grape": "assets/products/fw26/tote_grape_swatch.webp",
+      "Gold": "assets/products/fw26/tote_gold_swatch.webp",
+      "Burnt Orange": "assets/products/fw26/tote_burnt-orange_swatch.webp",
+      "Espresso": "assets/products/fw26/tote_espresso_swatch.webp",
+    },
+    pod: {
+      variants: {
+        "Black": { syncVariantId: 5589500592 }, // sync product 484114597
+        "Burgundy": { syncVariantId: 5589484773 }, // sync product 484110956
+        "Navy": { syncVariantId: 5589494794 }, // sync product 484113383
+        "Hunter": { syncVariantId: 5589489621 }, // sync product 484112212
+        "Grape": { syncVariantId: 5589495970 }, // sync product 484113661
+        "Gold": { syncVariantId: 5589508290 }, // sync product 484115612 (named "CIG Tote Bag [Espresso] copy" in Printful; its print file is the Gold design)
+        "Burnt Orange": { syncVariantId: 5589486261 }, // sync product 484111399
+        "Espresso": { syncVariantId: 5589504563 }, // sync product 484115025
+      },
+    },
+  },
+  {
     id: "0004",
     sku: "0004",
-    name: "CIG Silky Bonnet & Durag",
+    name: "Silky Bonnet & Durag",
+    // CIG 10/22: sold out (whole product). Counts below are left as-is.
+    soldOut: true,
     image: "assets/products/bonnet-set-red.jpg",
     colors: ["Red", "Gold", "Black", "Pink", "Blue"],
     sizes: [],
@@ -545,7 +613,7 @@ const PRODUCTS = [
     // Black (white print) is sold out. Supabase gets the same numbers from
     // supabase/migrations/202610220001_live_stock.sql.
     stock: { "Red": 70, "Blue": 68, "Gold": 24, "Black": 0 },
-    name: "CIG Paisley Balaclava",
+    name: "CIG Balaclava",
     price: 25.00,
     salePrice: null,
     image: "assets/products/balaclava-blue-front.jpg",
@@ -578,7 +646,7 @@ const PRODUCTS = [
       "Green": { "1-Hole": 71, "3-Hole": 77, "Skully": 0 },
       "Gold":  { "1-Hole": 73, "3-Hole": 81, "Skully": 0 },
     },
-    name: "CIG Acrylic Ski Mask",
+    name: "CIG Ski Mask",
     price: 30.00,
     salePrice: null,
     image: "assets/products/skimask-blue-1hole.jpg",
@@ -618,7 +686,9 @@ const PRODUCTS = [
     id: "0010",
     sku: "0010",
     stock: { "Blue": 2, "Green": 0, "Red": 2, "Rainbow": 6 },
-    name: "CIG Toile Umbrella",
+    name: "Toile Umbrella",
+    // CIG 10/22: sold out (whole product). Counts below are left as-is.
+    soldOut: true,
     price: 35.00,
     salePrice: null,
     image: "assets/products/umbrella-blue-open.jpg",
@@ -640,7 +710,9 @@ const PRODUCTS = [
   {
     id: "0011",
     sku: "0011",
-    name: "CIG Paisley Bikini",
+    name: "Paisley Bikini",
+    // CIG 10/22: sold out (whole product). Counts below are left as-is.
+    soldOut: true,
     image: "assets/products/bandana-top-red-front.jpg",
     colors: ["Red", "Pink", "Green"],
     sizes: ["XS", "S", "M", "L", "XL"],
@@ -754,7 +826,8 @@ const PRODUCTS = [
 
 // Made-to-order (`pod`) items can only be paid by card while this is true.
 // One switch for the checkout page and the server. See the note at the top.
-const POD_CARD_ONLY = true;
+// CIG 10/22 4:34 PM ET: "Turn on PayPal for the FW26 collection".
+const POD_CARD_ONLY = false;
 
 // Crypto checkout (Coinbase Commerce) is off: CIG decided 2026-10-21 to set
 // it up later under a new LLC. One switch for the site and the server.

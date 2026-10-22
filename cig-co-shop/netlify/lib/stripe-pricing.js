@@ -86,6 +86,8 @@ function priceToCents(value, productId) {
 }
 
 function variantStock(product, style, color, size) {
+  // Whole product marked sold out by CIG: refuse it even from a stale bag.
+  if (product.soldOut) return 0;
   if (product.componentStock) {
     const selectedStyle = (product.styles || []).find((entry) => entry.name === style);
     const requirements = selectedStyle && selectedStyle.components;

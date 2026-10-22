@@ -9,7 +9,7 @@ Friday, October 30 at 12 PM ET on cigcompany.com.
 Crossbody bags ($65 solid, $75 Multi), MagSafe cases ($40, matte, iPhone 14 through 18 Pro Max), laptop sleeves ($50 for 13", $55 for 15"), and throw pillows ($45 to $58 depending on size). Colors are Black, Burgundy, Navy, Hunter, Grape, Gold, Burnt Orange, and Espresso, and the bag also comes in Multi.
 
 **How can I pay?**
-Card at checkout.
+Card or PayPal at checkout, for everything in the store.
 
 ## Production & shipping
 
@@ -68,7 +68,7 @@ We'll fix it with a free replacement or a refund, and you usually don't have to 
 If a package comes back to us, we'll email you. Once you confirm the right address, we can reship it, and the customer pays the reshipping cost.
 
 **How do refunds work?**
-Approved refunds go back to your card, and your bank usually takes 5 to 10 business days to show them. We process approved refunds within 3 business days.
+Approved refunds go back to your card or PayPal account, and your bank usually takes 5 to 10 business days to show them. We process approved refunds within 3 business days.
 
 **How do I reach you?**
 Email orders@cigcompany.com and include your order number. We reply within 1 to 2 business days.

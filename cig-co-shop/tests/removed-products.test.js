@@ -1,6 +1,7 @@
 // CIG Pillow Case (0003) and CIG Metallic Puffer Jacket (0009) were taken off
 // the site 10/22. Their photos are gone too, and an old bag that still holds
 // them drops those lines quietly.
+require("./soldout-fixture.js");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -24,7 +25,7 @@ test("a saved bag with removed products drops them and keeps the rest", () => {
   const store = new Map();
   store.set("cig_co_cart_v1", JSON.stringify([
     { productId: "0003", name: "CIG Pillow Case", price: 10, color: "Red", qty: 2 },
-    { productId: "0010", name: "CIG Toile Umbrella", price: 35, color: "Blue", qty: 1 },
+    { productId: "0010", name: "Toile Umbrella", price: 35, color: "Blue", qty: 1 },
     { productId: "0009", name: "CIG Metallic Puffer Jacket", price: 150, color: "Blue", qty: 1 },
     { productId: "0012", name: "CIG Corona Masks", price: 0, color: "Blue", qty: 1 },
   ]));

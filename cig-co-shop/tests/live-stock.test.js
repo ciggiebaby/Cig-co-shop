@@ -1,5 +1,6 @@
 // Live backstock counts for the masks (0005, 0008, 0013): checked at checkout
 // creation, decremented once per paid order (Stripe + PayPal), shown on the site.
+require("./soldout-fixture.js");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -113,7 +114,7 @@ function paidSession(metadata) {
     amount_total: 5000, currency: "usd", payment_intent: "pi_1",
     customer_details: { email: "buyer@example.com", name: "A B" },
     metadata: { marketing_consent: "false", ...metadata },
-    line_items: { data: [{ description: "CIG Paisley Balaclava — Blue", quantity: 2, amount_total: 5000, currency: "usd" }] },
+    line_items: { data: [{ description: "CIG Balaclava — Blue", quantity: 2, amount_total: 5000, currency: "usd" }] },
   };
 }
 function webhook(session, store, extra = {}) {
@@ -265,7 +266,7 @@ test("crypto checkout refuses the live-tracked masks (its webhook doesn't decrem
 });
 
 test("FW26 cards and product pages open on CIG's colors", () => {
-  const want = { "FW26-BAG": ["Navy", "crossbody_navy_front"], "FW26-CASE": ["Burgundy", "case_burgundy"], "FW26-SLEEVE": ["Grape", "sleeve_grape"], "FW26-PILLOW": ["Black", "pillow_black_front"] };
+  const want = { "FW26-BAG": ["Navy", "crossbody_navy_front"], "FW26-CASE": ["Burgundy", "case_burgundy"], "FW26-SLEEVE": ["Grape", "sleeve_grape"], "FW26-PILLOW": ["Black", "pillow_black_front"], "FW26-TOTE": ["Hunter", "tote_hunter_front"] };
   for (const [id, [color, file]] of Object.entries(want)) {
     const p = PRODUCTS.find((x) => x.id === id);
     assert.equal(p.defaultColor, color);

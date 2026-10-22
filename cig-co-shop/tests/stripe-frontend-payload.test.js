@@ -1,3 +1,4 @@
+require("./soldout-fixture.js");
 require("./legacy-fixture.js");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -257,7 +258,7 @@ test("Stripe receives identifier-only items with quantity and Bikini style", () 
     [
       {
         productId: "0011",
-        name: "CIG Paisley Bikini (Set)",
+        name: "Paisley Bikini (Set)",
         price: 0.01,
         image: "malicious.jpg",
         color: "Red",
@@ -362,7 +363,7 @@ test("integrated fingerprints remain stable across line order and duplicates", a
     },
     {
       productId: "0004",
-      name: "CIG Silky Bonnet & Durag (Durag)",
+      name: "Silky Bonnet & Durag (Durag)",
       price: 12,
       color: "Gold",
       size: null,
@@ -411,7 +412,7 @@ test("recovers a legacy Bikini style through the existing cart fallback", () => 
     [
       {
         productId: "0011",
-        name: "CIG Paisley Bikini (Top)",
+        name: "Paisley Bikini (Top)",
         color: "Pink",
         size: "M",
         qty: 1,
@@ -474,7 +475,7 @@ test("rejects a styled legacy item with no recoverable catalog style", () => {
         [
           {
             productId: "0011",
-            name: "CIG Paisley Bikini",
+            name: "Paisley Bikini",
             color: "Red",
             size: "L",
             qty: 1,
@@ -545,7 +546,7 @@ test("the Stripe click flow sends the fingerprinted existing payload", async () 
     storedCart: [
       {
         productId: "0011",
-        name: "CIG Paisley Bikini (Set)",
+        name: "Paisley Bikini (Set)",
         price: 45,
         image: "bikini.jpg",
         color: "Red",
@@ -731,7 +732,7 @@ test("shows pending wording, keeps the cart, and removes the returned session ID
   const cart = [
     {
       productId: "0011",
-      name: "CIG Paisley Bikini (Set)",
+      name: "Paisley Bikini (Set)",
       price: 45,
       color: "Red",
       size: "L",
@@ -1250,7 +1251,7 @@ test("before the drop, FW26 cards show a 'Drops Oct 30' badge; no SKUs anywhere;
   const html = frontend.checkoutFields["product-grid"].innerHTML;
   const now = Date.now();
   const dropOpen = now >= Date.parse(require("../products.js").DROP_AT);
-  if (!dropOpen) assert.equal((html.match(/drop-badge">Drops Oct 30</g) || []).length, 4);
+  if (!dropOpen) assert.equal((html.match(/drop-badge">Drops Oct 30</g) || []).length, 5);
   assert.doesNotMatch(html, /SKU/);
   const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   assert.doesNotMatch(app, /SKU: \$\{p\.sku\}/);
@@ -1285,7 +1286,7 @@ test("the drop test code is only sent in ?droptest mode", async () => {
 
 // Masks (liveStock backstock): $8.95 per US order unless the items total after
 // promo is over $75 — the same shipping-rates.js rule the server charges.
-const maskItem = (qty) => ({ productId: "0005", name: "CIG Paisley Balaclava", price: 25, image: "", color: "Red", size: null, style: null, qty });
+const maskItem = (qty) => ({ productId: "0005", name: "CIG Balaclava", price: 25, image: "", color: "Red", size: null, style: null, qty });
 
 test("checkout summary shows mask shipping: $8.95 at or under $75, free over $75, back after a promo", () => {
   const under = loadFrontend({ storedCart: [maskItem(3)] });
@@ -1305,7 +1306,7 @@ test("checkout summary shows mask shipping: $8.95 at or under $75, free over $75
   const promoOver = loadFrontend({ storedCart: [maskItem(4)], promoCode: "CIG10" });
   promoOver.context.renderCheckoutSummary();
   assert.match(promoOver.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>Free/);
-  const promoUnder = loadFrontend({ storedCart: [maskItem(2), { ...maskItem(1), productId: "0008", name: "CIG Acrylic Ski Mask", price: 30, size: "3-Hole" }], promoCode: "CIG10" });
+  const promoUnder = loadFrontend({ storedCart: [maskItem(2), { ...maskItem(1), productId: "0008", name: "CIG Ski Mask", price: 30, size: "3-Hole" }], promoCode: "CIG10" });
   promoUnder.context.renderCheckoutSummary();
   assert.match(promoUnder.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>\$8\.95/);
   assert.match(promoUnder.summaryElement.innerHTML, /Total<\/span><span>\$80\.95/);
@@ -1315,7 +1316,7 @@ test("a mask in the bag disables non-US countries; FW26-only US stays free with 
   const frontend = loadFrontend({ storedCart: [maskItem(1), bagItem] });
   frontend.context.renderCheckoutSummary();
   assert.ok(frontend.countrySelect.options.filter((o) => o.value !== "US").every((o) => o.disabled));
-  assert.match(frontend.shippingNoteElement.textContent, /CIG Paisley Balaclava ships to the US only/);
+  assert.match(frontend.shippingNoteElement.textContent, /CIG Balaclava ships to the US only/);
   const fw = loadFrontend({ storedCart: [bagItem] });
   fw.context.renderCheckoutSummary();
   const maskNote = fw.context.document.getElementById("checkout-mask-shipping-note");
