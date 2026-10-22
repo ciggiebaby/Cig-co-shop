@@ -785,3 +785,27 @@ a { color: inherit; text-decoration: none; }
 @media (min-width: 900px) {
   .drop-hero { padding: 20px 24px 64px; }
 }
+
+/* ---------- Policy / FAQ pages + footer links ---------- */
+.footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; margin: 0 0 14px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.footer-links a { color: #bbb; }
+.footer-links a:hover, .footer-links a:focus { color: var(--gold); }
+.checkout-agree { font-size: 12px; color: #9a9a9a; margin: -4px 0 12px; line-height: 1.5; }
+.checkout-agree a, .policy-page a { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
+.policy-page { max-width: 760px; margin: 0 auto; padding: 0 24px 80px; color: #ccc; line-height: 1.7; font-size: 15px; }
+.policy-page .policy-title { font-family: "Bodoni Moda", Georgia, serif; font-weight: 500; }
+.policy-page h2 { font-family: "Bodoni Moda", Georgia, serif; font-style: italic; font-weight: 500; color: var(--gold); font-size: 22px; margin: 44px 0 12px; }
+.policy-page p { margin: 0 0 14px; }
+.policy-page h3 { color: #fff; font-weight: 500; font-size: 16px; letter-spacing: 0.02em; margin: 26px 0 6px; }
+.policy-page strong { color: #fff; font-weight: 500; }
+.policy-page ul, .policy-page ol { padding-left: 22px; margin: 0 0 14px; }
+.policy-page li { margin: 0 0 8px; }
+.policy-page li ul { margin: 8px 0 0; }
+.policy-table-wrap { overflow-x: auto; margin: 0 0 18px; }
+.policy-page table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.policy-page th, .policy-page td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+.policy-page th { color: var(--gold); font-weight: 400; letter-spacing: 0.04em; }
+@media (max-width: 640px) {
+  .policy-page { padding: 0 18px 60px; font-size: 14px; }
+  .policy-page h2 { font-size: 19px; margin-top: 34px; }
+}
