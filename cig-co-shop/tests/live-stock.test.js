@@ -277,7 +277,7 @@ test("FW26 cards and product pages open on CIG's colors", () => {
   assert.match(app, /color: \(p\.defaultColor && p\.colors\.includes\(p\.defaultColor\) \? p\.defaultColor : p\.colors\[0\]\)/);
 });
 
-test("backstock opens on CIG's colors (10/22 4:56 PM): Blue bonnet & durag, Red ski mask, Gold balaclava", () => {
+test("backstock opens on CIG's colors (10/22): Blue bonnet & durag, Red ski mask, Gold balaclava, Pink bikini", () => {
   const balaclava = PRODUCTS.find((p) => p.id === "0005");
   assert.equal(balaclava.defaultColor, "Gold");
   assert.equal(balaclava.image, balaclava.colorImages.Gold);
@@ -291,6 +291,10 @@ test("backstock opens on CIG's colors (10/22 4:56 PM): Blue bonnet & durag, Red 
   assert.equal(bonnet.defaultColor, "Blue");
   assert.ok(bonnet.colors.includes("Blue"));
   assert.equal(bonnet.image, bonnet.styleImages[bonnet.styles[0].name].Blue);
+  const bikini = PRODUCTS.find((p) => p.id === "0011");
+  assert.equal(bikini.defaultColor, "Pink");
+  assert.ok(bikini.colors.includes("Pink"));
+  assert.equal(bikini.image, bikini.styleImages[bikini.styles[0].name].Pink);
   const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   assert.match(app, /color: \(p\.defaultColor && p\.colors\.includes\(p\.defaultColor\) \? p\.defaultColor : p\.colors\[0\]\)/);
 });

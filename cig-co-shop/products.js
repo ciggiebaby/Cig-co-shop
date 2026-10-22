@@ -719,7 +719,9 @@ const PRODUCTS = [
     name: "Paisley Bikini",
     // CIG 10/22: sold out (whole product). Counts below are left as-is.
     soldOut: true,
-    image: "assets/products/bandana-top-red-front.jpg",
+    // CIG 10/22 4:58 PM: card and product view open on Pink (sold out, shows the pink photo).
+    defaultColor: "Pink",
+    image: "assets/products/bandana-top-pink-front.jpg",
     colors: ["Red", "Pink", "Green"],
     sizes: ["XS", "S", "M", "L", "XL"],
     // Shoppers pick Top, Bottom, or the full Set — price changes with the choice.
