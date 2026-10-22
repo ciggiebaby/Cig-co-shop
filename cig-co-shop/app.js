@@ -1,12 +1,43 @@
 const yearEl = document.getElementById("year");
 if (yearEl) yearEl.textContent = new Date().getFullYear();
 
+// ---------- FW26/27 drop lock (products.js DROP_AT) ----------
+// Before a product's dropAt time it shows a "Drops Oct 30" badge and can't be
+// added to the bag. The server enforces the same rule. Opening the site with
+// ?droptest unlocks Add to Bag in this tab and shows a "Drop test code" box at
+// checkout (the server only accepts the order if the code matches DROP_TEST_CODE).
+function dropTestMode() {
+  try {
+    const href = typeof window !== "undefined" && window.location ? window.location.href : "";
+    if (href && new URL(href).searchParams.has("droptest")) {
+      if (typeof sessionStorage !== "undefined") sessionStorage.setItem("cig_drop_test", "1");
+      return true;
+    }
+    return typeof sessionStorage !== "undefined" && sessionStorage.getItem("cig_drop_test") === "1";
+  } catch {
+    return false;
+  }
+}
+const DROP_TEST_MODE = dropTestMode();
+function dropLocked(p, now = Date.now()) {
+  if (!p || !p.dropAt) return false;
+  const at = Date.parse(p.dropAt);
+  return Number.isFinite(at) && now < at;
+}
+function dropBadgeText(p) {
+  const at = new Date(Date.parse(p.dropAt));
+  return `Drops ${at.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}`;
+}
+function addBlockedByDrop(p) {
+  return dropLocked(p) && !DROP_TEST_MODE;
+}
+
 // ---------- Product grid ----------
 function renderProductGrid() {
   const grid = document.getElementById("product-grid");
   if (!grid) return;
   grid.innerHTML = PRODUCTS.filter((p) => !p.hidden).map((p) => {
-    const price = p.styles
+    const price = p.styles || hasPriceRange(p)
       ? `From $${minPrice(p).toFixed(2)}`
       : p.salePrice
       ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${p.salePrice.toFixed(2)}</span>`
@@ -14,13 +45,12 @@ function renderProductGrid() {
     return `
     <div class="product-card reveal" data-id="${p.id}">
       <div class="product-card-image-wrap">
-        ${p.comingSoon ? `<div class="soldout-badge">Coming Soon</div>` : productTotalStock(p) <= 0 ? `<div class="soldout-badge">Sold Out</div>` : ""}
+        ${p.comingSoon ? `<div class="soldout-badge">Coming Soon</div>` : dropLocked(p) ? `<div class="soldout-badge drop-badge">${dropBadgeText(p)}</div>` : productTotalStock(p) <= 0 ? `<div class="soldout-badge">Sold Out</div>` : ""}
         <div class="product-card-parallax">
           <img src="${p.image}" alt="${p.name}" />
         </div>
       </div>
       <div class="product-card-body">
-        <div class="product-card-sku">SKU: ${p.sku}</div>
         <div class="product-card-name">${p.name}</div>
         <div class="product-card-price">${price}</div>
       </div>
@@ -75,13 +105,31 @@ function productTotalStock(p) {
   return p.colors.reduce((a, c) => a + colorStock(p, null, c), 0);
 }
 function styleObj(p, name) { return (p.styles || []).find((s) => s.name === name) || null; }
-function currentPrice(p, style) {
+function optionPriceFor(map, key) {
+  return map && key != null && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+}
+// Same order as the server (stripe-pricing.js): style, size, color, sale, base.
+function currentPrice(p, style, color, size) {
   if (p.styles) { const s = styleObj(p, style); return s ? s.price : p.styles[0].price; }
+  const bySize = optionPriceFor(p.sizePrices, size);
+  if (bySize !== undefined) return bySize;
+  const byColor = optionPriceFor(p.colorPrices, color);
+  if (byColor !== undefined) return byColor;
   return p.salePrice != null ? p.salePrice : p.price;
 }
+function allPrices(p) {
+  if (p.styles) return p.styles.map((s) => s.price);
+  const base = p.salePrice != null ? p.salePrice : p.price;
+  const extra = Object.values(p.sizePrices || {}).concat(Object.values(p.colorPrices || {}));
+  // With per-size prices on every size, the base price never applies.
+  const allSizesPriced = p.sizes && p.sizes.length && p.sizes.every((sz) => optionPriceFor(p.sizePrices, sz) !== undefined);
+  return (allSizesPriced ? [] : [base]).concat(extra).filter((v) => typeof v === "number");
+}
 function minPrice(p) {
-  if (p.styles) return Math.min.apply(null, p.styles.map((s) => s.price));
-  return p.salePrice != null ? p.salePrice : p.price;
+  return Math.min.apply(null, allPrices(p));
+}
+function hasPriceRange(p) {
+  return new Set(allPrices(p)).size > 1;
 }
 
 function productImageForColor(p, color, size, style) {
@@ -148,9 +196,9 @@ function openProductModal(id) {
 
   document.getElementById("modal-content").innerHTML = `
     <div class="pd-carousel" id="pd-carousel"></div>
-    <div class="pd-sku">SKU: ${p.sku}</div>
     <h3 class="pd-name">${p.name}</h3>
     <div class="pd-price" id="pd-price"></div>
+    ${p.description ? `<p class="pd-description">${p.description}</p>` : ""}
     ${p.styles ? `
       <div class="pd-field">
         <label>Style</label>
@@ -162,12 +210,15 @@ function openProductModal(id) {
       <div class="pd-field">
         <label>Color</label>
         <div class="pd-options" id="pd-colors">
-          ${p.colors.map((c) => `<button class="pd-option${c === modalState.color ? " selected" : ""}${colorStock(p, modalState.style, c) <= 0 ? " soldout" : ""}" data-color="${c}">${c}</button>`).join("")}
+          ${p.colors.map((c) => {
+            const swatch = p.colorSwatches && p.colorSwatches[c];
+            return `<button class="pd-option${swatch ? " pd-swatch" : ""}${c === modalState.color ? " selected" : ""}${colorStock(p, modalState.style, c) <= 0 ? " soldout" : ""}" data-color="${c}" title="${c}">${swatch ? `<img class="pd-swatch-img" src="${swatch}" alt="" loading="lazy" />` : ""}<span>${c}</span></button>`;
+          }).join("")}
         </div>
       </div>` : ""}
     ${p.sizes.length ? `
       <div class="pd-field">
-        <label>Size</label>
+        <label>${p.sizeLabel || "Size"}</label>
         <div class="pd-options" id="pd-sizes">
           ${p.sizes.map((s) => `<button class="pd-option${s === modalState.size ? " selected" : ""}${variantStock(p, modalState.style, modalState.color, s) <= 0 ? " soldout" : ""}" data-size="${s}">${s}</button>`).join("")}
         </div>
@@ -193,11 +244,15 @@ function openProductModal(id) {
       b.classList.toggle("soldout", colorStock(p, modalState.style, b.dataset.color) <= 0);
     });
     const priceEl = document.getElementById("pd-price");
-    if (priceEl) priceEl.textContent = `$${currentPrice(p, modalState.style).toFixed(2)}`;
+    if (priceEl) priceEl.textContent = `$${currentPrice(p, modalState.style, modalState.color, modalState.size).toFixed(2)}`;
     const avail = variantStock(p, modalState.style, modalState.color, modalState.size);
     const addBtn = document.getElementById("add-to-cart-btn");
     const qtyVal = document.getElementById("qty-value");
-    if (p.comingSoon) {
+    if (addBlockedByDrop(p)) {
+      addBtn.textContent = dropBadgeText(p);
+      addBtn.disabled = true;
+      addBtn.classList.add("btn-disabled");
+    } else if (p.comingSoon) {
       addBtn.textContent = "Coming Soon";
       addBtn.disabled = true;
       addBtn.classList.add("btn-disabled");
@@ -254,12 +309,12 @@ function openProductModal(id) {
     document.getElementById("qty-value").textContent = modalState.qty;
   });
   document.getElementById("add-to-cart-btn").addEventListener("click", () => {
-    if (p.comingSoon || variantStock(p, modalState.style, modalState.color, modalState.size) <= 0) return;
+    if (p.comingSoon || addBlockedByDrop(p) || variantStock(p, modalState.style, modalState.color, modalState.size) <= 0) return;
     addToCart({
       productId: p.id,
       sku: p.sku,
       name: p.styles ? `${p.name} (${modalState.style})` : p.name,
-      price: currentPrice(p, modalState.style),
+      price: currentPrice(p, modalState.style, modalState.color, modalState.size),
       image: productImageForColor(p, modalState.color, modalState.size, modalState.style),
       color: modalState.color,
       size: modalState.size,
@@ -863,6 +918,9 @@ paymentButtons.forEach((btn) => {
       if (method === "crypto" || country !== "US") {
         requestBody.shipCountry = country;
       }
+      // Pre-launch test order only (see the drop lock above).
+      const dropTestCode = DROP_TEST_MODE ? checkoutFieldValue("drop-test-code") : "";
+      if (dropTestCode) requestBody.dropTestCode = dropTestCode;
       if (method === "stripe") {
         requestBody = await addCheckoutFingerprint(
           requestBody,
@@ -913,6 +971,21 @@ paymentButtons.forEach((btn) => {
 // ---------- Init ----------
 handleCheckoutResult();
 renderProductGrid();
+
+// Show the drop-test code box only in test mode.
+(function showDropTestRow() {
+  const row = typeof document !== "undefined" && document.getElementById ? document.getElementById("drop-test-row") : null;
+  if (row) row.hidden = !DROP_TEST_MODE;
+})();
+
+// Re-render when the drop opens, for shoppers who left the page open.
+(function scheduleDropOpen() {
+  const now = Date.now();
+  const upcoming = PRODUCTS.filter((p) => dropLocked(p, now)).map((p) => Date.parse(p.dropAt) - now);
+  if (!upcoming.length || typeof setTimeout !== "function") return;
+  const wait = Math.min.apply(null, upcoming) + 1000;
+  if (wait < 2147483647) setTimeout(() => renderProductGrid(), wait);
+})();
 if (typeof renderCart === "function") renderCart();
 
 if (typeof module !== "undefined" && module.exports) {
@@ -922,6 +995,9 @@ if (typeof module !== "undefined" && module.exports) {
     addCheckoutFingerprint,
     buildCheckoutRequestBody,
     componentVariantStock,
+    currentPrice,
+    dropLocked,
+    minPrice,
     handleCheckoutResult,
     productTotalStock,
     variantStock,

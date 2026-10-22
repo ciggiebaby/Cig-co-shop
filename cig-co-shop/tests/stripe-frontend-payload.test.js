@@ -62,6 +62,7 @@ function loadFrontend({
     "checkout-zip": { value: "78701" },
     "checkout-duties-note": { hidden: true },
     "checkout-pccc-row": { hidden: true },
+    "product-grid": { innerHTML: "", querySelectorAll: () => [] },
   };
   for (const [id, value] of Object.entries(fieldOverrides)) {
     checkoutFields[id] = { value };
@@ -1169,4 +1170,105 @@ test("every crypto button and 20%-off line starts hidden in the HTML (no flash w
       .replace(/<(\w+)[^>]*data-crypto-only hidden[^>]*>[\s\S]*?<\/\1>/g, "");
     assert.doesNotMatch(visible.replace(/<[^>]+>/g, " "), /crypto|20% off/i, page);
   }
+});
+
+// ---------- FW26/27 collection: one product per item type, priced per option ----------
+
+test("the shop grid lists each FW26 item once with its approved price", () => {
+  const frontend = loadFrontend();
+  frontend.context.renderProductGrid();
+  const html = frontend.checkoutFields["product-grid"].innerHTML;
+  assert.equal((html.match(/data-id="FW26-BAG"/g) || []).length, 1);
+  assert.match(html, /Crossbody Bag<\/div>\s*<div class="product-card-price">From \$65\.00</);
+  assert.match(html, /MagSafe Case<\/div>\s*<div class="product-card-price">\$40\.00</);
+  assert.match(html, /Laptop Sleeve<\/div>\s*<div class="product-card-price">From \$50\.00</);
+  assert.match(html, /Throw Pillow<\/div>\s*<div class="product-card-price">From \$45\.00</);
+  assert.doesNotMatch(html, /CIG (Utility Crossbody|MagSafe|Laptop Sleeve|Throw Pillow)/);
+});
+
+test("picking a color swaps the photo and the price (solid $65, Multi $75)", () => {
+  const { context } = loadFrontend();
+  const bag = PRODUCTS.find((p) => p.id === "FW26-BAG");
+  assert.equal(context.currentPrice(bag, null, "Black", null), 65);
+  assert.equal(context.currentPrice(bag, null, "Multi", null), 75);
+  assert.equal(context.productImageForColor(bag, "Multi", null, null), bag.colorImages.Multi);
+  assert.equal(context.productImageForColor(bag, "Gold", null, null), bag.colorImages.Gold);
+  assert.notEqual(bag.colorImages.Multi, bag.colorImages.Gold);
+  const phoneCase = PRODUCTS.find((p) => p.id === "FW26-CASE");
+  assert.equal(context.productImageForColor(phoneCase, "Navy", "iPhone 16 Pro", null), phoneCase.colorImages.Navy["iPhone 16 Pro"]);
+});
+
+test("per-size prices win over per-color and base prices, matching the server", () => {
+  const { context } = loadFrontend();
+  const { catalogUnitPrice } = require("../netlify/lib/stripe-pricing.js");
+  const product = { price: 50, salePrice: null, colorPrices: { Multi: 60 }, sizePrices: { L: 70 }, sizes: ["S", "L"], colors: ["Black", "Multi"] };
+  const cases = [["Black", "S", 50], ["Multi", "S", 60], ["Black", "L", 70], ["Multi", "L", 70]];
+  for (const [color, size, expected] of cases) {
+    assert.equal(context.currentPrice(product, null, color, size), expected);
+    assert.equal(catalogUnitPrice(product, null, color, size), expected);
+  }
+  assert.equal(context.minPrice(product), 50);
+  assert.equal(context.minPrice({ ...product, sizePrices: { S: 45, L: 55 } }), 45);
+});
+
+test("adding the Multi crossbody to the bag sends only ids; the server prices it", () => {
+  const frontend = loadFrontend();
+  const body = frontend.helpers.buildCheckoutRequestBody(
+    "stripe",
+    [{ productId: "FW26-BAG", name: "Crossbody Bag", price: 75, color: "Multi", size: null, style: null, qty: 1 }],
+    [],
+    {},
+    null,
+  );
+  assert.deepEqual(JSON.parse(JSON.stringify(body.items)), [{ productId: "FW26-BAG", color: "Multi", size: null, style: null, quantity: 1 }]);
+});
+
+test("sleeve and pillow prices follow the picked size; the case picker is labelled Model", () => {
+  const { context } = loadFrontend();
+  const sleeve = PRODUCTS.find((p) => p.id === "FW26-SLEEVE");
+  const pillow = PRODUCTS.find((p) => p.id === "FW26-PILLOW");
+  assert.equal(context.currentPrice(sleeve, null, "Gold", "15″"), 55);
+  assert.equal(context.currentPrice(pillow, null, "Gold", "22″×22″"), 58);
+  assert.equal(context.minPrice(pillow), 45);
+  const source = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.match(source, /<label>\$\{p\.sizeLabel \|\| "Size"\}<\/label>/);
+});
+
+test("before the drop, FW26 cards show a 'Drops Oct 30' badge; no SKUs anywhere; heading reads FW26/27 COLLECTION", () => {
+  const frontend = loadFrontend();
+  frontend.context.renderProductGrid();
+  const html = frontend.checkoutFields["product-grid"].innerHTML;
+  const now = Date.now();
+  const dropOpen = now >= Date.parse(require("../products.js").DROP_AT);
+  if (!dropOpen) assert.equal((html.match(/drop-badge">Drops Oct 30</g) || []).length, 4);
+  assert.doesNotMatch(html, /SKU/);
+  const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.doesNotMatch(app, /SKU: \$\{p\.sku\}/);
+  const index = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  assert.match(index, /<h2 class="section-title reveal">FW26\/27 COLLECTION<\/h2>/);
+  assert.doesNotMatch(index, /Shop the Archive/);
+  assert.match(index, /id="drop-test-row"[^>]*hidden/);
+});
+
+test("dropLocked follows the product's dropAt", () => {
+  const { context } = loadFrontend();
+  const p = { dropAt: "2026-10-30T12:00:00-04:00" };
+  assert.equal(context.dropLocked(p, Date.parse("2026-10-30T11:59:59-04:00")), true);
+  assert.equal(context.dropLocked(p, Date.parse("2026-10-30T12:00:00-04:00")), false);
+  assert.equal(context.dropLocked({}, 0), false);
+});
+
+test("the drop test code is only sent in ?droptest mode", async () => {
+  const requests = [];
+  const fetchImpl = async (url, init) => {
+    requests.push(JSON.parse(init.body));
+    return { ok: true, status: 200, async json() { return { url: "https://pay.test" }; } };
+  };
+  const cart = [{ productId: "0003", name: "CIG Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 }];
+  const normal = loadFrontend({ fetchImpl, paymentMethods: ["paypal"], storedCart: cart, fieldOverrides: { "drop-test-code": "abc12345" } });
+  await normal.paymentButtons[0].click();
+  assert.equal(requests[0].dropTestCode, undefined);
+  const testMode = loadFrontend({ href: "https://shop.test/?droptest", fetchImpl, paymentMethods: ["paypal"], storedCart: cart, fieldOverrides: { "drop-test-code": " abc12345 " } });
+  await testMode.paymentButtons[0].click();
+  assert.equal(requests[1].dropTestCode, "abc12345");
 });

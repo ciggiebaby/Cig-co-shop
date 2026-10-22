@@ -12,6 +12,7 @@ const {
 const { buildPayPalOrder, createPayPalClient } = require("../lib/paypal.js");
 const { checkoutSiteUrl, trustedCartItems } = require("../lib/checkout-request.js");
 const { RequestValidationError, normalizeEmail } = require("../lib/customer-utils.js");
+const { assertDropOpen } = require("../lib/drop-lock.js");
 const { resolvePromo } = require("../lib/promo-codes.js");
 const { requireKoreaCustomsCode, resolveCheckoutShipping } = require("../lib/checkout-shipping.js");
 const { assertPodAllowedWithoutCard } = require("../lib/pod-payment.js");
@@ -21,6 +22,7 @@ function createHandler({
   promoResolver = resolvePromo,
   environment = process.env,
   logger = console,
+  now = () => Date.now(),
 } = {}) {
   return async (event) => {
     if (event.httpMethod !== "POST") {
@@ -28,6 +30,9 @@ function createHandler({
     }
     try {
       const body = JSON.parse(event.body || "{}");
+      // FW26/27 items can't be bought before DROP_AT (products.js) unless the
+      // DROP_TEST_CODE env var is set and sent as dropTestCode.
+      assertDropOpen(trustedCartItems(body), { dropTestCode: body.dropTestCode, environment, now: now() });
       // Print-on-demand items are card-only while POD_CARD_ONLY (products.js) is true.
       assertPodAllowedWithoutCard(trustedCartItems(body));
       // Arcade codes must belong to the email entered on the site.

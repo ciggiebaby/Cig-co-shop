@@ -8,6 +8,7 @@ const {
   RequestValidationError,
   normalizeEmail,
 } = require("../lib/customer-utils.js");
+const { assertDropOpen, dropTestCodeValid } = require("../lib/drop-lock.js");
 const { resolvePromo } = require("../lib/promo-codes.js");
 const {
   countryName,
@@ -64,6 +65,7 @@ function createHandler({
   siteUrl,
   environment = process.env,
   logger = console,
+  now = () => Date.now(),
 } = {}) {
   return async (event) => {
     if (event.httpMethod !== "POST") {
@@ -102,6 +104,9 @@ function createHandler({
         promoCode: body.promoCode,
         email: customerEmail || null,
       });
+      // FW26/27 items can't be bought before DROP_AT (products.js) unless the
+      // DROP_TEST_CODE env var is set and sent as dropTestCode.
+      assertDropOpen(trustedItems, { dropTestCode: body.dropTestCode, environment, now: now() });
       const pricing = priceCartForStripe(trustedItems, body.promoCode, promo);
       // Ship-to country is picked on the site before checkout (US by default).
       // Stripe can't vary a rate by country within one session, so the session
@@ -133,6 +138,8 @@ function createHandler({
         success_url: `${resolvedSiteUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${resolvedSiteUrl}/?checkout=cancelled`,
       };
+      // Flag CIG's pre-launch test order so it's easy to spot in Stripe.
+      if (dropTestCodeValid(body.dropTestCode, environment)) sessionRequest.metadata.drop_test = "true";
       if (shipping.country !== "US") {
         // US shipping stays free (no shipping option, same as before).
         sessionRequest.metadata.ship_country = shipping.country;
