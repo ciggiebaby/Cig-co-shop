@@ -552,7 +552,9 @@ const PRODUCTS = [
     name: "Silky Bonnet & Durag",
     // CIG 10/22: sold out (whole product). Counts below are left as-is.
     soldOut: true,
-    image: "assets/products/bonnet-set-red.jpg",
+    // CIG 10/22 4:56 PM: card and product view open on Blue (sold out, shows the blue photo).
+    defaultColor: "Blue",
+    image: "assets/products/bonnet-blue.jpg",
     colors: ["Red", "Gold", "Black", "Pink", "Blue"],
     sizes: [],
     styles: [
@@ -651,9 +653,9 @@ const PRODUCTS = [
     name: "CIG Ski Mask",
     price: 30.00,
     salePrice: null,
-    // CIG 10/22: "the Yellow Ski mask" = the Gold colorway (yellow with black print; there is no "Yellow").
-    defaultColor: "Gold",
-    image: "assets/products/skimask-gold-1hole.jpg",
+    // CIG 10/22 4:56 PM: card and product view open on Red (1-Hole).
+    defaultColor: "Red",
+    image: "assets/products/skimask-red-1hole.jpg",
     colors: ["Blue", "Red", "Green", "Gold"],
     sizes: ["1-Hole", "3-Hole", "Skully"],
     // Note: Green has no 1-Hole photo yet — it'll fall back to Green's 3-Hole shot until you send one.
