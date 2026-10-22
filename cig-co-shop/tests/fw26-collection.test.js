@@ -119,14 +119,33 @@ test("a paid Stripe line for the Multi crossbody becomes the Multi sync variant 
   assert.deepEqual(items.map((i) => [i.sync_variant_id, i.retail_price]), [[5586110183, "75.00"], [5586109178, "65.00"]]);
 });
 
-test("images are Printful mockups per color (and per model/size) until CIG's photos land", () => {
-  for (const id of ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW"]) {
+test("images are 2000px Printful Mockup Generator renders, web-optimized and shipped in the repo, one per colorway", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const root = path.join(__dirname, "..");
+  const slug = (c) => c.toLowerCase().replace(/ /g, "-");
+  const expect = {
+    "FW26-BAG": { prefix: "crossbody", primary: "_front", extra: ["_right", "_left", "_back"] },
+    "FW26-CASE": { prefix: "case", primary: "", extra: [] },
+    "FW26-SLEEVE": { prefix: "sleeve", primary: "", extra: [] },
+    "FW26-PILLOW": { prefix: "pillow", primary: "_front", extra: [] },
+  };
+  for (const [id, e] of Object.entries(expect)) {
     const p = product(id);
-    assert.match(p.image, /^https:\/\/files\.cdn\.printful\.com\//);
+    const file = (c, v) => `assets/products/fw26/${e.prefix}_${slug(c)}${v}.webp`;
+    assert.equal(p.image, file("Black", e.primary));
+    const seen = new Set();
     for (const color of p.colors) {
-      const entry = p.colorImages[color];
-      const urls = typeof entry === "string" ? [entry] : p.sizes.map((s) => entry[s]);
-      for (const url of urls) assert.match(url, /^https:\/\/files\.cdn\.printful\.com\/files\/.+_preview\.png$/, `${id} ${color}`);
+      assert.equal(p.colorImages[color], file(color, e.primary), `${id} ${color}`);
+      assert.deepEqual((p.gallery && p.gallery[color]) || [], e.extra.map((v) => file(color, v)), `${id} ${color} gallery`);
+      for (const f of [p.colorImages[color], ...e.extra.map((v) => file(color, v))]) {
+        const stat = fs.statSync(path.join(root, f));
+        assert.ok(stat.size < 400 * 1024, `${f} is ${stat.size} bytes`);
+        const head = fs.readFileSync(path.join(root, f)).subarray(0, 12).toString("latin1");
+        assert.ok(head.startsWith("RIFF") && head.endsWith("WEBP"), `${f} is WebP`);
+      }
+      assert.ok(!seen.has(p.colorImages[color]), `${id} ${color} has its own image`);
+      seen.add(p.colorImages[color]);
       assert.match(p.colorSwatches[color], /_thumb\.png$/);
     }
   }
