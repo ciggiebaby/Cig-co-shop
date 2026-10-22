@@ -12,19 +12,16 @@ const { assertPodAllowedWithoutCard } = require("../netlify/lib/pod-payment.js")
 const root = path.join(__dirname, "..");
 const product = (id) => PRODUCTS.find((p) => p.id === id);
 
-test("balaclava: $25, Red 70 / Blue 68; Gold and Black both 0 until CIG says which design BG's 24 are", () => {
+test("balaclava: $25, Red 70 / Blue 68 / Gold 24 (CIG confirmed the 24 are Gold), Black 0", () => {
   const p = product("0005");
   assert.equal(p.price, 25);
   assert.deepEqual(p.colors, ["Red", "Blue", "Gold", "Black"]);
-  assert.deepEqual(p.stock, { Red: 70, Blue: 68, Gold: 0, Black: 0 });
+  assert.deepEqual(p.stock, { Red: 70, Blue: 68, Gold: 24, Black: 0 });
   for (const c of p.colors) assert.ok(fs.existsSync(path.join(root, p.colorImages[c])), c);
   // CIG's names: Gold = black with gold print, Black = black with white print.
   assert.equal(p.colorImages.Gold, "assets/products/balaclava-gold-front-upright.jpg");
   assert.deepEqual(p.gallery.Gold, ["assets/products/balaclava-gold-back-upright.jpg"]);
   assert.equal(p.colorImages.Black, "assets/products/balaclava-black.jpg");
-  // The count is a one-line edit in products.js.
-  const src = fs.readFileSync(path.join(root, "products.js"), "utf8");
-  assert.match(src, /^    stock: \{ "Red": 70, "Blue": 68, "Gold": 0, "Black": 0 \},$/m);
 });
 
 test("ski mask: $30, 1-Hole/3-Hole counts from BG (BG 'Yellow' = site 'Gold'), Skully 0", () => {
@@ -39,15 +36,31 @@ test("ski mask: $30, 1-Hole/3-Hole counts from BG (BG 'Yellow' = site 'Gold'), S
   assert.match(p.colorImages.Gold["1-Hole"], /skimask-gold-/);
 });
 
-test("moto mask is staged at $15 with in-stock colors but stays hidden until it has photos", () => {
+test("moto mask: $15, visible, real photo per color; Pink and Orange buyable with a placeholder + 'Photo coming soon'", () => {
   const p = product("0013");
   assert.equal(p.name, "Moto Mask");
   assert.equal(p.price, 15);
+  assert.ok(!p.hidden);
   assert.deepEqual(p.stock, { Yellow: 17, Pink: 22, Brown: 16, Purple: 14, Green: 13, Orange: 12 });
   for (const c of ["Red", "Black", "Blue", "Rainbow"]) assert.ok(!p.colors.includes(c), c);
-  assert.equal(p.hidden, true);
-  assert.deepEqual(p.colorImages, {});
-  assert.throws(() => priceCartForStripe([{ productId: "0013", color: "Yellow", quantity: 1 }]), /not available/);
+  assert.equal(p.defaultColor, "Yellow");
+  assert.equal(p.image, p.colorImages.Yellow);
+  const placeholder = "assets/products/moto-photo-coming-soon.jpg";
+  assert.deepEqual(p.photoComingSoon, ["Pink", "Orange"]);
+  for (const c of p.colors) {
+    const imgs = [p.colorImages[c], ...((p.gallery && p.gallery[c]) || [])];
+    for (const img of imgs) {
+      assert.ok(fs.existsSync(path.join(root, img)), img);
+      assert.ok(fs.statSync(path.join(root, img)).size < 300 * 1024, img);
+    }
+    assert.match(p.colorHex[c], /^#[0-9a-f]{6}$/);
+    if (p.photoComingSoon.includes(c)) assert.deepEqual(imgs, [placeholder], c);
+    // A real photo is only ever used for its own color.
+    else for (const img of imgs) assert.match(img, new RegExp(`moto-${c.toLowerCase()}-\\d\\.jpg$`), c);
+  }
+  const priced = priceCartForStripe([{ productId: "0013", color: "Pink", quantity: 22 }]);
+  assert.equal(priced.lineItems[0].price_data.unit_amount, 1500);
+  assert.throws(() => priceCartForStripe([{ productId: "0013", color: "Pink", quantity: 23 }]));
 });
 
 test("cart pricing uses the new mask prices and caps quantity at the counts", () => {
@@ -57,7 +70,8 @@ test("cart pricing uses the new mask prices and caps quantity at the counts", ()
   ]);
   assert.deepEqual(priced.lineItems.map((l) => l.price_data.unit_amount), [2500, 3000]);
   assert.throws(() => priceCartForStripe([{ productId: "0005", color: "Red", quantity: 71 }]));
-  assert.throws(() => priceCartForStripe([{ productId: "0005", color: "Gold", quantity: 1 }]), /unavailable/);
+  assert.ok(priceCartForStripe([{ productId: "0005", color: "Gold", quantity: 24 }]));
+  assert.throws(() => priceCartForStripe([{ productId: "0005", color: "Gold", quantity: 25 }]));
   assert.throws(() => priceCartForStripe([{ productId: "0005", color: "Black", quantity: 1 }]), /unavailable/);
   assert.throws(() => priceCartForStripe([{ productId: "0008", color: "Red", size: "Skully", quantity: 1 }]));
 });

@@ -194,10 +194,14 @@ test("the public stock endpoint returns live counts for listed live-stock produc
   const store = fakeStockStore([
     { product_id: "0005", color: "Blue", size: "", quantity: 0 },
     { product_id: "0013", color: "Pink", size: "", quantity: 22 },
+    { product_id: "0010", color: "Black", size: "", quantity: 9 },
   ]);
   const res = await createStockEndpoint({ stockStoreFactory: () => store, logger: quiet })({ httpMethod: "GET" });
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(JSON.parse(res.body).items, [{ productId: "0005", color: "Blue", size: "", quantity: 0 }]);
+  assert.deepEqual(JSON.parse(res.body).items, [
+    { productId: "0005", color: "Blue", size: "", quantity: 0 },
+    { productId: "0013", color: "Pink", size: "", quantity: 22 },
+  ]);
   assert.match(res.headers["Cache-Control"], /max-age=20/);
   const down = await createStockEndpoint({ stockStoreFactory: () => ({ getStock: async () => { throw new Error("x"); } }), logger: quiet })({ httpMethod: "GET" });
   assert.equal(down.statusCode, 503);
@@ -218,7 +222,7 @@ test("the site swaps in live counts so a variant at 0 shows sold out; failures k
 
   const keep = JSON.parse(JSON.stringify(PRODUCTS.filter((p) => p.id === "0005")));
   assert.deepEqual(await loadLiveStock({ products: keep, fetchImpl: async () => { throw new Error("offline"); } }), []);
-  assert.deepEqual(keep[0].stock, { Red: 70, Blue: 68, Gold: 0, Black: 0 });
+  assert.deepEqual(keep[0].stock, { Red: 70, Blue: 68, Gold: 24, Black: 0 });
   const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
   assert.match(html, /<script src="app\.js"><\/script>\s*<script src="live-stock-client\.js"><\/script>/);
 });

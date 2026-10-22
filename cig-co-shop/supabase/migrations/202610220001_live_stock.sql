@@ -88,13 +88,12 @@ revoke execute on function public.cigco_commit_stock_order(text, jsonb) from pub
 
 -- Seed: BG backstock count 10/21 (bg/backstock_2026-10-21.csv).
 -- BG "Yellow" ski mask = site "Gold". Sold-out variants are seeded at 0.
--- Balaclava Gold (black, gold print) and Black (black, white print) are both 0:
--- BG's "Black 24" is ambiguous between them until CIG confirms (see the
--- UPDATE at the end of this file).
+-- Balaclava: "Gold" = black with gold print, "Black" = black with white print.
+-- CIG confirmed 10/22 that BG's 24 are Gold; Black is sold out.
 insert into public.live_stock (product_id, color, size, quantity) values
   ('0005', 'Red', '', 70),
   ('0005', 'Blue', '', 68),
-  ('0005', 'Gold', '', 0),
+  ('0005', 'Gold', '', 24),
   ('0005', 'Black', '', 0),
   ('0008', 'Red', '1-Hole', 59),
   ('0008', 'Red', '3-Hole', 80),
@@ -116,7 +115,15 @@ insert into public.live_stock (product_id, color, size, quantity) values
   ('0013', 'Orange', '', 12)
 on conflict (product_id, color, size) do nothing;
 
--- When CIG confirms which balaclava design BG's 24 are, run ONE of these
--- (and set the same number on that color's line in products.js):
---   update public.live_stock set quantity = 24, updated_at = now() where product_id = '0005' and color = 'Gold';
---   update public.live_stock set quantity = 24, updated_at = now() where product_id = '0005' and color = 'Black';
+-- An earlier draft of this file seeded balaclava Gold at 0. Because the seed
+-- never overwrites, set it to 24 here. It's a plain set (never adds, so running
+-- twice can't double-count), and it's skipped once any order has included
+-- balaclava Gold, so re-running after the drop won't undo sales.
+update public.live_stock s
+  set quantity = 24, updated_at = now()
+  where s.product_id = '0005' and s.color = 'Gold' and s.size = ''
+    and s.quantity <> 24
+    and not exists (
+      select 1 from public.live_stock_orders o, jsonb_array_elements(o.lines) l
+      where l->>'product_id' = '0005' and l->>'color' = 'Gold'
+    );
