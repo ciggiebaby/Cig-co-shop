@@ -695,6 +695,10 @@ const PRODUCTS = [
     name: "Toile Umbrella",
     // CIG 10/22: sold out (whole product). Counts below are left as-is.
     soldOut: true,
+    // HIDDEN 10/22 4:59 PM (CIG: "take the umbrella out we're gonna replace
+    // with moto masks"). Data, photos and stock are kept so it can come back:
+    // flip to false (or delete this line) to relist it.
+    hidden: true,
     price: 35.00,
     salePrice: null,
     image: "assets/products/umbrella-blue-open.jpg",
