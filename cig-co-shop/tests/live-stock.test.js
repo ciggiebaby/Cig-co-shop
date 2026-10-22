@@ -238,6 +238,21 @@ test("the migration creates the tables/functions, locks them to the server, and 
   }
 });
 
+test("live stock migrations grant service_role access (Netlify functions use it)", () => {
+  const grants = [
+    "grant select, insert, update, delete on public.live_stock, public.live_stock_orders to service_role",
+    "grant execute on function public.cigco_get_live_stock() to service_role",
+    "grant execute on function public.cigco_commit_stock_order(text, jsonb) to service_role",
+  ];
+  for (const file of ["202610220001_live_stock.sql", "202610220002_live_stock_grants.sql"]) {
+    const sql = fs.readFileSync(path.join(__dirname, "..", "supabase/migrations", file), "utf8");
+    for (const g of grants) assert.ok(sql.includes(g), `${file} is missing: ${g}`);
+  }
+  // The base migration must grant after it revokes, or a fresh setup ends up locked out.
+  const base = fs.readFileSync(path.join(__dirname, "..", "supabase/migrations/202610220001_live_stock.sql"), "utf8");
+  assert.ok(base.lastIndexOf("to service_role") > base.lastIndexOf("revoke execute on function public.cigco_commit_stock_order"));
+});
+
 test("crypto checkout refuses the live-tracked masks (its webhook doesn't decrement)", async () => {
   require("./crypto-fixture.js");
   const { createHandler } = require("../netlify/functions/create-coinbase-charge.js");
