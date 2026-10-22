@@ -276,6 +276,8 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
       name: item.productName,
       shipping: item.shippingClass,
       quantity: item.quantity,
+      // In-hand backstock (masks): US only, $8.95/order under $75 (shipping-rates.js).
+      mask: !!item.liveStock,
     })),
     // Same order as lineItems: the live-stock line for each, or null.
     lineStock: resolvedItems.map((item) => (item.liveStock

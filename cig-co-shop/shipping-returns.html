@@ -73,6 +73,7 @@
 </tbody>
 </table></div>
 <ul>
+<li><strong>Masks:</strong> In-stock masks ship to the US only, and their shipping is different. Any order with a mask in it has $8.95 shipping, which is free when the order total after any promo code is over $75. <a href="#mask-terms">See the mask terms for details</a>.</li>
 <li>All delivery times are estimates, not guarantees. Carrier delays, weather, holidays, and customs can push delivery past the estimate.</li>
 <li>Once your order ships, you'll get a tracking link by email. It usually starts updating within 24 hours.</li>
 <li>An order with several items may arrive in more than one package.</li>
@@ -120,6 +121,32 @@
 <li>We refund what you actually paid for the affected items. Shipping is refunded only for orders that arrived damaged, defective, or wrong, or that were lost in transit.</li>
 <li><strong>Promo codes:</strong> If you cancel an order before production starts, we'll send you a fresh one-time code to replace the one you used.</li>
 </ul>
+<h2 id="mask-terms">Masks: Shipping, Returns &amp; Exchanges</h2>
+<p><em>These terms apply to our in-stock masks: the CIG Acrylic Ski Mask, the CIG Paisley Balaclava, and the Moto Mask. Masks ship from our own stock, so their terms differ from our made-to-order pieces.</em></p>
+<h3>Shipping</h3>
+<ul>
+<li>In-stock masks ship within 1–2 business days of your order. Business days are Monday through Friday, not counting holidays.</li>
+<li>You'll get a tracking link by email when your order ships.</li>
+<li><strong>Where we ship:</strong> Masks ship to US addresses only. Checkout won't accept an order with a mask in it if the address is outside the US.</li>
+<li><strong>Cost:</strong> Any order with a mask in it has $8.95 shipping. Shipping is free when your order total after any promo code is over $75. At exactly $75, the $8.95 still applies.</li>
+<li><strong>Mixed orders:</strong> If your order has masks and made-to-order pieces, they ship separately and arrive in different packages.</li>
+</ul>
+<h3>Returns &amp; exchanges</h3>
+<p>Masks are worn on the face, so for hygiene reasons we can only accept masks that are <strong>unworn, unwashed, and in their original packaging</strong>.</p>
+<ul>
+<li><strong>Exchanges (different color or style):</strong> Email <a href="mailto:orders@cigcompany.com">orders@cigcompany.com</a> within 14 days of delivery. Send the unworn mask back, and once we receive it we'll ship your new one, as long as it's still in stock. You pay to ship the mask back, and we pay to ship the replacement.</li>
+<li><strong>Refunds:</strong> Masks can be exchanged but not refunded. The exception is a mask that arrives damaged, defective, or wrong (see below).</li>
+<li><strong>Sale and promo items:</strong> The same rules apply.</li>
+<li>We inspect every return. If a mask has been worn, washed, or damaged, or arrives without its packaging, we can't accept it and will ship it back to you at your cost.</li>
+</ul>
+<h3>Damaged, defective, or wrong items</h3>
+<p>If your mask arrives damaged or defective, or you got the wrong color or style, email <a href="mailto:orders@cigcompany.com">orders@cigcompany.com</a> within 14 days of delivery with your order number and a photo. We'll send a replacement at no cost, or refund you if that color is sold out. You won't need to send the item back unless we ask.</p>
+<h3>Lost packages and wrong addresses</h3>
+<p>These follow the same rules as the rest of the store. If the carrier confirms your package is lost, we'll replace it or refund you. If a package shows as delivered but you can't find it, please contact the carrier first. If an order went to a wrong address you entered, you pay to reship it.</p>
+<h3>Refunds</h3>
+<p>Approved refunds go back to your original payment method within 3 business days. Your bank usually takes 5 to 10 business days to show it.</p>
+<h3>Wholesale (store orders)</h3>
+<p>Store orders are paid upfront by invoice and ship once payment clears. Wholesale orders are final sale. The exception is a damaged or short-shipped case, which the store needs to report within 7 days of delivery.</p>
 <h2>Contact</h2>
 <p>Email <a href="mailto:orders@cigcompany.com">orders@cigcompany.com</a> and include your order number. We reply within 1 to 2 business days.</p>
 <p><em>Last updated: October 22, 2026</em></p>
@@ -128,7 +155,7 @@
 <footer class="site-footer">
   <section class="shipping-policy" id="shipping-policy" aria-label="Shipping and returns">
     <h2 class="shipping-policy-title">Shipping &amp; returns</h2>
-    <p>Free shipping in the US. Canada, the UK, Germany, Australia, Japan and South Korea ship for a flat per-item fee shown at checkout. Pillows ship to the US only. MagSafe cases to Japan and South Korea take about 30 days to arrive. South Korea orders need the buyer&rsquo;s Personal Customs Clearance Code (PCCC).</p>
+    <p>Free US shipping on FW26 pieces. Masks ship to the US only, for $8.95 per order, free over $75 after any promo. Canada, the UK, Germany, Australia, Japan and South Korea ship for a flat per-item fee shown at checkout. Pillows ship to the US only. MagSafe cases to Japan and South Korea take about 30 days to arrive. South Korea orders need the buyer&rsquo;s Personal Customs Clearance Code (PCCC).</p>
     <p>Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility. Shipping isn&rsquo;t refunded on refused parcels.</p>
   </section>
   <nav class="footer-links" aria-label="Policies and help">
@@ -186,7 +213,7 @@
         <input type="text" id="checkout-name" placeholder="Full name" required />
         <label class="checkout-label" for="checkout-country">Ship to</label>
         <select id="checkout-country" autocomplete="country">
-          <option value="US" selected>United States (free shipping)</option>
+          <option value="US" selected>United States</option>
           <option value="CA">Canada</option>
           <option value="GB">United Kingdom</option>
           <option value="DE">Germany</option>
@@ -195,6 +222,7 @@
           <option value="KR">South Korea</option>
         </select>
         <p id="checkout-shipping-note" class="checkout-note" hidden></p>
+        <p id="checkout-mask-shipping-note" class="checkout-note" hidden>Mask orders ship from the US for $8.95 &mdash; free over $75.</p>
         <p id="checkout-duties-note" class="checkout-note checkout-duties-note" hidden>Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility. Shipping isn&rsquo;t refunded on refused parcels.</p>
         <input type="text" id="checkout-address" placeholder="Shipping address" required />
         <input type="text" id="checkout-city" placeholder="City" required />
@@ -207,7 +235,7 @@
           <input type="text" id="checkout-pccc" placeholder="P + 12 digits (e.g. P123456789012)" maxlength="16" autocomplete="off" inputmode="text" />
           <p class="checkout-note">Required by Korea Customs for every South Korea order. Get yours at unipass.customs.go.kr.</p>
         </div>
-        <p class="checkout-note">Free US shipping. Canada, UK, Germany, Australia, Japan &amp; South Korea ship for a flat per-item fee shown above. MagSafe cases to Japan &amp; South Korea take about 30 days to arrive. Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility; shipping isn&rsquo;t refunded on refused parcels. Pillows ship to the US only.<span data-crypto-only hidden> Crypto orders need a state + ZIP (US) or postal code.</span></p>
+        <p class="checkout-note">Free US shipping on FW26 pieces. Masks ship to the US only: $8.95 per order, free when your total after promo is over $75. Canada, UK, Germany, Australia, Japan &amp; South Korea ship for a flat per-item fee shown above. MagSafe cases to Japan &amp; South Korea take about 30 days to arrive. Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility; shipping isn&rsquo;t refunded on refused parcels. Pillows ship to the US only.<span data-crypto-only hidden> Crypto orders need a state + ZIP (US) or postal code.</span></p>
         <label class="checkbox-row">
           <input type="checkbox" id="checkout-optin" />
           <span>Keep me posted on drops &amp; discounts (optional)</span>

@@ -4,7 +4,11 @@
 //   CA, GB, DE, AU: APPROVED by CIG on 2026-10-21.
 //   JP, KR:         APPROVED by CIG on 2026-10-21.
 //
-// US: free shipping on everything (unchanged).
+// US: free shipping on FW26/Printful pieces. In-hand backstock masks (products
+// with `liveStock`, flagged `mask: true` on shipping lines) ship from CIG in the
+// US only: any US order with a mask pays a flat MASK_US_SHIPPING_CENTS per ORDER,
+// free when the merchandise total after promo (before shipping) is OVER
+// MASK_FREE_SHIPPING_OVER_CENTS. Exactly $75.00 still pays. (CIG, 2026-10-22.)
 // International: only the countries below, and only for products whose
 // products.js entry has a `shipping` class listed here. Anything else
 // (pillows, and any product without a class) ships to the US only.
@@ -62,6 +66,21 @@ const SLOW_DELIVERY = {
   case: { JP: "about 30 days", KR: "about 30 days" },
 };
 
+const MASK_US_SHIPPING_CENTS = 895;
+const MASK_FREE_SHIPPING_OVER_CENTS = 7500;
+const MASK_SHIPPING_NOTE = "Mask orders ship from the US for $8.95 \u2014 free over $75.";
+
+// US shipping for a cart: $8.95 per order if any line is a mask and the
+// merchandise total after promo is not over $75; otherwise free. A missing
+// merchandiseCents is treated as under the threshold (never undercharges).
+function usShippingCents(lines, merchandiseCents) {
+  const hasMask = lines.some((line) => line && line.mask);
+  if (!hasMask) return 0;
+  return Number.isFinite(merchandiseCents) && merchandiseCents > MASK_FREE_SHIPPING_OVER_CENTS
+    ? 0
+    : MASK_US_SHIPPING_CENTS;
+}
+
 // Returns the per-item charge in cents, or null if that class can't ship there.
 function shippingCentsPerItem(shippingClass, country) {
   if (country === "US") return 0;
@@ -70,12 +89,17 @@ function shippingCentsPerItem(shippingClass, country) {
   return Number.isInteger(dollars) && dollars >= 0 ? dollars * 100 : null;
 }
 
-// lines: [{ name, shipping, quantity }] (shipping = the product's class).
+// lines: [{ name, shipping, quantity, mask }] (shipping = the product's class;
+// mask = in-hand backstock, US only). merchandiseCents = items total after
+// promo, before shipping (only used for the US mask rule).
 // Returns { country, shippingCents, blocked } where blocked lists the product
 // names that can't ship to that country (shippingCents is null if any).
-function quoteShipping(lines, country) {
+function quoteShipping(lines, country, { merchandiseCents } = {}) {
   if (!Object.prototype.hasOwnProperty.call(SHIP_TO_COUNTRIES, country)) {
     return { country, shippingCents: null, blocked: [], unsupportedCountry: true };
+  }
+  if (country === "US") {
+    return { country, shippingCents: usShippingCents(lines, merchandiseCents), blocked: [], unsupportedCountry: false };
   }
   let shippingCents = 0;
   const blocked = [];
@@ -108,6 +132,9 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     DUTIES_NOTICE,
     INTERNATIONAL_SHIPPING_PER_ITEM_USD,
+    MASK_FREE_SHIPPING_OVER_CENTS,
+    MASK_SHIPPING_NOTE,
+    MASK_US_SHIPPING_CENTS,
     PCCC_PATTERN,
     SHIP_TO_COUNTRIES,
     SLOW_DELIVERY,
@@ -115,5 +142,6 @@ if (typeof module !== "undefined" && module.exports) {
     quoteShipping,
     slowDeliveryNote,
     shippingCentsPerItem,
+    usShippingCents,
   };
 }

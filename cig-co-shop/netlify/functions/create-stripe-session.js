@@ -151,8 +151,18 @@ function createHandler({
       };
       // Flag CIG's pre-launch test order so it's easy to spot in Stripe.
       if (dropTestCodeValid(body.dropTestCode, environment)) sessionRequest.metadata.drop_test = "true";
-      if (shipping.country !== "US") {
-        // US shipping stays free (no shipping option, same as before).
+      if (shipping.country === "US" && shipping.shippingCents > 0) {
+        // US orders with a mask: flat per-order fee (free over $75, shipping-rates.js).
+        // FW26-only US carts stay free (no shipping option, same as before).
+        sessionRequest.metadata.shipping_cents = String(shipping.shippingCents);
+        sessionRequest.shipping_options = [{
+          shipping_rate_data: {
+            type: "fixed_amount",
+            fixed_amount: { amount: shipping.shippingCents, currency: "usd" },
+            display_name: "US shipping (mask order)",
+          },
+        }];
+      } else if (shipping.country !== "US") {
         sessionRequest.metadata.ship_country = shipping.country;
         sessionRequest.metadata.shipping_cents = String(shipping.shippingCents);
         if (pccc) sessionRequest.metadata.pccc = pccc;

@@ -127,3 +127,8 @@ update public.live_stock s
       select 1 from public.live_stock_orders o, jsonb_array_elements(o.lines) l
       where l->>'product_id' = '0005' and l->>'color' = 'Gold'
     );
+
+-- The Netlify functions use service_role (see 202610220002_live_stock_grants.sql).
+grant select, insert, update, delete on public.live_stock, public.live_stock_orders to service_role;
+grant execute on function public.cigco_get_live_stock() to service_role;
+grant execute on function public.cigco_commit_stock_order(text, jsonb) to service_role;

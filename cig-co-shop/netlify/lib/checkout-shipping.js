@@ -2,7 +2,8 @@
 // the Stripe, PayPal, and crypto checkouts. The rates live in shipping-rates.js
 // (site root) so the checkout page shows exactly what the server charges.
 //
-// US: free shipping, any product. International (CA, GB, DE, AU, JP, KR only): allowed
+// US: free shipping, except orders with a mask: $8.95 per order unless the
+// items total after promo is over $75 (shipping-rates.js). International (CA, GB, DE, AU, JP, KR only): allowed
 // only when every product in the cart has an international shipping class;
 // pillows (and products without a class) are US only.
 const { SHIP_TO_COUNTRIES, normalizePccc, quoteShipping } = require("../../shipping-rates.js");
@@ -49,7 +50,7 @@ function normalizeShipCountry(value, { requireCountry = false } = {}) {
 // pricing comes from priceCartForStripe. Returns { country, shippingCents }.
 function resolveCheckoutShipping(pricing, rawCountry, options = {}) {
   const country = normalizeShipCountry(rawCountry, options);
-  const quote = quoteShipping(pricing.shippingLines || [], country);
+  const quote = quoteShipping(pricing.shippingLines || [], country, { merchandiseCents: pricing.totalCents });
   if (quote.unsupportedCountry) throw new RequestValidationError(UNSUPPORTED_COUNTRY_MESSAGE);
   if (quote.blocked.length) {
     const names = quote.blocked.join(", ");
