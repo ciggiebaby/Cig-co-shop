@@ -40,9 +40,9 @@ function paypal(now, environment = {}) {
   return { handler, created: () => created };
 }
 
-test("DROP_AT is the confirmed Oct 30 noon ET drop and applies to exactly the four FW26 products", () => {
+test("DROP_AT is the confirmed Oct 30 noon ET drop and applies to exactly the five FW26 products", () => {
   assert.equal(DROP_AT, "2026-10-30T12:00:00-04:00");
-  assert.deepEqual(PRODUCTS.filter((p) => p.dropAt).map((p) => p.id), ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW"]);
+  assert.deepEqual(PRODUCTS.filter((p) => p.dropAt).map((p) => p.id), ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE"]);
   assert.ok(PRODUCTS.filter((p) => p.dropAt).every((p) => p.dropAt === DROP_AT));
   assert.match(fs.readFileSync(path.join(__dirname, "..", "products.js"), "utf8"), /Drop time confirmed by CIG 2026-10-21/);
   assert.doesNotMatch(fs.readFileSync(path.join(__dirname, "..", "products.js"), "utf8"), /PLACEHOLDER|hasn't picked/i);

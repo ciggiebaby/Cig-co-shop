@@ -14,17 +14,18 @@ const product = (id) => PRODUCTS.find((p) => p.id === id);
 
 test("one product per item type, with every colorway (and Multi for the bag)", () => {
   const ids = PRODUCTS.filter((p) => p.id.startsWith("FW26-")).map((p) => p.id);
-  assert.deepEqual(ids, ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW"]);
+  assert.deepEqual(ids, ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE"]);
   assert.deepEqual(product("FW26-BAG").colors, [...COLORWAYS, "Multi"]);
-  for (const id of ["FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW"]) assert.deepEqual(product(id).colors, COLORWAYS);
+  for (const id of ["FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE"]) assert.deepEqual(product(id).colors, COLORWAYS);
+  assert.deepEqual(product("FW26-TOTE").sizes, []);
   assert.equal(product("FW26-CASE").sizes.length, 18);
   assert.deepEqual(product("FW26-SLEEVE").sizes, ["13″", "15″"]);
   assert.deepEqual(product("FW26-PILLOW").sizes, ["14″×14″", "16″×16″", "18″×18″", "20″×12″", "22″×22″"]);
 });
 
-test("every color/size option maps to a distinct Printful sync variant (209 total)", () => {
+test("every color/size option maps to a distinct Printful sync variant (217 total)", () => {
   const seen = new Set();
-  for (const id of ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW"]) {
+  for (const id of ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE"]) {
     const p = product(id);
     const keys = p.sizes.length
       ? p.colors.flatMap((c) => p.sizes.map((s) => `${c} / ${s}`))
@@ -37,7 +38,7 @@ test("every color/size option maps to a distinct Printful sync variant (209 tota
       seen.add(id2);
     }
   }
-  assert.equal(seen.size, 209);
+  assert.equal(seen.size, 217);
 });
 
 test("spot-check mappings against the Printful inventory", () => {
@@ -51,10 +52,19 @@ test("spot-check mappings against the Printful inventory", () => {
   assert.equal(sync("FW26-SLEEVE", "Burnt Orange / 15″"), 5586096986);
   assert.equal(sync("FW26-PILLOW", "Espresso / 14″×14″"), 5586120150);
   assert.equal(sync("FW26-PILLOW", "Burgundy / 20″×12″"), 5586111649);
+  assert.equal(sync("FW26-TOTE", "Hunter"), 5589489621);
+  assert.equal(sync("FW26-TOTE", "Espresso"), 5589504563);
+  // Printful names this one "CIG Tote Bag [Espresso] copy", but its print file is the Gold design.
+  assert.equal(sync("FW26-TOTE", "Gold"), 5589508290);
 });
 
 test("shipping classes: bag/case/sleeve ship abroad, pillows stay US-only", () => {
   assert.equal(product("FW26-BAG").shipping, "bag");
+  // Printful quotes the tote at exactly the crossbody's rates to all six countries (10/22).
+  assert.equal(product("FW26-TOTE").shipping, "bag");
+  for (const [cc, cents] of Object.entries({ US: 0, CA: 800, GB: 500, DE: 500, AU: 800, JP: 500, KR: 1300 })) {
+    assert.equal(quoteShipping([{ name: "Tote Bag", shipping: "bag", quantity: 1 }], cc).shippingCents, cents, cc);
+  }
   assert.equal(product("FW26-CASE").shipping, "case");
   assert.equal(product("FW26-SLEEVE").shipping, "sleeve");
   assert.equal(product("FW26-PILLOW").shipping, "pillow");
@@ -67,17 +77,19 @@ test("MagSafe case description carries the ~30-day Asia note", () => {
 
 test("plain product names (CIG 10/21)", () => {
   assert.deepEqual(
-    ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW"].map((id) => product(id).name),
-    ["Crossbody Bag", "MagSafe Case", "Laptop Sleeve", "Throw Pillow"],
+    ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE"].map((id) => product(id).name),
+    ["Crossbody Bag", "MagSafe Case", "Laptop Sleeve", "Throw Pillow", "Tote Bag"],
   );
 });
 
-test("all four are purchasable at CIG's approved prices (10/21), charged by the server", () => {
+test("all five are purchasable at CIG's approved prices (10/21; tote 10/22), charged by the server", () => {
   const expected = {
     "FW26-BAG": { Black: 6500, Burgundy: 6500, Navy: 6500, Hunter: 6500, Grape: 6500, Gold: 6500, "Burnt Orange": 6500, Espresso: 6500, Multi: 7500 },
     "FW26-CASE": Object.fromEntries(product("FW26-CASE").sizes.map((s) => [s, 4000])),
     "FW26-SLEEVE": { "13″": 5000, "15″": 5500 },
     "FW26-PILLOW": { "14″×14″": 4500, "16″×16″": 4800, "18″×18″": 5200, "20″×12″": 4800, "22″×22″": 5800 },
+    // CIG 10/22 4:22 PM ET: "Tote price $35".
+    "FW26-TOTE": Object.fromEntries(product("FW26-TOTE").colors.map((c) => [c, 3500])),
   };
   for (const [id, prices] of Object.entries(expected)) {
     const p = product(id);
@@ -129,6 +141,7 @@ test("images are 2000px Printful Mockup Generator renders, web-optimized and shi
     "FW26-CASE": { prefix: "case", primary: "", extra: [] },
     "FW26-SLEEVE": { prefix: "sleeve", primary: "", extra: [] },
     "FW26-PILLOW": { prefix: "pillow", primary: "_front", extra: [] },
+    "FW26-TOTE": { prefix: "tote", primary: "_front", extra: ["_angle", "_back", "_detail", "_pocket"] },
   };
   for (const [id, e] of Object.entries(expect)) {
     const p = product(id);
@@ -173,4 +186,34 @@ test("the case uses one photo per colorway for every model (CIG: no per-model ph
   const p = product("FW26-CASE");
   assert.equal(p.sizes.length, 18);
   for (const c of p.colors) assert.equal(typeof p.colorImages[c], "string");
+});
+
+test("tote: card-only POD bag at CIG's $35 price (10/22)", () => {
+  const p = product("FW26-TOTE");
+  assert.equal(p.dropAt, require("../products.js").DROP_AT);
+  assert.equal(p.price, 35);
+  assert.equal(p.salePrice, null);
+  assert.equal(PRODUCTS.some((x) => "priceApproved" in x), false);
+  const priced = priceCartForStripe([{ productId: "FW26-TOTE", color: "Hunter", quantity: 1 }]);
+  assert.equal(priced.lineItems[0].price_data.unit_amount, 3500);
+  assert.deepEqual(priced.lineItems[0].price_data.product_data.metadata, { pod: "true", product_id: "FW26-TOTE", style: "", color: "Hunter", size: "" });
+  assert.match(priced.lineItems[0].price_data.product_data.name, /^Tote Bag/);
+  assert.doesNotMatch(priced.lineItems[0].price_data.product_data.name, /FW26|CIG/);
+  for (const color of p.colors) {
+    assert.equal(priceCartForStripe([{ productId: "FW26-TOTE", color, quantity: 1 }]).lineItems[0].price_data.unit_amount, 3500, color);
+  }
+  assert.equal(POD_CARD_ONLY, true);
+  const items = podLines(priced.lineItems.map((line) => ({
+    quantity: line.quantity,
+    amount_total: line.price_data.unit_amount * line.quantity,
+    price: { product: { metadata: line.price_data.product_data.metadata } },
+  }))).map(printfulItemForLine);
+  assert.deepEqual(items.map((i) => [i.sync_variant_id, i.retail_price]), [[5589489621, "35.00"]]);
+});
+
+test("tote opens on green (Hunter) and its landing card shows the green tote", () => {
+  const p = product("FW26-TOTE");
+  assert.equal(p.defaultColor, "Hunter");
+  assert.equal(p.image, "assets/products/fw26/tote_hunter_front.webp");
+  assert.equal(p.image, p.colorImages.Hunter);
 });

@@ -481,6 +481,71 @@ const PRODUCTS = [
     },
   },
   {
+    id: "FW26-TOTE",
+    sku: "FW26-TOTE",
+    dropAt: DROP_AT,
+    // Last product in the FW26/27 collection (CIG 10/22). Printful product 274
+    // (All-Over Print Large Tote Bag w/ Pocket, 16″×20″, black handles).
+    name: "Tote Bag",
+    shipping: "bag",
+    // CIG set $35 (10/22 4:22 PM ET). Printful cost 10/22: $15.86 + $5.09 US
+    // shipping (US shipping is free to the customer).
+    price: 35.00,
+    salePrice: null,
+    description: "Made to order.",
+    // Card photo and the color preselected when the product opens: green, i.e.
+    // the collection's "Hunter" colorway (CIG 10/22: "make it green").
+    defaultColor: "Hunter",
+    image: "assets/products/fw26/tote_hunter_front.webp",
+    colors: ["Black", "Burgundy", "Navy", "Hunter", "Grape", "Gold", "Burnt Orange", "Espresso"],
+    sizes: [],
+    // Printful Mockup Generator renders (transparent, shown on the site's black
+    // background): front, then the angled "Standing" 3/4 view, back, a close-up
+    // and the inside pocket.
+    colorImages: {
+      "Black": "assets/products/fw26/tote_black_front.webp",
+      "Burgundy": "assets/products/fw26/tote_burgundy_front.webp",
+      "Navy": "assets/products/fw26/tote_navy_front.webp",
+      "Hunter": "assets/products/fw26/tote_hunter_front.webp",
+      "Grape": "assets/products/fw26/tote_grape_front.webp",
+      "Gold": "assets/products/fw26/tote_gold_front.webp",
+      "Burnt Orange": "assets/products/fw26/tote_burnt-orange_front.webp",
+      "Espresso": "assets/products/fw26/tote_espresso_front.webp",
+    },
+    gallery: {
+      "Black": ["assets/products/fw26/tote_black_angle.webp", "assets/products/fw26/tote_black_back.webp", "assets/products/fw26/tote_black_detail.webp", "assets/products/fw26/tote_black_pocket.webp"],
+      "Burgundy": ["assets/products/fw26/tote_burgundy_angle.webp", "assets/products/fw26/tote_burgundy_back.webp", "assets/products/fw26/tote_burgundy_detail.webp", "assets/products/fw26/tote_burgundy_pocket.webp"],
+      "Navy": ["assets/products/fw26/tote_navy_angle.webp", "assets/products/fw26/tote_navy_back.webp", "assets/products/fw26/tote_navy_detail.webp", "assets/products/fw26/tote_navy_pocket.webp"],
+      "Hunter": ["assets/products/fw26/tote_hunter_angle.webp", "assets/products/fw26/tote_hunter_back.webp", "assets/products/fw26/tote_hunter_detail.webp", "assets/products/fw26/tote_hunter_pocket.webp"],
+      "Grape": ["assets/products/fw26/tote_grape_angle.webp", "assets/products/fw26/tote_grape_back.webp", "assets/products/fw26/tote_grape_detail.webp", "assets/products/fw26/tote_grape_pocket.webp"],
+      "Gold": ["assets/products/fw26/tote_gold_angle.webp", "assets/products/fw26/tote_gold_back.webp", "assets/products/fw26/tote_gold_detail.webp", "assets/products/fw26/tote_gold_pocket.webp"],
+      "Burnt Orange": ["assets/products/fw26/tote_burnt-orange_angle.webp", "assets/products/fw26/tote_burnt-orange_back.webp", "assets/products/fw26/tote_burnt-orange_detail.webp", "assets/products/fw26/tote_burnt-orange_pocket.webp"],
+      "Espresso": ["assets/products/fw26/tote_espresso_angle.webp", "assets/products/fw26/tote_espresso_back.webp", "assets/products/fw26/tote_espresso_detail.webp", "assets/products/fw26/tote_espresso_pocket.webp"],
+    },
+    colorSwatches: {
+      "Black": "assets/products/fw26/tote_black_swatch.webp",
+      "Burgundy": "assets/products/fw26/tote_burgundy_swatch.webp",
+      "Navy": "assets/products/fw26/tote_navy_swatch.webp",
+      "Hunter": "assets/products/fw26/tote_hunter_swatch.webp",
+      "Grape": "assets/products/fw26/tote_grape_swatch.webp",
+      "Gold": "assets/products/fw26/tote_gold_swatch.webp",
+      "Burnt Orange": "assets/products/fw26/tote_burnt-orange_swatch.webp",
+      "Espresso": "assets/products/fw26/tote_espresso_swatch.webp",
+    },
+    pod: {
+      variants: {
+        "Black": { syncVariantId: 5589500592 }, // sync product 484114597
+        "Burgundy": { syncVariantId: 5589484773 }, // sync product 484110956
+        "Navy": { syncVariantId: 5589494794 }, // sync product 484113383
+        "Hunter": { syncVariantId: 5589489621 }, // sync product 484112212
+        "Grape": { syncVariantId: 5589495970 }, // sync product 484113661
+        "Gold": { syncVariantId: 5589508290 }, // sync product 484115612 (named "CIG Tote Bag [Espresso] copy" in Printful; its print file is the Gold design)
+        "Burnt Orange": { syncVariantId: 5589486261 }, // sync product 484111399
+        "Espresso": { syncVariantId: 5589504563 }, // sync product 484115025
+      },
+    },
+  },
+  {
     id: "0004",
     sku: "0004",
     name: "CIG Silky Bonnet & Durag",

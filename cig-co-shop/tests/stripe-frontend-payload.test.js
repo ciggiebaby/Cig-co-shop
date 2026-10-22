@@ -1248,7 +1248,7 @@ test("before the drop, FW26 cards show a 'Drops Oct 30' badge; no SKUs anywhere;
   const html = frontend.checkoutFields["product-grid"].innerHTML;
   const now = Date.now();
   const dropOpen = now >= Date.parse(require("../products.js").DROP_AT);
-  if (!dropOpen) assert.equal((html.match(/drop-badge">Drops Oct 30</g) || []).length, 4);
+  if (!dropOpen) assert.equal((html.match(/drop-badge">Drops Oct 30</g) || []).length, 5);
   assert.doesNotMatch(html, /SKU/);
   const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   assert.doesNotMatch(app, /SKU: \$\{p\.sku\}/);
