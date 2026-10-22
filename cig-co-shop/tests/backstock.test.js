@@ -43,8 +43,8 @@ test("moto mask: $15, visible, real photo per color; Pink and Orange buyable wit
   assert.ok(!p.hidden);
   assert.deepEqual(p.stock, { Yellow: 17, Pink: 22, Brown: 16, Purple: 14, Green: 13, Orange: 12 });
   for (const c of ["Red", "Black", "Blue", "Rainbow"]) assert.ok(!p.colors.includes(c), c);
-  assert.equal(p.defaultColor, "Yellow");
-  assert.equal(p.image, p.colorImages.Yellow);
+  assert.equal(p.defaultColor, "Brown");
+  assert.equal(p.image, p.colorImages.Brown);
   const placeholder = "assets/products/moto-photo-coming-soon.jpg";
   assert.deepEqual(p.photoComingSoon, ["Pink", "Orange"]);
   for (const c of p.colors) {

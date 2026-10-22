@@ -723,8 +723,9 @@ const PRODUCTS = [
     name: "Moto Mask",
     price: 15.00,
     salePrice: null,
-    defaultColor: "Yellow",
-    image: "assets/products/moto-yellow-1.jpg",
+    defaultColor: "Brown",
+    // Card photo is Brown: Yellow and Purple are landscape shots and crop badly on the portrait card.
+    image: "assets/products/moto-brown-1.jpg",
     colors: ["Yellow", "Pink", "Brown", "Purple", "Green", "Orange"],
     sizes: [],
     colorImages: {
