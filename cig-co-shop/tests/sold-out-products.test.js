@@ -23,7 +23,9 @@ const SOLD_OUT = {
 
 test("exactly the bonnet & durag, umbrella and bikini are marked sold out", () => {
   assert.deepEqual(PRODUCTS.filter((p) => p.soldOut).map((p) => p.id), ["0004", "0010", "0011"]);
-  for (const id of Object.keys(SOLD_OUT)) assert.notEqual(product(id).hidden, true, id);
+  // The umbrella was also hidden 10/22 4:59 PM (tests/hidden-umbrella.test.js).
+  for (const id of ["0004", "0011"]) assert.notEqual(product(id).hidden, true, id);
+  assert.equal(product("0010").hidden, true);
 });
 
 test("backstock has CIG's new customer-facing names; ids and stock keys are unchanged", () => {
@@ -38,9 +40,9 @@ test("backstock has CIG's new customer-facing names; ids and stock keys are unch
   // No two listed products share a name.
   const names = PRODUCTS.filter((p) => !p.hidden).map((p) => p.name);
   assert.equal(new Set(names).size, names.length);
-  // The hidden moto mask is left as it was.
+  // The moto mask keeps its name (listed again 10/22 5:27 PM).
   assert.equal(product("0013").name, "Moto Mask");
-  assert.equal(product("0013").hidden, true);
+  assert.notEqual(product("0013").hidden, true);
   // Counts untouched (live masks come from Supabase; these are the in-file ones).
   assert.deepEqual(product("0010").stock, { Blue: 2, Green: 0, Red: 2, Rainbow: 6 });
   assert.equal(product("0005").liveStock, true);
@@ -57,7 +59,7 @@ test("new names reach Stripe/PayPal line items (and so receipts)", () => {
 
 test("the server refuses sold-out products (stale bag): pricing, Stripe and PayPal", async () => {
   for (const [id, sel] of Object.entries(SOLD_OUT)) {
-    assert.throws(() => priceCartForStripe([{ productId: id, quantity: 1, ...sel }]), /unavailable/, id);
+    assert.throws(() => priceCartForStripe([{ productId: id, quantity: 1, ...sel }]), /unavailable|not available/, id);
   }
   const stripe = createStripeSession({
     environment: { STRIPE_SECRET_KEY: "sk_test", SITE_URL: "https://cigcompany.com" },

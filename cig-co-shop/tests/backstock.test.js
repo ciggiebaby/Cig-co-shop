@@ -36,29 +36,34 @@ test("ski mask: $30, 1-Hole/3-Hole counts from BG (BG 'Yellow' = site 'Gold'), S
   assert.match(p.colorImages.Gold["1-Hole"], /skimask-gold-/);
 });
 
-test("moto mask: $15, hidden while CIG reshoots; real photo per color; Pink and Orange buyable with a placeholder + 'Photo coming soon'", () => {
+test("moto mask: $15, listed again with CIG's new photos (10/22 5:27 PM); Purple first and default; one photo per color", () => {
   const p = product("0013");
   assert.equal(p.name, "Moto Mask");
   assert.equal(p.price, 15);
-  assert.equal(p.hidden, true);
-  assert.throws(() => priceCartForStripe([{ productId: "0013", color: "Brown", quantity: 1 }]), /not available/);
+  assert.notEqual(p.hidden, true);
+  assert.equal(p.liveStock, true);
   assert.deepEqual(p.stock, { Yellow: 17, Pink: 22, Brown: 16, Purple: 14, Green: 13, Orange: 12 });
   for (const c of ["Red", "Black", "Blue", "Rainbow"]) assert.ok(!p.colors.includes(c), c);
-  assert.equal(p.defaultColor, "Brown");
-  assert.equal(p.image, p.colorImages.Brown);
-  const placeholder = "assets/products/moto-photo-coming-soon.jpg";
-  assert.deepEqual(p.photoComingSoon, ["Pink", "Orange"]);
+  assert.deepEqual(p.colors, ["Purple", "Green", "Brown", "Yellow", "Pink", "Orange"]);
+  assert.equal(p.defaultColor, "Purple");
+  assert.equal(p.image, "assets/products/moto-purple.jpg");
+  assert.equal(p.photoComingSoon, undefined);
+  assert.equal(p.gallery, undefined);
   for (const c of p.colors) {
-    const imgs = [p.colorImages[c], ...((p.gallery && p.gallery[c]) || [])];
-    for (const img of imgs) {
-      assert.ok(fs.existsSync(path.join(root, img)), img);
-      assert.ok(fs.statSync(path.join(root, img)).size < 300 * 1024, img);
-    }
+    const img = p.colorImages[c];
+    assert.equal(img, `assets/products/moto-${c.toLowerCase()}.jpg`, c);
+    assert.ok(fs.existsSync(path.join(root, img)), img);
+    assert.ok(fs.statSync(path.join(root, img)).size < 300 * 1024, img);
     assert.match(p.colorHex[c], /^#[0-9a-f]{6}$/);
-    if (p.photoComingSoon.includes(c)) assert.deepEqual(imgs, [placeholder], c);
-    // A real photo is only ever used for its own color.
-    else for (const img of imgs) assert.match(img, new RegExp(`moto-${c.toLowerCase()}-\\d\\.jpg$`), c);
   }
+  // Old moto photos and the placeholder are gone.
+  const files = fs.readdirSync(path.join(root, "assets/products")).filter((f) => f.startsWith("moto-")).sort();
+  assert.deepEqual(files, ["moto-brown.jpg", "moto-green.jpg", "moto-orange.jpg", "moto-pink.jpg", "moto-purple.jpg", "moto-yellow.jpg"]);
+  // Checkout takes it again at $15, as a mask (US only, mask shipping rules).
+  const priced = priceCartForStripe([{ productId: "0013", color: "Purple", quantity: 2 }]);
+  assert.deepEqual(priced.lineItems.map((l) => [l.price_data.product_data.name, l.price_data.unit_amount, l.quantity]), [["Moto Mask — Purple", 1500, 2]]);
+  assert.deepEqual(priced.shippingLines.map((l) => l.mask), [true]);
+  assert.throws(() => priceCartForStripe([{ productId: "0013", color: "Purple", quantity: 15 }]));
 });
 
 test("cart pricing uses the new mask prices and caps quantity at the counts", () => {

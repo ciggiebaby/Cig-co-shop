@@ -7,4 +7,10 @@
 const catalog = require("../products.js");
 const SOLD_OUT_IDS = ["0004", "0010", "0011"];
 for (const p of catalog.PRODUCTS) if (SOLD_OUT_IDS.includes(p.id)) delete p.soldOut;
-module.exports = { SOLD_OUT_IDS };
+// CIG also HID the umbrella (0010) on 10/22 4:59 PM. It's the catalog's only
+// color-only-stock example, so the same tests un-hide it here (test process
+// only). The real hidden behavior is tested in tests/hidden-umbrella.test.js,
+// which does not load this fixture.
+const HIDDEN_IDS = ["0010"];
+for (const p of catalog.PRODUCTS) if (HIDDEN_IDS.includes(p.id)) delete p.hidden;
+module.exports = { SOLD_OUT_IDS, HIDDEN_IDS };

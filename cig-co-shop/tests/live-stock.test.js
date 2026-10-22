@@ -199,8 +199,11 @@ test("the public stock endpoint returns live counts for listed live-stock produc
   ]);
   const res = await createStockEndpoint({ stockStoreFactory: () => store, logger: quiet })({ httpMethod: "GET" });
   assert.equal(res.statusCode, 200);
-  // 0013 is hidden (reshoot) and 0010 isn't live-tracked: neither is listed.
-  assert.deepEqual(JSON.parse(res.body).items, [{ productId: "0005", color: "Blue", size: "", quantity: 0 }]);
+  // 0010 isn't live-tracked, so it isn't listed; the moto mask (0013) is listed again.
+  assert.deepEqual(JSON.parse(res.body).items, [
+    { productId: "0005", color: "Blue", size: "", quantity: 0 },
+    { productId: "0013", color: "Pink", size: "", quantity: 22 },
+  ]);
   assert.match(res.headers["Cache-Control"], /max-age=20/);
   const down = await createStockEndpoint({ stockStoreFactory: () => ({ getStock: async () => { throw new Error("x"); } }), logger: quiet })({ httpMethod: "GET" });
   assert.equal(down.statusCode, 503);
@@ -273,6 +276,33 @@ test("FW26 cards and product pages open on CIG's colors", () => {
     assert.equal(p.image, `assets/products/fw26/${file}.webp`);
     assert.equal(p.image, p.colorImages[color]);
   }
+  const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.match(app, /color: \(p\.defaultColor && p\.colors\.includes\(p\.defaultColor\) \? p\.defaultColor : p\.colors\[0\]\)/);
+});
+
+test("backstock opens on CIG's colors (10/22): Blue bonnet & durag, Red ski mask, Gold balaclava, Pink bikini, Purple moto mask", () => {
+  const balaclava = PRODUCTS.find((p) => p.id === "0005");
+  assert.equal(balaclava.defaultColor, "Gold");
+  assert.equal(balaclava.image, balaclava.colorImages.Gold);
+  assert.equal(balaclava.stock.Gold, 24);
+  const ski = PRODUCTS.find((p) => p.id === "0008");
+  assert.equal(ski.defaultColor, "Red");
+  assert.equal(ski.sizes[0], "1-Hole");
+  assert.equal(ski.image, ski.colorImages.Red["1-Hole"]);
+  assert.ok(ski.stock.Red["1-Hole"] > 0);
+  const bonnet = PRODUCTS.find((p) => p.id === "0004");
+  assert.equal(bonnet.defaultColor, "Blue");
+  assert.ok(bonnet.colors.includes("Blue"));
+  assert.equal(bonnet.image, bonnet.styleImages[bonnet.styles[0].name].Blue);
+  const moto = PRODUCTS.find((p) => p.id === "0013");
+  assert.equal(moto.defaultColor, "Purple");
+  assert.equal(moto.colors[0], "Purple");
+  assert.equal(moto.image, moto.colorImages.Purple);
+  assert.ok(moto.stock.Purple > 0);
+  const bikini = PRODUCTS.find((p) => p.id === "0011");
+  assert.equal(bikini.defaultColor, "Pink");
+  assert.ok(bikini.colors.includes("Pink"));
+  assert.equal(bikini.image, bikini.styleImages[bikini.styles[0].name].Pink);
   const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   assert.match(app, /color: \(p\.defaultColor && p\.colors\.includes\(p\.defaultColor\) \? p\.defaultColor : p\.colors\[0\]\)/);
 });
