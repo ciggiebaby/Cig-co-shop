@@ -524,35 +524,40 @@ const PRODUCTS = [
   {
     id: "0005",
     sku: "0005",
-    stock: { "Blue": 30, "Red": 34, "Gold": 22 },
+    // Backstock count 10/21 (bg/backstock_2026-10-21.csv); price approved by CIG 10/22.
+    // Stock is a static cap: it isn't decremented on sale.
+    stock: { "Red": 70, "Blue": 68, "Black": 24 },
     name: "CIG Paisley Balaclava",
-    price: 50.00,
+    price: 25.00,
     salePrice: null,
     image: "assets/products/balaclava-blue-front.jpg",
-    colors: ["Blue", "Red", "Gold"],
+    colors: ["Red", "Blue", "Black"],
     sizes: [],
     colorImages: {
       "Blue": "assets/products/balaclava-blue-front.jpg",
       "Red": "assets/products/balaclava-red-front-upright.jpg",
-      "Gold": "assets/products/balaclava-gold-front-upright.jpg",
+      // Only Black photo on hand is a back view; swap in a front shot when CIG has one.
+      "Black": "assets/products/balaclava-black.jpg",
     },
     gallery: {
       "Blue": ["assets/products/balaclava-blue-back.jpg"],
       "Red": ["assets/products/balaclava-red-back-upright.jpg"],
-      "Gold": ["assets/products/balaclava-gold-back-upright.jpg"],
     },
   },
   {
     id: "0008",
     sku: "0008",
+    // Backstock count 10/21 (bg/backstock_2026-10-21.csv); price approved by CIG 10/22.
+    // BG's "Yellow" is the site's "Gold" (photos are skimask-gold-*). Stock is a
+    // static cap: it isn't decremented on sale.
     stock: {
-      "Blue":  { "1-Hole": 51, "3-Hole": 62, "Skully": 0 },
-      "Red":   { "1-Hole": 58, "3-Hole": 79, "Skully": 0 },
-      "Green": { "1-Hole": 70, "3-Hole": 74, "Skully": 0 },
-      "Gold":  { "1-Hole": 70, "3-Hole": 80, "Skully": 0 },
+      "Blue":  { "1-Hole": 56, "3-Hole": 70, "Skully": 0 },
+      "Red":   { "1-Hole": 59, "3-Hole": 80, "Skully": 0 },
+      "Green": { "1-Hole": 71, "3-Hole": 77, "Skully": 0 },
+      "Gold":  { "1-Hole": 73, "3-Hole": 81, "Skully": 0 },
     },
     name: "CIG Acrylic Ski Mask",
-    price: 50.00,
+    price: 30.00,
     salePrice: null,
     image: "assets/products/skimask-blue-1hole.jpg",
     colors: ["Blue", "Red", "Green", "Gold"],
@@ -674,6 +679,28 @@ const PRODUCTS = [
     salePrice: null,
     image: "",
     colors: ["Blue", "Red", "Black/Rainbow", "White/Rainbow"],
+    sizes: [],
+    colorImages: {},
+  },
+  {
+    id: "0013",
+    sku: "0013",
+    // Moto mask backstock (bg/backstock_2026-10-21.csv, CIG counts 10/21 PM);
+    // $15 approved by CIG 10/22. Name is a DRAFT pending CIG.
+    // HIDDEN until photos exist: there are no moto-mask photos in assets/ for
+    // any color yet. BEFORE setting hidden to false: add a photo per color to
+    // assets/products/ and fill in colorImages + image below.
+    // Sold out per BG and left off: Red, Black, Blue, Rainbow.
+    // Not the same listing as 0012 "CIG Corona Masks" as far as the data shows
+    // (different colors and counts); CIG to confirm.
+    // Stock is a static cap: it isn't decremented on sale.
+    hidden: true,
+    stock: { "Yellow": 17, "Pink": 22, "Brown": 16, "Purple": 14, "Green": 13, "Orange": 12 },
+    name: "Moto Mask",
+    price: 15.00,
+    salePrice: null,
+    image: "",
+    colors: ["Yellow", "Pink", "Brown", "Purple", "Green", "Orange"],
     sizes: [],
     colorImages: {},
   },
