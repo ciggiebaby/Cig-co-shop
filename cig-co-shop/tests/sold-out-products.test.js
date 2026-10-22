@@ -40,9 +40,9 @@ test("backstock has CIG's new customer-facing names; ids and stock keys are unch
   // No two listed products share a name.
   const names = PRODUCTS.filter((p) => !p.hidden).map((p) => p.name);
   assert.equal(new Set(names).size, names.length);
-  // The hidden moto mask is left as it was.
+  // The moto mask keeps its name (listed again 10/22 5:27 PM).
   assert.equal(product("0013").name, "Moto Mask");
-  assert.equal(product("0013").hidden, true);
+  assert.notEqual(product("0013").hidden, true);
   // Counts untouched (live masks come from Supabase; these are the in-file ones).
   assert.deepEqual(product("0010").stock, { Blue: 2, Green: 0, Red: 2, Rainbow: 6 });
   assert.equal(product("0005").liveStock, true);

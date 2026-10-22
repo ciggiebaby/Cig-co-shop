@@ -1,7 +1,7 @@
 // CIG 10/22 4:59 PM ET: "take the umbrella out we're gonna replace with moto
-// masks". The Toile Umbrella (0010) is hidden the same way the moto mask (0013)
-// is: nothing is deleted, so it can come back. The moto mask stays hidden until
-// CIG's new photos arrive. This file does NOT load soldout-fixture.js, so it
+// masks". The Toile Umbrella (0010) is hidden (hidden: true): nothing is
+// deleted, so it can come back. The moto mask (0013) took its spot on 10/22
+// 5:27 PM once CIG's new photos arrived. This file does NOT load soldout-fixture.js, so it
 // sees the real catalog.
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -18,7 +18,7 @@ const root = path.join(__dirname, "..");
 const quiet = { log() {}, error() {}, warn() {} };
 const product = (id) => PRODUCTS.find((p) => p.id === id);
 
-test("umbrella is hidden like the moto mask, with its data, photos and stock kept", () => {
+test("umbrella is hidden, with its data, photos and stock kept", () => {
   const u = product("0010");
   assert.equal(u.hidden, true);
   assert.equal(u.name, "Toile Umbrella");
@@ -27,8 +27,6 @@ test("umbrella is hidden like the moto mask, with its data, photos and stock kep
   assert.ok(u.image);
   assert.ok(fs.existsSync(path.join(root, u.image)), u.image);
   for (const img of Object.values(u.colorImages || {})) assert.ok(fs.existsSync(path.join(root, img)), img);
-  // The moto mask stays hidden until CIG's new photos arrive.
-  assert.equal(product("0013").hidden, true);
   assert.equal(product("0012").hidden, true);
 });
 
@@ -37,8 +35,9 @@ test("site: hidden products never render on the grid or open a product view", ()
   assert.match(app, /PRODUCTS\.filter\(\(p\) => !p\.hidden\)\.map/);
   assert.match(app, /if \(!p \|\| p\.hidden\) return;/);
   const listed = PRODUCTS.filter((p) => !p.hidden).map((p) => p.id);
-  for (const id of ["0010", "0012", "0013"]) assert.ok(!listed.includes(id), id);
-  for (const id of ["0004", "0005", "0008", "0011"]) assert.ok(listed.includes(id), id);
+  for (const id of ["0010", "0012"]) assert.ok(!listed.includes(id), id);
+  // The moto mask sits where the umbrella was (between the ski mask and the bikini).
+  assert.deepEqual(listed.filter((id) => /^00/.test(id)), ["0004", "0005", "0008", "0013", "0011"]);
 });
 
 test("a saved bag drops the umbrella", () => {
