@@ -42,17 +42,57 @@
 
 <div id="checkout-status" class="checkout-status" role="status" aria-live="polite" hidden></div>
 
-<section class="hero">
-  <video class="hero-video" autoplay muted loop playsinline>
-    <source src="assets/logo-spin.mp4" type="video/mp4" />
-  </video>
-</section>
+<!-- FW26/27 drop hero. DRAFT COPY: every line of text below is pending CIG's approval. -->
+<section class="drop-hero" id="drop-hero" data-state="upcoming" aria-labelledby="drop-hero-title">
+  <!--
+    VIDEO SLOT (YG hero video, coming later). Drop the files into assets/ and
+    replace the <picture> below with:
+      <video class="drop-hero-video" autoplay muted loop playsinline poster="assets/products/fw26/hero-lineup-wide.webp">
+        <source src="assets/fw26-hero-9x16.mp4" type="video/mp4" media="(max-width: 640px)" />  9:16 for phones
+        <source src="assets/fw26-hero-16x9.mp4" type="video/mp4" />                          16:9 for desktop
+      </video>
+    The frame below keeps the 16:9 / 9:16 shape either way.
+  -->
+  <div class="drop-hero-media" data-video-slot="fw26-hero">
+    <picture>
+      <source media="(max-width: 640px)" srcset="assets/products/fw26/hero-lineup-mobile.webp" />
+      <img class="drop-hero-image" src="assets/products/fw26/hero-lineup-wide.webp" alt="FW26/27 crossbody bags in every colorway" fetchpriority="high" />
+    </picture>
+  </div>
 
-<section class="hero-intro reveal">
-  <p class="hero-kicker">Archive Collection</p>
-  <p class="hero-tagline" data-crypto-off>Pay with card or PayPal.</p>
-  <p class="hero-tagline" data-crypto-only hidden>Pay with card, PayPal, or crypto — 20% off always on crypto.</p>
-  <a href="#shop" class="btn btn-gold">Shop Now</a>
+  <div class="drop-hero-copy">
+    <p class="drop-hero-kicker">Cig &amp; Co.</p>
+    <h1 class="drop-hero-title" id="drop-hero-title">FW26/27 COLLECTION</h1>
+
+    <div data-when="upcoming">
+      <p class="drop-hero-date">Drops Friday, Oct 30 at 12 PM ET</p>
+      <div class="drop-countdown" role="timer" aria-label="Time until the drop">
+        <div><span data-unit="days">0</span><small>Days</small></div>
+        <div><span data-unit="hours">00</span><small>Hours</small></div>
+        <div><span data-unit="minutes">00</span><small>Min</small></div>
+        <div><span data-unit="seconds">00</span><small>Sec</small></div>
+      </div>
+    </div>
+    <div data-when="live" hidden>
+      <p class="drop-hero-date">Out now.</p>
+    </div>
+
+    <a href="#shop" class="btn btn-gold drop-hero-cta" data-when="upcoming">Shop the collection</a>
+    <a href="#shop" class="btn btn-gold drop-hero-cta" data-when="live" hidden>Shop now</a>
+
+    <form class="drop-signup" id="drop-signup" data-when="upcoming" novalidate>
+      <label for="drop-signup-email">Get notified</label>
+      <div class="drop-signup-row">
+        <input type="email" id="drop-signup-email" name="email" placeholder="Email" autocomplete="email" required />
+        <button type="submit" class="btn btn-outline">Notify me</button>
+      </div>
+      <p class="drop-signup-note">Drop alerts and news from Cig &amp; Co. Unsubscribe anytime.</p>
+      <p class="drop-signup-message" role="status" aria-live="polite"></p>
+    </form>
+
+    <p class="hero-tagline" data-crypto-off>Pay with card or PayPal.</p>
+    <p class="hero-tagline" data-crypto-only hidden>Pay with card, PayPal, or crypto — 20% off always on crypto.</p>
+  </div>
 </section>
 
 <section id="shop" class="shop">
@@ -177,6 +217,7 @@
 <script src="cart.js"></script>
 <script src="checkout-fingerprint.js"></script>
 <script src="app.js"></script>
+<script src="drop-hero.js"></script>
 <script src="effects.js"></script>
 </body>
 </html>

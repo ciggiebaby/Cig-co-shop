@@ -1,3 +1,4 @@
+require("./legacy-fixture.js");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -96,7 +97,7 @@ test("Stripe checkout applies a valid Arcade code and records it on the session"
     httpMethod: "POST",
     headers: {},
     body: JSON.stringify({
-      items: [{ productId: "0003", color: "Red", quantity: 2 }],
+      items: [{ productId: "TEST-PILLOW", color: "Red", quantity: 2 }],
       promoCode: CODE,
       customer: { email: "Buyer@Example.com" },
     }),
@@ -119,7 +120,7 @@ test("Stripe checkout refuses a used Arcade code without creating a session", as
   const response = await handler({
     httpMethod: "POST",
     headers: {},
-    body: JSON.stringify({ items: [{ productId: "0003", color: "Red", quantity: 1 }], promoCode: CODE, customer: { email: "a@example.com" } }),
+    body: JSON.stringify({ items: [{ productId: "TEST-PILLOW", color: "Red", quantity: 1 }], promoCode: CODE, customer: { email: "a@example.com" } }),
   });
   assert.equal(response.statusCode, 400);
   assert.match(JSON.parse(response.body).error, /already been used/);

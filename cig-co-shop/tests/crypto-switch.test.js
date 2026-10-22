@@ -1,6 +1,7 @@
 // Crypto checkout is off (CRYPTO_ENABLED=false in products.js, CIG 10/21:
 // Coinbase Commerce waits for the new LLC). No crypto fixture here, so these
 // run against the real switch.
+require("./legacy-fixture.js");
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
@@ -16,7 +17,7 @@ const FULL_ENV = {
 };
 const post = (body) => ({ httpMethod: "POST", headers: {}, body: JSON.stringify(body) });
 const order = {
-  items: [{ productId: "0003", color: "Red", quantity: 1 }],
+  items: [{ productId: "TEST-PILLOW", color: "Red", quantity: 1 }],
   customer: { email: "a@b.co", name: "A", address: "1 Main St", city: "Austin", state: "TX", zip: "78701", country: "US" },
 };
 

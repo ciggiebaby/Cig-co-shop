@@ -1,3 +1,4 @@
+require("./legacy-fixture.js");
 const assert = require("node:assert/strict");
 const test = require("node:test");
 require("./promo-fixture.js");
@@ -27,7 +28,7 @@ const ENV = { SITE_URL: "https://shop.test", ...CRYPTO_ENV };
 const bag = (quantity = 1) => ({ productId: "T-BAG", quantity });
 const phoneCase = (quantity = 1) => ({ productId: "T-CASE", quantity });
 const sleeve = (quantity = 1) => ({ productId: "T-SLEEVE", quantity });
-const pillow = (quantity = 1) => ({ productId: "0003", color: "Red", quantity });
+const pillow = (quantity = 1) => ({ productId: "TEST-PILLOW", color: "Red", quantity });
 
 function post(body) {
   return { httpMethod: "POST", headers: {}, body: JSON.stringify(body) };
@@ -75,9 +76,9 @@ test("pillows (and products without an international class) block non-US shippin
   assert.throws(
     () => resolveCheckoutShipping(pillowPricing, "GB"),
     (error) => error instanceof RequestValidationError
-      && /CIG Pillow Case ships to the US only\. Remove it from your bag to ship to United Kingdom\./.test(error.message),
+      && /Test Pillow Case ships to the US only\. Remove it from your bag to ship to United Kingdom\./.test(error.message),
   );
-  assert.equal(PRODUCTS.find((product) => product.id === "0003").shipping, "pillow");
+  assert.equal(PRODUCTS.find((product) => product.id === "TEST-PILLOW").shipping, "pillow");
   const balaclava = priceCartForStripe([{ productId: "0005", quantity: 1, ...variantOf("0005") }]);
   assert.throws(() => resolveCheckoutShipping(balaclava, "CA"), /ships to the US only/);
   assert.equal(quoteShipping([{ name: "Pillow", shipping: "pillow", quantity: 1 }], "CA").shippingCents, null);
@@ -163,8 +164,8 @@ test("Stripe US sessions stay free-shipping and US-only", async () => {
 
 test("Stripe refuses a pillow or an unsupported country abroad without calling Stripe", async () => {
   for (const [items, shipCountry, message] of [
-    [[bag(), pillow()], "AU", /CIG Pillow Case ships to the US only/],
-    [[pillow()], "JP", /CIG Pillow Case ships to the US only/],
+    [[bag(), pillow()], "AU", /Test Pillow Case ships to the US only/],
+    [[pillow()], "JP", /Test Pillow Case ships to the US only/],
     [[bag()], "FR", /only ship to the United States/],
   ]) {
     const stripe = stripeStub();
@@ -317,7 +318,7 @@ test("crypto uses customer.country when shipCountry isn't sent, and US stays fre
 test("crypto refuses pillows abroad, bad postal codes, and unsupported countries", async () => {
   const { handler, sent } = coinbaseHandler();
   for (const [body, message] of [
-    [{ items: [bag(), pillow()], customer: intlCustomer, shipCountry: "CA" }, /CIG Pillow Case ships to the US only/],
+    [{ items: [bag(), pillow()], customer: intlCustomer, shipCountry: "CA" }, /Test Pillow Case ships to the US only/],
     [{ items: [bag()], customer: { ...intlCustomer, zip: "12345" }, shipCountry: "CA" }, /postal code for Canada/],
     [{ items: [bag()], customer: { ...intlCustomer, country: "FR", zip: "75001" } }, /only ship to the United States/],
   ]) {

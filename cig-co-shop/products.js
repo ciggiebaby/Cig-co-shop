@@ -468,25 +468,6 @@ const PRODUCTS = [
     },
   },
   {
-    id: "0003",
-    sku: "0003",
-    stock: { "Red": 67, "Blue": 58, "Purple": 67, "Teal": 74, "Black": 0 },
-    name: "CIG Pillow Case",
-    shipping: "pillow", // US only
-    price: 20.00,
-    salePrice: 10.00,
-    image: "assets/products/pillow-black.jpg",
-    colors: ["Red", "Blue", "Purple", "Teal", "Black"],
-    sizes: [],
-    colorImages: {
-      "Red": "assets/products/pillow-red.jpg",
-      "Blue": "assets/products/pillow-blue.jpg",
-      "Purple": "assets/products/pillow-purple.jpg",
-      "Teal": "assets/products/pillow-teal.jpg",
-      "Black": "assets/products/pillow-black.jpg",
-    },
-  },
-  {
     id: "0004",
     sku: "0004",
     name: "CIG Silky Bonnet & Durag",
@@ -604,23 +585,6 @@ const PRODUCTS = [
       "Red": ["assets/products/skimask-red-back.jpg"],
       "Gold": ["assets/products/skimask-gold-back.jpg"],
       "Green": ["assets/products/skimask-green-back.jpg"],
-    },
-  },
-  {
-    id: "0009",
-    sku: "0009",
-    comingSoon: true,
-    name: "CIG Metallic Puffer Jacket",
-    price: 150.00,
-    salePrice: null,
-    image: "assets/products/puffer-jacket-front.jpg",
-    colors: ["Blue"],
-    sizes: [],
-    colorImages: {
-      "Blue": "assets/products/puffer-jacket-front.jpg",
-    },
-    gallery: {
-      "Blue": ["assets/products/puffer-jacket-back.jpg", "assets/products/puffer-jacket-lining.jpg"],
     },
   },
   {

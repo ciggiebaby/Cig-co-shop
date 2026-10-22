@@ -1,3 +1,4 @@
+require("./legacy-fixture.js");
 const assert = require("node:assert/strict");
 require("./promo-fixture.js");
 const test = require("node:test");
@@ -52,7 +53,7 @@ test("ignores malicious display and monetary fields in a legacy cart", async () 
     checkoutEvent({
       cart: [
         {
-          productId: "0003",
+          productId: "TEST-PILLOW",
           color: "Red",
           size: null,
           style: null,
@@ -73,7 +74,7 @@ test("ignores malicious display and monetary fields in a legacy cart", async () 
       price_data: {
         currency: "usd",
         product_data: {
-          name: "CIG Pillow Case — Red",
+          name: "Test Pillow Case — Red",
         },
         unit_amount: 1000,
       },
@@ -162,7 +163,7 @@ test("rejects malformed checkout correlation metadata", async () => {
   const response = await testHandler(stripe.stripeFactory)(
     checkoutEvent({
       items: [{
-        productId: "0003",
+        productId: "TEST-PILLOW",
         color: "Red",
         size: null,
         style: null,
@@ -185,7 +186,7 @@ test("returns a generic 500 when Stripe fails", async () => {
     checkoutEvent({
       items: [
         {
-          productId: "0003",
+          productId: "TEST-PILLOW",
           color: "Red",
           size: null,
           style: null,

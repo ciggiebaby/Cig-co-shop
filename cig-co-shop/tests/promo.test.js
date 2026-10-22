@@ -1,3 +1,4 @@
+require("./legacy-fixture.js");
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
@@ -16,12 +17,12 @@ test("retired codes are rejected by the server", () => {
   for (const code of ["CIG5", "cig10", " CIG20 "]) {
     assert.throws(() => normalizePromoCode(code), PricingValidationError);
     assert.throws(
-      () => priceCartForStripe([{ productId: "0003", color: "Red", quantity: 1 }], code),
+      () => priceCartForStripe([{ productId: "TEST-PILLOW", color: "Red", quantity: 1 }], code),
       /Promo code is not valid/,
     );
   }
   assert.equal(
-    priceCartForStripe([{ productId: "0003", color: "Red", quantity: 1 }], null).totalCents,
+    priceCartForStripe([{ productId: "TEST-PILLOW", color: "Red", quantity: 1 }], null).totalCents,
     1000,
   );
 });
