@@ -158,6 +158,19 @@ const PRODUCTS = [
       "Burnt Orange": "assets/products/fw26/case_burnt-orange.webp",
       "Espresso": "assets/products/fw26/case_espresso.webp",
     },
+    // After the back: Printful "Flat 2" (back and both sides in one shot), then "Lifestyle" (exploded
+    // view of the case and phone), CIG 10/23. Rendered on iPhone 16 Pro (Matte) from the 5700px files;
+    // every model shows these same photos.
+    gallery: {
+      "Black": ["assets/products/fw26/case_black_angles.webp", "assets/products/fw26/case_black_exploded.webp"],
+      "Burgundy": ["assets/products/fw26/case_burgundy_angles.webp", "assets/products/fw26/case_burgundy_exploded.webp"],
+      "Navy": ["assets/products/fw26/case_navy_angles.webp", "assets/products/fw26/case_navy_exploded.webp"],
+      "Hunter": ["assets/products/fw26/case_hunter_angles.webp", "assets/products/fw26/case_hunter_exploded.webp"],
+      "Grape": ["assets/products/fw26/case_grape_angles.webp", "assets/products/fw26/case_grape_exploded.webp"],
+      "Gold": ["assets/products/fw26/case_gold_angles.webp", "assets/products/fw26/case_gold_exploded.webp"],
+      "Burnt Orange": ["assets/products/fw26/case_burnt-orange_angles.webp", "assets/products/fw26/case_burnt-orange_exploded.webp"],
+      "Espresso": ["assets/products/fw26/case_espresso_angles.webp", "assets/products/fw26/case_espresso_exploded.webp"],
+    },
     colorSwatches: {
       "Black": "https://files.cdn.printful.com/files/cfe/cfe92b997631c49642cb842a6d911845_thumb.png",
       "Burgundy": "https://files.cdn.printful.com/files/395/395cf528ebb0aaa6fd2530acb087be93_thumb.png",

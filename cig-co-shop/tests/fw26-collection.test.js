@@ -138,7 +138,7 @@ test("images are 2000px Printful Mockup Generator renders, web-optimized and shi
   const slug = (c) => c.toLowerCase().replace(/ /g, "-");
   const expect = {
     "FW26-BAG": { prefix: "crossbody", primary: "_front", extra: ["_right", "_left", "_back"] },
-    "FW26-CASE": { prefix: "case", primary: "", extra: [] },
+    "FW26-CASE": { prefix: "case", primary: "", extra: ["_angles", "_exploded"] },
     "FW26-SLEEVE": { prefix: "sleeve", primary: "", extra: ["_open", "_zipper"] },
     "FW26-PILLOW": { prefix: "pillow", primary: "_front", extra: [] },
     "FW26-TOTE": { prefix: "tote", primary: "_front", extra: ["_angle", "_back", "_detail", "_pocket"] },
