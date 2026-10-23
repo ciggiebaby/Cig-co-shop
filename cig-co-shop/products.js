@@ -352,6 +352,18 @@ const PRODUCTS = [
       "Burnt Orange": "assets/products/fw26/sleeve_burnt-orange.webp",
       "Espresso": "assets/products/fw26/sleeve_espresso.webp",
     },
+    // After the front: open sleeve with the laptop sliding out, then the zipper close-up (CIG 10/23).
+    // Printful "Product details" 1 and 2 (15″ render; the 13″ shots are the same close-ups), from the 5700px files.
+    gallery: {
+      "Black": ["assets/products/fw26/sleeve_black_open.webp", "assets/products/fw26/sleeve_black_zipper.webp"],
+      "Burgundy": ["assets/products/fw26/sleeve_burgundy_open.webp", "assets/products/fw26/sleeve_burgundy_zipper.webp"],
+      "Navy": ["assets/products/fw26/sleeve_navy_open.webp", "assets/products/fw26/sleeve_navy_zipper.webp"],
+      "Hunter": ["assets/products/fw26/sleeve_hunter_open.webp", "assets/products/fw26/sleeve_hunter_zipper.webp"],
+      "Grape": ["assets/products/fw26/sleeve_grape_open.webp", "assets/products/fw26/sleeve_grape_zipper.webp"],
+      "Gold": ["assets/products/fw26/sleeve_gold_open.webp", "assets/products/fw26/sleeve_gold_zipper.webp"],
+      "Burnt Orange": ["assets/products/fw26/sleeve_burnt-orange_open.webp", "assets/products/fw26/sleeve_burnt-orange_zipper.webp"],
+      "Espresso": ["assets/products/fw26/sleeve_espresso_open.webp", "assets/products/fw26/sleeve_espresso_zipper.webp"],
+    },
     colorSwatches: {
       "Black": "https://files.cdn.printful.com/files/ac5/ac5f5ee092884739f208a5b1b8b09537_thumb.png",
       "Burgundy": "assets/products/fw26/sleeve_burgundy_swatch.webp",
