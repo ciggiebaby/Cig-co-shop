@@ -33,10 +33,22 @@ function addBlockedByDrop(p) {
 }
 
 // ---------- Product grid ----------
+// Sold out = what the card badges as "Sold Out": marked soldOut, or no stock left
+// (live stock included). Coming-soon products aren't sold out.
+function isSoldOutForGrid(p) {
+  return !p.comingSoon && productTotalStock(p) <= 0;
+}
+// Visible products in their products.js order, with every sold-out product moved to
+// the end (CIG 10/23). Both groups keep their relative order, so anything marked sold
+// out later drops to the end on its own.
+function shopGridProducts(products = PRODUCTS) {
+  const visible = products.filter((p) => !p.hidden);
+  return visible.filter((p) => !isSoldOutForGrid(p)).concat(visible.filter(isSoldOutForGrid));
+}
 function renderProductGrid() {
   const grid = document.getElementById("product-grid");
   if (!grid) return;
-  grid.innerHTML = PRODUCTS.filter((p) => !p.hidden).map((p) => {
+  grid.innerHTML = shopGridProducts().map((p) => {
     const price = p.styles || hasPriceRange(p)
       ? `From $${minPrice(p).toFixed(2)}`
       : p.salePrice
@@ -191,13 +203,38 @@ function renderCarousel(p) {
   });
 }
 
+// Phones: the photo is pinned at the top of the product sheet (styles.css, max-width
+// 768px) and shrinks a little once the options are scrolled into view. Hysteresis keeps
+// the height change from flipping the class back and forth.
+const PD_COMPACT_AT = 120;
+const PD_EXPAND_AT = 24;
+function updateModalMediaCompact(scrollTop, media) {
+  if (!media) return false;
+  const compact = media.classList.contains("is-compact");
+  if (!compact && scrollTop > PD_COMPACT_AT) media.classList.add("is-compact");
+  else if (compact && scrollTop < PD_EXPAND_AT) media.classList.remove("is-compact");
+  return media.classList.contains("is-compact");
+}
+function watchModalScroll() {
+  const inner = document.querySelector("#product-modal .modal-inner");
+  if (!inner || !inner.addEventListener) return;
+  inner.scrollTop = 0;
+  if (!inner._pdScrollWatch) {
+    inner._pdScrollWatch = true;
+    inner.addEventListener("scroll", () => updateModalMediaCompact(inner.scrollTop, document.getElementById("pd-media")), { passive: true });
+  }
+}
+
 function openProductModal(id) {
   const p = PRODUCTS.find((x) => x.id === id);
   if (!p || p.hidden) return;
   modalState = { style: (p.styles && p.styles[0].name) || null, color: (p.defaultColor && p.colors.includes(p.defaultColor) ? p.defaultColor : p.colors[0]) || null, size: p.sizes[0] || null, qty: 1, slide: 0 };
 
   document.getElementById("modal-content").innerHTML = `
-    <div class="pd-carousel" id="pd-carousel"></div>
+    <div class="pd-media" id="pd-media">
+      <div class="pd-carousel" id="pd-carousel"></div>
+    </div>
+    <div class="pd-details">
     ${p.photoComingSoon ? `<p class="pd-photo-note" id="pd-photo-note" hidden>Photo coming soon</p>` : ""}
     <h3 class="pd-name">${p.name}</h3>
     ${p.soldOut ? `<div class="soldout-badge pd-soldout-badge">Sold Out</div>` : ""}
@@ -238,9 +275,11 @@ function openProductModal(id) {
       </div>
     </div>
     <button class="btn btn-gold btn-full" id="add-to-cart-btn">Add to Bag</button>
+    </div>
   `;
 
   renderCarousel(p);
+  watchModalScroll();
 
   function refreshAvailability() {
     const photoNote = document.getElementById("pd-photo-note");
