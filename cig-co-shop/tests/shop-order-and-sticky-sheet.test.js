@@ -86,12 +86,34 @@ test("the grid renders through the sold-out-last order (and re-renders on live s
 // ---------- Pinned photo on phones ----------
 function mobileSheetCss() {
   const start = css.indexOf("/* ---------- Product sheet on phones: pinned photo");
+  const end = css.indexOf("/* ---------- Product sheet on desktop: photo column stays put");
+  assert.ok(start >= 0 && end > start);
+  return css.slice(start, end);
+}
+function desktopSheetCss() {
+  const start = css.indexOf("/* ---------- Product sheet on desktop: photo column stays put");
   assert.ok(start >= 0);
   return css.slice(start);
 }
+// Top-level (brace depth 0) preludes of a CSS chunk, comments stripped.
+function topLevelPreludes(chunk) {
+  const noComments = chunk.replace(/\/\*[\s\S]*?\*\//g, "");
+  let depth = 0, top = "";
+  for (const ch of noComments) {
+    if (ch === "{") { if (depth === 0) top += "{"; depth++; }
+    else if (ch === "}") depth--;
+    else if (depth === 0) top += ch;
+  }
+  assert.equal(depth, 0);
+  return top.split("{").map((x) => x.trim()).filter(Boolean);
+}
 
 test("product sheet wraps the carousel in a media block that every product uses", () => {
-  assert.match(app, /<div class="pd-media" id="pd-media">\s*<div class="pd-carousel" id="pd-carousel"><\/div>\s*<\/div>/);
+  assert.match(app, /<div class="pd-media" id="pd-media">\s*<div class="pd-carousel" id="pd-carousel"><\/div>\s*<\/div>\s*<div class="pd-details">/);
+  // Everything else (name, price, options, quantity, Add to Bag) is in the details column.
+  const tpl = app.slice(app.indexOf('<div class="pd-details">'), app.indexOf("renderCarousel(p);\n  watchModalScroll();"));
+  for (const bit of ['class="pd-name"', 'id="pd-price"', 'id="pd-colors"', 'id="pd-sizes"', 'id="qty-plus"', 'id="add-to-cart-btn"']) assert.ok(tpl.includes(bit), bit);
+  assert.match(tpl, /id="add-to-cart-btn">Add to Bag<\/button>\s*<\/div>\s*`;/);
   // Color and size taps still re-render the carousel (the image swap) inside that block.
   const swaps = app.match(/renderCarousel\(p\);/g) || [];
   assert.ok(swaps.length >= 3, "carousel re-renders on open and on option taps");
@@ -115,21 +137,11 @@ test("on <=768px the photo is sticky, contained and ~42% of the screen (dvh with
   assert.match(media, /padding: 52px 20px 8px;/);
 });
 
-test("desktop styles are untouched: all pinned-photo rules live inside the phone media query", () => {
+test("phone pinned-photo rules all live inside the <=768px media query", () => {
   const block = mobileSheetCss();
   const before = css.slice(0, css.indexOf("/* ---------- Product sheet on phones: pinned photo"));
-  assert.ok(!before.includes(".pd-media"), "no .pd-media rules outside the phone block");
-  // Every rule in the block is inside an @media (max-width: 768px) query: at brace depth 0
-  // only the two phone @media preludes appear.
-  const noComments = block.replace(/\/\*[\s\S]*?\*\//g, "");
-  let depth = 0, top = "";
-  for (const ch of noComments) {
-    if (ch === "{") { if (depth === 0) top += "{"; depth++; }
-    else if (ch === "}") depth--;
-    else if (depth === 0) top += ch;
-  }
-  assert.equal(depth, 0);
-  assert.deepEqual(top.split("{").map((x) => x.trim()).filter(Boolean),
+  assert.ok(!before.includes(".pd-media"), "no .pd-media rules before the sheet blocks");
+  assert.deepEqual(topLevelPreludes(block),
     ["@media (max-width: 768px)", "@media (max-width: 768px) and (prefers-reduced-motion: reduce)"]);
   // The desktop photo rule itself is unchanged (square, cover).
   assert.ok(css.includes(".pd-image { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: #000; }"));
@@ -146,4 +158,20 @@ test("photo eases smaller once the options scroll up, with hysteresis", () => {
   assert.equal(ctx.updateModalMediaCompact(500, null), false);
   assert.match(app, /const PD_COMPACT_AT = 120;\s*const PD_EXPAND_AT = 24;/);
   assert.match(app, /renderCarousel\(p\);\s*watchModalScroll\(\);/);
+});
+
+test("desktop (>=769px): side-by-side sheet with a sticky photo column that fits the window", () => {
+  const block = desktopSheetCss();
+  assert.deepEqual(topLevelPreludes(block), ["@media (min-width: 769px)"]);
+  assert.match(block, /#product-modal #modal-content \{\s*display: grid;\s*grid-template-columns: minmax\(0, 1\.1fr\) minmax\(0, 1fr\);/);
+  assert.match(block, /align-items: start;/);
+  const media = block.slice(block.indexOf(".pd-media {"), block.indexOf("}", block.indexOf(".pd-media {")));
+  assert.match(media, /position: -webkit-sticky;\s*position: sticky;\s*top: 0;/);
+  const img = block.slice(block.indexOf(".pd-media .pd-image {"), block.indexOf("}", block.indexOf(".pd-media .pd-image {")));
+  // Never taller than the sheet (90vh) minus the close row and dots: fully visible on 1366x768.
+  assert.match(img, /max-height: calc\(90vh - 150px\);\s*max-height: calc\(90dvh - 150px\);/);
+  assert.match(img, /object-fit: contain;/);
+  assert.match(block, /#product-modal \.modal-inner \{ max-width: 1000px; \}/);
+  // The phone and desktop blocks never overlap (768 vs 769).
+  assert.ok(!block.includes("max-width: 768px"));
 });

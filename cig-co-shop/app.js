@@ -234,6 +234,7 @@ function openProductModal(id) {
     <div class="pd-media" id="pd-media">
       <div class="pd-carousel" id="pd-carousel"></div>
     </div>
+    <div class="pd-details">
     ${p.photoComingSoon ? `<p class="pd-photo-note" id="pd-photo-note" hidden>Photo coming soon</p>` : ""}
     <h3 class="pd-name">${p.name}</h3>
     ${p.soldOut ? `<div class="soldout-badge pd-soldout-badge">Sold Out</div>` : ""}
@@ -274,6 +275,7 @@ function openProductModal(id) {
       </div>
     </div>
     <button class="btn btn-gold btn-full" id="add-to-cart-btn">Add to Bag</button>
+    </div>
   `;
 
   renderCarousel(p);

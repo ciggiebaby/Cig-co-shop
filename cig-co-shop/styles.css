@@ -860,3 +860,31 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 768px) and (prefers-reduced-motion: reduce) {
   .pd-media .pd-image { transition: none; }
 }
+
+/* ---------- Product sheet on desktop: photo column stays put (CIG 10/23) ----------
+   Above the phone breakpoint the sheet is side by side: the photo column is sticky
+   and sized to fit the window (contained), the details column scrolls next to it,
+   so the photo stays fully visible while picking color / size / quantity even on a
+   short 1366x768 laptop. */
+@media (min-width: 769px) {
+  #product-modal .modal-inner { max-width: 1000px; }
+  #product-modal #modal-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    column-gap: 32px;
+    align-items: start;
+  }
+  .pd-media {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    background: #111;
+  }
+  .pd-media .pd-carousel { margin-bottom: 0; }
+  .pd-media .pd-image {
+    max-height: calc(90vh - 150px);
+    max-height: calc(90dvh - 150px);
+    object-fit: contain;
+  }
+  .pd-details { min-width: 0; }
+}
