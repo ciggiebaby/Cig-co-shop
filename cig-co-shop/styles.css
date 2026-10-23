@@ -810,3 +810,53 @@ a { color: inherit; text-decoration: none; }
   .policy-page { padding: 0 18px 60px; font-size: 14px; }
   .policy-page h2 { font-size: 19px; margin-top: 34px; }
 }
+
+/* ---------- Product sheet on phones: pinned photo (CIG 10/23) ----------
+   The photo stays visible while you tap through color / size / quantity, so the
+   image swap is always in view. .modal-inner is the scroll container; the media block
+   sticks to its top, the close button floats in the media block's top band (never over
+   the photo), and the photo is contained (whole product visible) at ~42% of the screen,
+   easing to ~30% once the options are scrolled up. Desktop is untouched. */
+@media (max-width: 768px) {
+  #product-modal .modal-inner {
+    max-height: 92vh;
+    max-height: 92dvh;
+    padding-top: 0;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    overscroll-behavior: contain;
+  }
+  #product-modal .modal-close {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 6px;
+    z-index: 3;
+    width: 40px;
+    height: 40px;
+    margin: 6px -6px -46px auto;  /* takes no height in the flow: it sits in the media band */
+    font-size: 26px;
+  }
+  .pd-media {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #111;
+    margin: 0 -20px 16px;
+    padding: 52px 20px 8px;          /* 52px band holds the close button above the photo */
+    box-shadow: 0 10px 14px -12px rgba(0,0,0,0.9);
+  }
+  .pd-media .pd-carousel { margin-bottom: 0; }
+  .pd-media .pd-image {
+    aspect-ratio: auto;
+    height: 42vh;
+    height: 42dvh;
+    max-height: 420px;
+    object-fit: contain;
+    transition: height 0.2s ease;
+  }
+  .pd-media.is-compact .pd-image { height: 30vh; height: 30dvh; }
+  .pd-media .pd-carousel-dots { margin-top: 6px; }
+}
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+  .pd-media .pd-image { transition: none; }
+}
