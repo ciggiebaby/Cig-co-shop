@@ -1,5 +1,5 @@
-// Favicon (CIG 10/22: browser tab icon from the CIG logo). The yellow CIG badge,
-// lettering traced from assets/logo-spin.mp4, on every page.
+// Favicon (CIG 10/22: browser tab icon from the CIG logo). The official CIG badge
+// (vector trace of CIG's cig-transparent.png) as a yellow tile with a black outline, on every page.
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -52,10 +52,11 @@ test("favicon.ico holds 16, 32 and 48 px icons", () => {
   assert.deepEqual(sizes.sort((a, b) => a - b), [16, 32, 48]);
 });
 
-test("favicon.svg is the yellow CIG badge", () => {
+test("favicon.svg is the official yellow CIG badge (black outline, real lettering)", () => {
   const svg = read("favicon.svg").toString("utf8");
   assert.match(svg, /<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 512 512">/);
-  assert.match(svg, /fill="#FDD011"/);
+  assert.match(svg, /fill="#FBCC2A"/);
+  assert.match(svg, /fill="#09090A"/);
   assert.match(svg, /<path /);
   assert.ok(svg.length < 10 * 1024);
 });
@@ -68,4 +69,10 @@ test("site.webmanifest is valid and its icons exist", () => {
     const s = Number(icon.sizes.split("x")[0]);
     assert.deepEqual(pngSize(read(icon.src.replace(/^\//, ""))), [s, s], icon.src);
   }
+});
+
+test("apple-touch-icon has a solid background (no transparency)", () => {
+  const buf = read("apple-touch-icon.png");
+  // IHDR color type 2 = truecolor without alpha.
+  assert.equal(buf[25], 2);
 });
