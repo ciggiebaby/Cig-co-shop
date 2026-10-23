@@ -149,16 +149,18 @@ test("images are 2000px Printful Mockup Generator renders, web-optimized and shi
     assert.equal(p.image, file(p.defaultColor, e.primary));
     const seen = new Set();
     for (const color of p.colors) {
-      assert.equal(p.colorImages[color], file(color, e.primary), `${id} ${color}`);
+      // The pillow has one photo per size (tests/pillow-sizes.test.js); its 18″×18″ is the primary.
+      const primary = id === "FW26-PILLOW" ? p.colorImages[color]["18″×18″"] : p.colorImages[color];
+      assert.equal(primary, file(color, e.primary), `${id} ${color}`);
       assert.deepEqual((p.gallery && p.gallery[color]) || [], e.extra.map((v) => file(color, v)), `${id} ${color} gallery`);
-      for (const f of [p.colorImages[color], ...e.extra.map((v) => file(color, v))]) {
+      for (const f of [primary, ...e.extra.map((v) => file(color, v))]) {
         const stat = fs.statSync(path.join(root, f));
         assert.ok(stat.size < 400 * 1024, `${f} is ${stat.size} bytes`);
         const head = fs.readFileSync(path.join(root, f)).subarray(0, 12).toString("latin1");
         assert.ok(head.startsWith("RIFF") && head.endsWith("WEBP"), `${f} is WebP`);
       }
-      assert.ok(!seen.has(p.colorImages[color]), `${id} ${color} has its own image`);
-      seen.add(p.colorImages[color]);
+      assert.ok(!seen.has(primary), `${id} ${color} has its own image`);
+      seen.add(primary);
       const sw = p.colorSwatches[color];
       if (sw.startsWith("assets/")) {
         assert.equal(sw, `assets/products/fw26/${e.prefix}_${slug(color)}_swatch.webp`, `${id} ${color} swatch`);

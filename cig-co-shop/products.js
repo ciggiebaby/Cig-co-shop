@@ -407,16 +407,68 @@ const PRODUCTS = [
     image: "assets/products/fw26/pillow_black_front.webp",
     colors: ["Black", "Burgundy", "Navy", "Hunter", "Grape", "Gold", "Burnt Orange", "Espresso"],
     sizes: ["14″×14″", "16″×16″", "18″×18″", "20″×12″", "22″×22″"],
-    // 2000px Printful Mockup Generator renders, web-optimized to 1600px WebP.
+    // 2000px Printful Mockup Generator renders, web-optimized to 1600px WebP, one per
+    // color and size (CIG 10/22: "add the pics for the different sizes"). Printful renders
+    // every size at the same real-world scale (22″ fills ~88% of the frame, 14″ ~58%), so
+    // bigger pillows read bigger and the 20″×12″ reads as a lumbar. 18″×18″ is the
+    // original _front render, which is also the card photo.
     colorImages: {
-      "Black": "assets/products/fw26/pillow_black_front.webp",
-      "Burgundy": "assets/products/fw26/pillow_burgundy_front.webp",
-      "Navy": "assets/products/fw26/pillow_navy_front.webp",
-      "Hunter": "assets/products/fw26/pillow_hunter_front.webp",
-      "Grape": "assets/products/fw26/pillow_grape_front.webp",
-      "Gold": "assets/products/fw26/pillow_gold_front.webp",
-      "Burnt Orange": "assets/products/fw26/pillow_burnt-orange_front.webp",
-      "Espresso": "assets/products/fw26/pillow_espresso_front.webp",
+      "Black": {
+        "14″×14″": "assets/products/fw26/pillow_black_14x14.webp",
+        "16″×16″": "assets/products/fw26/pillow_black_16x16.webp",
+        "18″×18″": "assets/products/fw26/pillow_black_front.webp",
+        "20″×12″": "assets/products/fw26/pillow_black_20x12.webp",
+        "22″×22″": "assets/products/fw26/pillow_black_22x22.webp",
+      },
+      "Burgundy": {
+        "14″×14″": "assets/products/fw26/pillow_burgundy_14x14.webp",
+        "16″×16″": "assets/products/fw26/pillow_burgundy_16x16.webp",
+        "18″×18″": "assets/products/fw26/pillow_burgundy_front.webp",
+        "20″×12″": "assets/products/fw26/pillow_burgundy_20x12.webp",
+        "22″×22″": "assets/products/fw26/pillow_burgundy_22x22.webp",
+      },
+      "Navy": {
+        "14″×14″": "assets/products/fw26/pillow_navy_14x14.webp",
+        "16″×16″": "assets/products/fw26/pillow_navy_16x16.webp",
+        "18″×18″": "assets/products/fw26/pillow_navy_front.webp",
+        "20″×12″": "assets/products/fw26/pillow_navy_20x12.webp",
+        "22″×22″": "assets/products/fw26/pillow_navy_22x22.webp",
+      },
+      "Hunter": {
+        "14″×14″": "assets/products/fw26/pillow_hunter_14x14.webp",
+        "16″×16″": "assets/products/fw26/pillow_hunter_16x16.webp",
+        "18″×18″": "assets/products/fw26/pillow_hunter_front.webp",
+        "20″×12″": "assets/products/fw26/pillow_hunter_20x12.webp",
+        "22″×22″": "assets/products/fw26/pillow_hunter_22x22.webp",
+      },
+      "Grape": {
+        "14″×14″": "assets/products/fw26/pillow_grape_14x14.webp",
+        "16″×16″": "assets/products/fw26/pillow_grape_16x16.webp",
+        "18″×18″": "assets/products/fw26/pillow_grape_front.webp",
+        "20″×12″": "assets/products/fw26/pillow_grape_20x12.webp",
+        "22″×22″": "assets/products/fw26/pillow_grape_22x22.webp",
+      },
+      "Gold": {
+        "14″×14″": "assets/products/fw26/pillow_gold_14x14.webp",
+        "16″×16″": "assets/products/fw26/pillow_gold_16x16.webp",
+        "18″×18″": "assets/products/fw26/pillow_gold_front.webp",
+        "20″×12″": "assets/products/fw26/pillow_gold_20x12.webp",
+        "22″×22″": "assets/products/fw26/pillow_gold_22x22.webp",
+      },
+      "Burnt Orange": {
+        "14″×14″": "assets/products/fw26/pillow_burnt-orange_14x14.webp",
+        "16″×16″": "assets/products/fw26/pillow_burnt-orange_16x16.webp",
+        "18″×18″": "assets/products/fw26/pillow_burnt-orange_front.webp",
+        "20″×12″": "assets/products/fw26/pillow_burnt-orange_20x12.webp",
+        "22″×22″": "assets/products/fw26/pillow_burnt-orange_22x22.webp",
+      },
+      "Espresso": {
+        "14″×14″": "assets/products/fw26/pillow_espresso_14x14.webp",
+        "16″×16″": "assets/products/fw26/pillow_espresso_16x16.webp",
+        "18″×18″": "assets/products/fw26/pillow_espresso_front.webp",
+        "20″×12″": "assets/products/fw26/pillow_espresso_20x12.webp",
+        "22″×22″": "assets/products/fw26/pillow_espresso_22x22.webp",
+      },
     },
     colorSwatches: {
       "Black": "https://files.cdn.printful.com/files/dfe/dfe0bcb6a65f680f09a3e3d2a66863b6_thumb.png",

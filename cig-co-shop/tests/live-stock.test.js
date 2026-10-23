@@ -274,7 +274,9 @@ test("FW26 cards and product pages open on CIG's colors", () => {
     const p = PRODUCTS.find((x) => x.id === id);
     assert.equal(p.defaultColor, color);
     assert.equal(p.image, `assets/products/fw26/${file}.webp`);
-    assert.equal(p.image, p.colorImages[color]);
+    const entry = p.colorImages[color];
+    // The pillow's colorImages are per size; its card photo is the 18″×18″ shot.
+    assert.equal(p.image, typeof entry === "string" ? entry : entry["18″×18″"]);
   }
   const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   assert.match(app, /color: \(p\.defaultColor && p\.colors\.includes\(p\.defaultColor\) \? p\.defaultColor : p\.colors\[0\]\)/);
