@@ -1199,8 +1199,8 @@ test("picking a color swaps the photo and the price (solid $65, Multi $75)", () 
   assert.equal(context.productImageForColor(bag, "Gold", null, null), bag.colorImages.Gold);
   assert.notEqual(bag.colorImages.Multi, bag.colorImages.Gold);
   const phoneCase = PRODUCTS.find((p) => p.id === "FW26-CASE");
-  assert.equal(context.productImageForColor(phoneCase, "Navy", "iPhone 16 Pro", null), phoneCase.colorImages.Navy);
-  assert.equal(context.productImageForColor(phoneCase, "Navy", "iPhone 14", null), phoneCase.colorImages.Navy);
+  assert.equal(context.productImageForColor(phoneCase, "Navy", "iPhone 16 Pro", null), "assets/products/fw26/case_navy_iphone-16-pro.webp");
+  assert.equal(context.productImageForColor(phoneCase, "Navy", "iPhone 14", null), "assets/products/fw26/case_navy_iphone-14.webp");
   assert.deepEqual(Array.from(context.productGalleryImages(bag, "Hunter", null, null)), [
     "assets/products/fw26/crossbody_hunter_front.webp",
     "assets/products/fw26/crossbody_hunter_right.webp",

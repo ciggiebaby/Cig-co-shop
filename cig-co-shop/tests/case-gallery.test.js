@@ -1,6 +1,6 @@
-// MagSafe Case gallery (CIG 10/23): the back first, then the 3-angle shot (Printful "Flat 2"),
-// then the exploded view ("Lifestyle"), every color and every model (one set, rendered on
-// iPhone 16 Pro Matte from CIG’s 5700px print files).
+// MagSafe Case gallery (CIG 10/23): the selected model's own front photo first, then the 3-angle
+// shot (Printful "Flat 2"), then the exploded view ("Lifestyle"). The two extra shots are one set
+// for every model, rendered on iPhone 16 Pro Matte from CIG’s 5700px print files.
 const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
@@ -12,6 +12,9 @@ const { PRODUCTS } = require("../products.js");
 const root = path.join(__dirname, "..");
 const phoneCase = PRODUCTS.find((p) => p.id === "FW26-CASE");
 const slug = (c) => c.toLowerCase().replace(/ /g, "-");
+// Printful renders the 18 Pro / 18 Pro Max on the 17 Pro / 17 Pro Max template, so they share photos.
+const file = (size) => slug(size).replace("iphone-18-pro", "iphone-17-pro");
+const front = (color, size) => `assets/products/fw26/case_${slug(color)}_${file(size)}.webp`;
 const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
 const ctx = {};
 vm.runInNewContext(app.slice(app.indexOf("function productImageForColor"), app.indexOf("function renderCarousel")) + "\nthis.productGalleryImages = productGalleryImages;", ctx);
@@ -25,20 +28,20 @@ function webpSize(buf) {
   return { w: buf.readUInt16LE(26) & 0x3fff, h: buf.readUInt16LE(28) & 0x3fff, alpha: false };
 }
 
-test("every case color shows the back, then 3 angles, then the exploded view, on every model", () => {
+test("every case color shows the model's front, then 3 angles, then the exploded view, on every model", () => {
   assert.equal(phoneCase.colors.length, 8);
   for (const color of phoneCase.colors) {
-    const want = ["", "_angles", "_exploded"].map((v) => `assets/products/fw26/case_${slug(color)}${v}.webp`);
+    const extra = ["_angles", "_exploded"].map((v) => `assets/products/fw26/case_${slug(color)}${v}.webp`);
     for (const size of phoneCase.sizes) {
-      assert.deepEqual(Array.from(ctx.productGalleryImages(phoneCase, color, size, null)), want, `${color} ${size}`);
+      assert.deepEqual(Array.from(ctx.productGalleryImages(phoneCase, color, size, null)), [front(color, size), ...extra], `${color} ${size}`);
     }
   }
 });
 
-test("new case photos match the back shot: 1600px square transparent WebP under 400 KB, each its own picture", () => {
+test("case photos: 1600px square transparent WebP under 400 KB, each its own picture", () => {
   const seen = new Set();
   for (const color of phoneCase.colors) {
-    for (const v of ["", "_angles", "_exploded"]) {
+    for (const v of [...new Set(phoneCase.sizes.map((s) => `_${file(s)}`)), "_angles", "_exploded"]) {
       const buf = fs.readFileSync(path.join(root, `assets/products/fw26/case_${slug(color)}${v}.webp`));
       assert.ok(buf.length < 400 * 1024, `${color}${v} is ${buf.length} bytes`);
       assert.deepEqual(webpSize(buf), { w: 1600, h: 1600, alpha: true }, `${color}${v}`);
