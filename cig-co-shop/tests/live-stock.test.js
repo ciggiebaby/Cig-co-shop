@@ -269,14 +269,14 @@ test("crypto checkout refuses the live-tracked masks (its webhook doesn't decrem
 });
 
 test("FW26 cards and product pages open on CIG's colors", () => {
-  const want = { "FW26-BAG": ["Navy", "crossbody_navy_front"], "FW26-CASE": ["Burgundy", "case_burgundy"], "FW26-SLEEVE": ["Grape", "sleeve_grape"], "FW26-PILLOW": ["Black", "pillow_black_front"], "FW26-TOTE": ["Hunter", "tote_hunter_front"] };
+  const want = { "FW26-BAG": ["Navy", "crossbody_navy_front"], "FW26-CASE": ["Burgundy", "case_burgundy_iphone-16-pro"], "FW26-SLEEVE": ["Grape", "sleeve_grape"], "FW26-PILLOW": ["Black", "pillow_black_front"], "FW26-TOTE": ["Hunter", "tote_hunter_front"] };
   for (const [id, [color, file]] of Object.entries(want)) {
     const p = PRODUCTS.find((x) => x.id === id);
     assert.equal(p.defaultColor, color);
     assert.equal(p.image, `assets/products/fw26/${file}.webp`);
     const entry = p.colorImages[color];
-    // The pillow's colorImages are per size; its card photo is the 18″×18″ shot.
-    assert.equal(p.image, typeof entry === "string" ? entry : entry["18″×18″"]);
+    // The pillow's colorImages are per size (card: 18″×18″); the case's are per model (card: iPhone 16 Pro).
+    assert.equal(p.image, typeof entry === "string" ? entry : entry["18″×18″"] || entry["iPhone 16 Pro"]);
   }
   const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   assert.match(app, /color: \(p\.defaultColor && p\.colors\.includes\(p\.defaultColor\) \? p\.defaultColor : p\.colors\[0\]\)/);

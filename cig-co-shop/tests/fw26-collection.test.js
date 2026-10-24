@@ -138,7 +138,7 @@ test("images are 2000px Printful Mockup Generator renders, web-optimized and shi
   const slug = (c) => c.toLowerCase().replace(/ /g, "-");
   const expect = {
     "FW26-BAG": { prefix: "crossbody", primary: "_front", extra: ["_right", "_left", "_back"] },
-    "FW26-CASE": { prefix: "case", primary: "", extra: ["_angles", "_exploded"] },
+    "FW26-CASE": { prefix: "case", primary: "_iphone-16-pro", extra: ["_angles", "_exploded"] },
     "FW26-SLEEVE": { prefix: "sleeve", primary: "", extra: ["_open", "_zipper"] },
     "FW26-PILLOW": { prefix: "pillow", primary: "_front", extra: [] },
     "FW26-TOTE": { prefix: "tote", primary: "_front", extra: ["_angle", "_back", "_detail", "_pocket"] },
@@ -150,7 +150,8 @@ test("images are 2000px Printful Mockup Generator renders, web-optimized and shi
     const seen = new Set();
     for (const color of p.colors) {
       // The pillow has one photo per size (tests/pillow-sizes.test.js); its 18″×18″ is the primary.
-      const primary = id === "FW26-PILLOW" ? p.colorImages[color]["18″×18″"] : p.colorImages[color];
+      // The case has one per model (tests/case-models.test.js); its iPhone 16 Pro is the primary.
+      const primary = id === "FW26-PILLOW" ? p.colorImages[color]["18″×18″"] : id === "FW26-CASE" ? p.colorImages[color]["iPhone 16 Pro"] : p.colorImages[color];
       assert.equal(primary, file(color, e.primary), `${id} ${color}`);
       assert.deepEqual((p.gallery && p.gallery[color]) || [], e.extra.map((v) => file(color, v)), `${id} ${color} gallery`);
       for (const f of [primary, ...e.extra.map((v) => file(color, v))]) {
@@ -184,10 +185,10 @@ test("no swatch uses a Printful thumb with an opaque white background (they show
   assert.equal(product("FW26-SLEEVE").colorSwatches.Burgundy, "assets/products/fw26/sleeve_burgundy_swatch.webp");
 });
 
-test("the case uses one photo per colorway for every model (CIG: no per-model photos)", () => {
+test("the case has a front photo for every model in every colorway (CIG 10/23)", () => {
   const p = product("FW26-CASE");
   assert.equal(p.sizes.length, 18);
-  for (const c of p.colors) assert.equal(typeof p.colorImages[c], "string");
+  for (const c of p.colors) assert.deepEqual(Object.keys(p.colorImages[c]), p.sizes, c);
 });
 
 test("tote: POD bag at CIG's $35 price (10/22), card or PayPal", () => {
