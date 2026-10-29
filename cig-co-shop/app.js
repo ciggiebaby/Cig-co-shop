@@ -1133,6 +1133,21 @@ renderProductGrid();
 })();
 if (typeof renderCart === "function") renderCart();
 
+// Deep links from emails (thank-you "complete the fit"): cigcompany.com/#product-0008
+function productIdFromHash(hash) {
+  const match = /^#product-([A-Za-z0-9-]{1,20})$/.exec(String(hash || ""));
+  return match ? match[1] : null;
+}
+(function openLinkedProduct() {
+  try {
+    if (typeof location === "undefined" || typeof document === "undefined" || !document.getElementById) return;
+    const id = productIdFromHash(location.hash);
+    if (id && document.getElementById("modal-content")) openProductModal(id);
+  } catch {
+    /* a bad link never breaks the shop */
+  }
+})();
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     CheckoutFingerprintError,
@@ -1145,6 +1160,7 @@ if (typeof module !== "undefined" && module.exports) {
     minPrice,
     handleCheckoutResult,
     notifyVariantLabel,
+    productIdFromHash,
     shouldOfferNotifyMe,
     productTotalStock,
     variantStock,

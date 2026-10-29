@@ -111,13 +111,15 @@ so BG can report sign-ups by source:
 | `qr` | Arcade reached from the mask-mailer QR card: `cigcompany.com/arcade.html?src=qr` |
 | `shop` | Arcade reached from cards in wholesale boxes that stores hand out: `cigcompany.com/arcade.html?src=shop` |
 | `fani` | Arcade reached from Fani's store (Closette) cards: `cigcompany.com/arcade.html?src=fani` |
+| `thankyou` | Arcade reached from the Printful-order thank-you email: `cigcompany.com/arcade.html?src=thankyou` |
 | *(card slug)* | Any other `?src=` that matches `^[a-z0-9_-]{2,24}$`, saved as-is (see below) |
 | `checkout` | Buyer ticked "Keep me posted" at checkout (card or PayPal), recorded when the order is paid |
 | `notify_me` | "Notify me" on a sold-out product/variant (stores product + variant) |
 | `early_access` | "Early access" form on the home page (next drop + Black Friday code), and the drop hero's "Get notified" form |
 
 - `src` on `arcade.html`: known card slugs live in ONE place,
-  `ARCADE_SRC_LIST` in `netlify/lib/subscribers.js` (`qr`, `shop`, `fani`).
+  `ARCADE_SRC_LIST` in `netlify/lib/subscribers.js` (`qr`, `shop`, `fani`,
+  `thankyou`).
   **To add a store, add one line there** (no migration needed). A listed src
   is stored exactly as the src value.
 - **Regex fallback:** a src not on the list yet but matching
@@ -150,6 +152,50 @@ so BG can report sign-ups by source:
 - Setup: run `supabase/migrations/202610310001_email_list_subscribers.sql`,
   set `UNSUBSCRIBE_SECRET`, and make sure Resend's `cigcompany.com` domain is
   verified (prize codes depend on it now).
+
+### Printful thank-you email (CIG, Oct 29, 2026)
+
+Printful-fulfilled orders ship without CIG's QR card, so each one gets a
+thank-you email instead: order reference, a **Play the Arcade** button
+(`https://cigcompany.com/arcade.html?src=thankyou`, so those sign-ups are
+tagged `thankyou`), a "complete the fit" line linking to the ski mask,
+balaclava and moto mask (`/#product-0008`, `/#product-0005`, `/#product-0013`
+open the product directly), an early-access link, and the unsubscribe
+link + one-click headers. Sent from `RESEND_FROM_EMAIL` via Resend.
+
+- **Copy and design are in one file:** `netlify/lib/thankyou-email-template.js`
+  (`THANKYOU_COPY` for the words, `renderThankYouEmail()` for the layout).
+  The optional QR at the bottom is an image URL in `THANKYOU_QR_IMAGE_URL`
+  (no QR image is stored in the repo); unset = no QR.
+- **Trigger:** Printful v2 webhooks, signed (HMAC-SHA256,
+  `x-pf-webhook-signature`), at `/.netlify/functions/printful-webhook`.
+  `shipment_delivered` sends right away. `shipment_sent` schedules it for
+  shipped + `THANKYOU_DELAY_DAYS` (default 5); the hourly
+  `thankyou-email-sweep` sends it if "delivered" never arrives (some carriers
+  never report delivery) and retries failed sends (up to 5 tries).
+- **Once per order:** one `thankyou_emails` row per Printful order with an
+  atomic claim and a sent flag (`status = 'sent'`, `sent_at`).
+- **Skipped:** orders with anything CIG ships himself (masks, or any other
+  non-Printful item: that box has his QR card), people who unsubscribed, and
+  orders that can't be matched to a paid store order (retried, then left
+  `failed` / `order_not_found`).
+- **Off by default:** nothing is recorded or sent until
+  `THANKYOU_EMAIL_ENABLED=true`.
+
+Setup (after merge + CIG's OK):
+1. Run `supabase/migrations/202610310002_printful_thankyou_emails.sql` (after
+   `202610310001_email_list_subscribers.sql`).
+2. Create the Printful v2 webhook (one config per token; this replaces any
+   existing v2 webhook config for that token):
+   `POST https://api.printful.com/v2/webhooks` with
+   `{"default_url": "https://cigcompany.com/.netlify/functions/printful-webhook",
+   "events": [{"type": "shipment_sent"}, {"type": "shipment_delivered"}]}`
+   (Bearer `PRINTFUL_API_TOKEN`, plus `X-PF-Store-Id` if the token is
+   account-level). Copy the returned `secret_key` into Netlify as
+   `PRINTFUL_WEBHOOK_SECRET`.
+3. Netlify env: `PRINTFUL_WEBHOOK_SECRET`, `THANKYOU_EMAIL_ENABLED=true` (when
+   CIG says go), optional `THANKYOU_DELAY_DAYS`, optional
+   `THANKYOU_QR_IMAGE_URL`; `UNSUBSCRIBE_SECRET` for the unsubscribe link.
 
 ## PayPal and crypto payment confirmation
 

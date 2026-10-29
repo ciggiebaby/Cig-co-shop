@@ -54,7 +54,7 @@ const codePrize = () => ({
 
 // ---------- lib/subscribers.js ----------
 test("src list: qr, shop, fani live in one config list and are stored as-is", () => {
-  assert.deepEqual(Object.keys(subscribers.ARCADE_SRC_LIST), ["qr", "shop", "fani"]);
+  assert.deepEqual(Object.keys(subscribers.ARCADE_SRC_LIST), ["qr", "shop", "fani", "thankyou"]);
   for (const slug of Object.keys(subscribers.ARCADE_SRC_LIST)) {
     assert.equal(subscribers.arcadeSource(slug), slug);
     assert.match(slug, subscribers.SOURCE_SLUG_PATTERN, "listed slugs must fit the DB check");

@@ -1,6 +1,7 @@
 const { requiredEnvironment } = require("./supabase.js");
 const { prizeTermsNote } = require("../../promo.js");
 const { unsubscribeUrl } = require("./subscribers.js");
+const { renderThankYouEmail } = require("./thankyou-email-template.js");
 
 class ResendRequestError extends Error {
   constructor(code, status) {
@@ -81,6 +82,27 @@ function createResendClient({
         html: emailFrame(`You won: ${prize.label}`, `${codeBlock}${termsBlock}
           <p style="margin-top:28px;color:#777;font-size:12px;">This prize is yours to use right away.</p>
           ${unsubscribeBlock}`),
+      });
+    },
+
+    // Printful-fulfilled orders (no QR card in the box). Copy and layout:
+    // netlify/lib/thankyou-email-template.js.
+    sendThankYou({ email, orderRef, firstName = null, printfulOrderId }) {
+      const unsubscribe = unsubscribeUrl(email, environment);
+      const { subject, html } = renderThankYouEmail({
+        orderRef,
+        firstName,
+        unsubscribeUrl: unsubscribe,
+        qrImageUrl: environment.THANKYOU_QR_IMAGE_URL || null,
+      });
+      return send({
+        to: email,
+        subject,
+        idempotencyKey: `thankyou/${printfulOrderId}`,
+        headers: unsubscribe
+          ? { "List-Unsubscribe": `<${unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }
+          : null,
+        html,
       });
     },
 

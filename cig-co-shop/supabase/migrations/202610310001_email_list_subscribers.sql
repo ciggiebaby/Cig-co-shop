@@ -151,8 +151,9 @@ begin
      set marketing_consent = false,
          marketing_consent_revoked_at = coalesce(marketing_consent_revoked_at, now()),
          updated_at = now()
-   where email_normalized = v_email
-     and marketing_consent;
+   where email_normalized = v_email;
+  -- (Also stamps buyers who never opted in, so the Printful thank-you email
+  -- respects an unsubscribe from it: see 202610310002.)
 
   return v_count;
 end;

@@ -12,6 +12,7 @@ const ARCADE_SRC_LIST = Object.freeze({
   qr: "Mask-mailer QR card",
   shop: "Cards in wholesale boxes that stores hand out",
   fani: "Fani's store (Closette) cards",
+  thankyou: "Thank-you email for Printful orders (no card in the box)",
 });
 // Fallback: a src that is not on the list yet but looks like a slug is still
 // saved as-is, so a new store's cards are not lumped into "arcade" before
