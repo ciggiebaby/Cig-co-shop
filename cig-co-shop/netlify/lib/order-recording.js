@@ -6,6 +6,7 @@
 const { createCustomerStore } = require("./customer-store.js");
 const { normalizeEmail, safeIdentifier, splitName } = require("./customer-utils.js");
 const { sendOrderTransaction, syncContactToKit } = require("./integrations.js");
+const { CONSENT_TEXT, SOURCES, recordSubscriber } = require("./subscribers.js");
 
 async function recordPaidOrder(order, {
   storeFactory = createCustomerStore,
@@ -38,6 +39,16 @@ async function recordPaidOrder(order, {
 
   const contact = result.contact;
   const savedOrder = result.order;
+  // Email list: buyers who ticked the checkout opt-in (PayPal / crypto path).
+  if (order.marketingConsent) {
+    await recordSubscriber(store, {
+      email,
+      emailOriginal: order.emailOriginal,
+      source: SOURCES.CHECKOUT,
+      marketingConsent: true,
+      consentText: CONSENT_TEXT.checkout,
+    }, { logger });
+  }
   try {
     await sendOrder({ store, contact, order: savedOrder, logger });
   } catch (error) {

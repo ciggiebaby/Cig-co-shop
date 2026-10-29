@@ -138,6 +138,39 @@ function createCustomerStore(client = createSupabaseClient()) {
       });
     },
 
+    // Email list (supabase/migrations/202610310001_email_list_subscribers.sql)
+    subscribe({
+      email,
+      emailOriginal = null,
+      source,
+      productId = null,
+      variant = null,
+      marketingConsent = false,
+      consentText = null,
+    }) {
+      return client.rpc("cigco_subscribe", {
+        p_email: email,
+        p_email_original: emailOriginal,
+        p_source: source,
+        p_product_id: productId,
+        p_variant: variant,
+        p_marketing_consent: marketingConsent,
+        p_consent_text: consentText,
+      });
+    },
+
+    unsubscribe(email) {
+      return client.rpc("cigco_unsubscribe", { p_email: email });
+    },
+
+    exportSubscribers(source = null) {
+      return client.rpc("cigco_export_subscribers", { p_source: source });
+    },
+
+    subscriberCounts() {
+      return client.rpc("cigco_subscriber_counts", {});
+    },
+
     exportContacts(filter) {
       return client.rpc("cigco_export_contacts", { p_filter: filter });
     },

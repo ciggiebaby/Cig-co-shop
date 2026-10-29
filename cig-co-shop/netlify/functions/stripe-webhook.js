@@ -1,4 +1,5 @@
 const { createCustomerStore } = require("../lib/customer-store.js");
+const { CONSENT_TEXT, SOURCES, recordSubscriber } = require("../lib/subscribers.js");
 const {
   normalizeEmail,
   safeIdentifier,
@@ -145,6 +146,16 @@ function createHandler({
 
       const contact = result.contact;
       const order = result.order;
+      // Email list: buyers who ticked the checkout opt-in (card path).
+      if (marketingConsent) {
+        await recordSubscriber(store, {
+          email,
+          emailOriginal,
+          source: SOURCES.CHECKOUT,
+          marketingConsent: true,
+          consentText: CONSENT_TEXT.checkout,
+        }, { logger });
+      }
       try {
         await sendOrder({ store, contact, order, logger });
       } catch (error) {

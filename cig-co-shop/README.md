@@ -9,7 +9,7 @@ per-transaction processing fees from whichever payment method the customer picks
 
 - `index.html`, `styles.css`, `app.js`, `cart.js` — the actual site.
 - `gallery.html`, `gallery-data.js`, `gallery.js` — the Gallery page.
-- `arcade.html`, `arcade.js` — the Arcade page (email-gated games).
+- `arcade.html`, `arcade.js` — the Arcade page (email-gated games; prize codes are emailed).
 - `promo.js` — discount codes (none active right now) and Arcade prizes, shared by checkout and the Arcade.
 - `email-list.js` — legacy Netlify Forms capture retained for non-Stripe checkout compatibility.
 - `products.js` — **edit this to add/change backstock.** Plain English, no code experience needed beyond copy-pasting the pattern.
@@ -99,6 +99,57 @@ explicitly select the optional promotional-email checkbox. See
 3. In Netlify, go to **Site settings > Environment variables** and add `RESEND_API_KEY` with that value.
 4. To send from your own address instead of Resend's shared test address, go to **Domains** in Resend, add `cigcompany.com`, and add the DNS records it gives you at GoDaddy (same place you'll already be adding DNS records in Step 4 below). Once verified, set `RESEND_FROM_EMAIL` to `CIG & CO. <info@cigcompany.com>`.
 5. Until your domain is verified, Resend only lets you send to the email address you signed up with — that's a Resend limit for anti-spam, not something in this code. Real customers won't receive prize emails until you finish the domain verification step, so do that before promoting the Arcade.
+
+## Email list (CIG, Oct 29, 2026)
+
+Every sign-up lands in one Supabase table, `subscribers`, tagged by **source**
+so BG can report sign-ups by source:
+
+| Source | Where it comes from |
+|---|---|
+| `arcade` | Arcade email gate (`arcade.html`) |
+| `qr` | Arcade reached from the mask-mailer QR card: `cigcompany.com/arcade.html?src=qr` |
+| `shop` | Arcade reached from cards in wholesale boxes that stores hand out: `cigcompany.com/arcade.html?src=shop` |
+| `fani` | Arcade reached from Fani's store (Closette) cards: `cigcompany.com/arcade.html?src=fani` |
+| *(card slug)* | Any other `?src=` that matches `^[a-z0-9_-]{2,24}$`, saved as-is (see below) |
+| `checkout` | Buyer ticked "Keep me posted" at checkout (card or PayPal), recorded when the order is paid |
+| `notify_me` | "Notify me" on a sold-out product/variant (stores product + variant) |
+| `early_access` | "Early access" form on the home page (next drop + Black Friday code), and the drop hero's "Get notified" form |
+
+- `src` on `arcade.html`: known card slugs live in ONE place,
+  `ARCADE_SRC_LIST` in `netlify/lib/subscribers.js` (`qr`, `shop`, `fani`).
+  **To add a store, add one line there** (no migration needed). A listed src
+  is stored exactly as the src value.
+- **Regex fallback:** a src not on the list yet but matching
+  `^[a-z0-9_-]{2,24}$` (after trimming/lowercasing) is still saved as-is, so a
+  new store's cards aren't lumped into `arcade` before the list is updated
+  (the function logs "Arcade src not in ARCADE_SRC_LIST yet"). Missing,
+  malformed, or reserved values (`checkout`, `notify_me`, `early_access`)
+  are stored as `arcade`. The database enforces the same slug shape. Trade-off:
+  anyone can type `?src=whatever` and create a new slug-shaped source; it can't
+  hold arbitrary text, but a typo'd or made-up slug shows up as its own row in
+  the per-source counts.
+- One row per email + source + product + variant (repeat sign-ups update
+  `last_seen_at`/`signup_count`). `marketing_consent` + `consent_at` record
+  explicit opt-ins (Arcade checkbox, checkout checkbox, early access).
+  Notify-me is consent to that item's restock email only.
+- **Arcade prize codes are emailed, not shown on screen.** The player sees
+  "Your code is in your email." Prizes stay masks-only; free-mask winners
+  still pay $8.95 shipping. Emergency switch: `ARCADE_SHOW_CODE_ON_SCREEN=true`
+  puts codes back on screen if email delivery is down.
+- Abuse protection: per-minute rate limits on every form, a 20-new-emails-per-hour
+  cap per network on the Arcade gate, a hidden honeypot field, and common
+  throwaway-inbox domains are refused.
+- Unsubscribe: prize emails carry an unsubscribe link (and one-click
+  `List-Unsubscribe` headers) when `UNSUBSCRIBE_SECRET` is set; otherwise they
+  say "reply unsubscribe". The link marks every `subscribers` row and the
+  contact's marketing consent as unsubscribed.
+- Exports (same `ADMIN_EXPORT_TOKEN` as the customer export):
+  `customer-export?filter=subscribers` (add `&source=qr`, `&source=fani`, etc.) and
+  `customer-export?filter=subscriber_counts` (per-source totals).
+- Setup: run `supabase/migrations/202610310001_email_list_subscribers.sql`,
+  set `UNSUBSCRIBE_SECRET`, and make sure Resend's `cigcompany.com` domain is
+  verified (prize codes depend on it now).
 
 ## PayPal and crypto payment confirmation
 

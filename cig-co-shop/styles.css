@@ -811,6 +811,19 @@ a { color: inherit; text-decoration: none; }
   .policy-page h2 { font-size: 19px; margin-top: 34px; }
 }
 
+/* ---------- Email list (notify me, early access, honeypots) ---------- */
+.hp-field { position: absolute !important; left: -10000px !important; width: 1px; height: 1px; overflow: hidden; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.notify-me { margin-top: 16px; display: grid; gap: 8px; }
+.notify-me[hidden] { display: none; }
+.notify-me label { font-size: 14px; color: #ddd; }
+.notify-me-note, .early-access-note { font-size: 12px; color: #888; margin: 0; }
+.notify-me-message, .early-access-message { font-size: 13px; color: var(--gold); margin: 0; min-height: 1em; }
+.early-access { max-width: 560px; margin: 48px auto; padding: 0 20px; text-align: center; }
+.early-access-copy { color: #ccc; margin-bottom: 16px; }
+.early-access-form { display: grid; gap: 8px; }
+.prize-emailed { color: var(--gold); font-weight: 500; margin-top: 8px; }
+
 /* ---------- Product sheet on phones: pinned photo (CIG 10/23) ----------
    The photo stays visible while you tap through color / size / quantity, so the
    image swap is always in view. .modal-inner is the scroll container; the media block
@@ -860,6 +873,9 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 768px) and (prefers-reduced-motion: reduce) {
   .pd-media .pd-image { transition: none; }
 }
+
+
+
 
 /* ---------- Product sheet on desktop: photo column stays put (CIG 10/23) ----------
    Above the phone breakpoint the sheet is side by side: the photo column is sticky

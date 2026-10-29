@@ -11,6 +11,36 @@ let cooldownInterval = null;
 let arcadeEmail = null;
 let activeClaimPromise = null;
 
+// ---------- Sign-up source (BG counts sign-ups by source) ----------
+// Printed cards link to arcade.html?src=<slug>: qr (mask mailers), shop (cards
+// in wholesale boxes), fani (Fani's store, Closette), more stores later.
+// Remember it for this visit so the sign-up is tagged with it. The list of
+// known slugs lives in ONE place, netlify/lib/subscribers.js (ARCADE_SRC_LIST);
+// the browser only checks the slug shape and the server decides. Any other
+// or missing src is a plain "arcade" sign-up.
+const ARCADE_SOURCE_KEY = "cig_co_arcade_src";
+const ARCADE_SRC_PATTERN = /^[a-z0-9_-]{2,24}$/;
+function arcadeSignupSource(search = (typeof location !== "undefined" ? location.search : "")) {
+  let src = null;
+  try {
+    src = new URLSearchParams(search || "").get("src");
+  } catch {
+    src = null;
+  }
+  const wanted = src ? src.trim().toLowerCase() : "";
+  const fromUrl = ARCADE_SRC_PATTERN.test(wanted) && wanted !== "arcade" ? wanted : null;
+  try {
+    if (fromUrl) sessionStorage.setItem(ARCADE_SOURCE_KEY, fromUrl);
+    const stored = sessionStorage.getItem(ARCADE_SOURCE_KEY);
+    return fromUrl || (stored && ARCADE_SRC_PATTERN.test(stored) ? stored : "arcade");
+  } catch {
+    return fromUrl || "arcade";
+  }
+}
+function clearArcadeSignupSource() {
+  try { sessionStorage.removeItem(ARCADE_SOURCE_KEY); } catch { /* private mode */ }
+}
+
 function renderPrizeBanner(prize) {
   if (!prize) return "";
   const isWin = ["discount", "perk", "merch", "gift"].includes(prize.type);
@@ -19,6 +49,7 @@ function renderPrizeBanner(prize) {
       <div class="prize-label">${prize.label}</div>
       <div class="prize-detail">${prize.detail}</div>
       ${prize.type === "discount" && prize.code ? `<div class="prize-code">${prize.code}</div>` : ""}
+      ${prize.emailed ? `<div class="prize-emailed">Your code is in your email.</div>` : ""}
       ${typeof prizeTermsNote === "function" && prizeTermsNote(prize) ? `<div class="prize-detail prize-terms">${prizeTermsNote(prize)}</div>` : ""}
     </div>`;
 }
@@ -158,11 +189,17 @@ async function registerArcadeIdentity(
   marketingConsent,
   consentProvided,
 ) {
+  const source = arcadeSignupSource();
+  const honeypot = document.getElementById("arcade-website");
   const registration = await arcadeRequest("arcade-register", {
     email,
     marketingConsent,
     consentProvided,
+    source,
+    website: honeypot ? honeypot.value : "",
   });
+  // The card scan has been counted once; later refreshes are plain Arcade visits.
+  if (source !== "arcade") clearArcadeSignupSource();
   arcadeEmail = registration.email;
   localStorage.setItem(ARCADE_UNLOCK_KEY, registration.email);
   const lastPlay = registrationPlayRecord(registration);
@@ -491,6 +528,7 @@ if (typeof module !== "undefined" && module.exports) {
     formatCountdown,
     msRemaining,
     registrationPlayRecord,
+    arcadeSignupSource,
     renderPrizeBanner,
     wheelLabelLayout,
   };
