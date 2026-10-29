@@ -30,6 +30,18 @@ time you drop a new visualizer or music video.
 
 ## Promo codes
 
+**Masks only (CIG, Oct 29, 2026).** Every promo code (static or Arcade) takes
+money off the ski mask, balaclava and moto mask only (`PROMO_ELIGIBLE_PRODUCT_IDS`
+in `promo.js`); FW26/27 pieces always stay full price, and a code on a bag with
+no mask is refused. Two constants in `promo.js` are **pending BG (Finance)**:
+`MASK_PROMO_MAX_DISCOUNT` (the most a code can take off a mask; placeholder 15%)
+and `MASK_PROMO_PRICE_FLOOR_USD` (lowest promo price per mask; set to wholesale:
+ski $15, balaclava $12.50, moto $7.50 — never set these below wholesale).
+Free-item Arcade prizes are redeemable for one mask only and ship separately on
+their own Pirate Ship label, so the winner pays the $8.95 mask shipping
+(`GIFT_MASK_SHIPPING_CENTS`) even if their order ships free. The 20% crypto
+discount is separate and unchanged.
+
 Store-wide promo codes live in `promo.js` under `PROMO_CODES` (Arcade codes
 are separate; see below). **No store-wide codes are active right now** (CIG5, CIG10 and CIG20 were retired), so any code a customer types
 shows "That code isn't valid." To add one, add a line inside the braces and

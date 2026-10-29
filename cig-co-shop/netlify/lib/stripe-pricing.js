@@ -1,5 +1,12 @@
 const { PRODUCTS } = require("../../products.js");
-const { PROMO_CODES } = require("../../promo.js");
+const {
+  PROMO_CODES,
+  PROMO_ELIGIBLE_LABEL,
+  cartHasPromoEligibleItem,
+  promoUnitCents,
+} = require("../../promo.js");
+
+const MASKS_ONLY_PROMO_MESSAGE = `Promo codes only work on ${PROMO_ELIGIBLE_LABEL}. Add a mask to your bag to use this code.`;
 
 const MAX_CART_LINES = 50;
 const MAX_QUANTITY_PER_VARIANT = 99;
@@ -135,9 +142,11 @@ function normalizePromoCode(rawCode) {
   return { code, discountBasisPoints };
 }
 
-function discountedUnitAmount(unitAmount, promo) {
+// Promos are masks only (promo.js): FW26/27 lines keep full price, and a
+// mask's discount is capped at MASK_PROMO_MAX_DISCOUNT and its floor price.
+function discountedUnitAmount(unitAmount, promo, productId) {
   if (!promo) return unitAmount;
-  return Math.round((unitAmount * (10000 - promo.discountBasisPoints)) / 10000);
+  return promoUnitCents(productId, unitAmount, promo.discountBasisPoints);
 }
 
 function resolveRequestedItem(rawItem) {
@@ -221,6 +230,9 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
   });
 
   const resolvedItems = Array.from(variants.values());
+  if (promo && !cartHasPromoEligibleItem(resolvedItems.map((item) => item.productId))) {
+    validationError(MASKS_ONLY_PROMO_MESSAGE);
+  }
   const componentUsage = new Map();
   resolvedItems.forEach((item) => {
     if (!item.componentRequirements) return;
@@ -241,7 +253,7 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
       validationError(`Requested quantity is unavailable for product ${item.productId}.`);
     }
 
-    const chargedUnitAmount = discountedUnitAmount(item.unitAmount, promo);
+    const chargedUnitAmount = discountedUnitAmount(item.unitAmount, promo, item.productId);
     subtotalCents += item.unitAmount * item.quantity;
     totalCents += chargedUnitAmount * item.quantity;
 
@@ -300,6 +312,7 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
 }
 
 module.exports = {
+  MASKS_ONLY_PROMO_MESSAGE,
   catalogUnitPrice,
   MAX_CART_LINES,
   MAX_QUANTITY_PER_VARIANT,

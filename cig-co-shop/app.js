@@ -479,7 +479,7 @@ async function applyPromoCode(rawCode, { quiet = false } = {}) {
   if (typeof PROMO_CODES !== "undefined" && PROMO_CODES[code]) {
     promoState = code;
     if (typeof savePromoWin === "function") savePromoWin(code);
-    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label}.${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
+    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label} on masks.${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
   } else if (looksLikeArcadeCode(code)) {
     if (messageEl) { messageEl.textContent = "Checking code…"; messageEl.classList.remove("promo-error"); }
     let result = null;
@@ -497,7 +497,7 @@ async function applyPromoCode(rawCode, { quiet = false } = {}) {
       serverPromos[code] = { discount: result.discount, label: result.label };
       promoState = code;
       if (typeof savePromoWin === "function") savePromoWin(code);
-      if (messageEl) { messageEl.textContent = `Code applied — ${result.label}. One use, with the email that won it.${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
+      if (messageEl) { messageEl.textContent = `Code applied — ${result.label} on masks (ski mask, balaclava, moto mask). One use, with the email that won it.${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
     } else {
       promoState = null;
       if (typeof clearSavedPromo === "function") clearSavedPromo();
@@ -568,11 +568,15 @@ function cartShippingLines(cart) {
 
 // Items total after promo, in cents, rounded per unit exactly like the server
 // (stripe-pricing.js discountedUnitAmount), so the $75 threshold matches.
+// Promos are masks only (promo.js promoUnitCents): FW26/27 lines stay full price.
 function cartMerchandiseCents(cart, promoInfo) {
   const basisPoints = promoInfo && promoInfo.discount ? Math.round(promoInfo.discount * 10000) : 0;
   return cart.reduce((sum, item) => {
     const unit = Math.round(Number(item.price) * 100);
-    return sum + Math.round((unit * (10000 - basisPoints)) / 10000) * item.qty;
+    const charged = typeof promoUnitCents === "function"
+      ? promoUnitCents(item.productId, unit, basisPoints)
+      : unit; // promo.js missing: show full price (the server decides anyway)
+    return sum + charged * item.qty;
   }, 0);
 }
 
@@ -659,8 +663,11 @@ function renderCheckoutSummary() {
 
   rows += `<div class="checkout-summary-row" style="border-top:1px solid #2a2a2a;margin-top:8px;padding-top:8px;"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>`;
 
-  if (discountFraction > 0) {
-    rows += `<div class="checkout-summary-row" style="color:var(--gold);"><span>Promo (${promoState})</span><span>&minus;$${discountAmount.toFixed(2)}</span></div>`;
+  if (discountFraction > 0 && discountAmount > 0) {
+    rows += `<div class="checkout-summary-row" style="color:var(--gold);"><span>Promo (${promoState}, masks only)</span><span>&minus;$${discountAmount.toFixed(2)}</span></div>`;
+  } else if (discountFraction > 0) {
+    // Promos are masks only (promo.js); checkout refuses a code on a bag with no mask.
+    rows += `<div class="checkout-summary-row promo-error"><span>Promo (${promoState}) only works on masks (ski mask, balaclava, moto mask). Add a mask or remove the code.</span><span></span></div>`;
   }
 
   const shippingLabel = shippingQuote.shippingCents === null

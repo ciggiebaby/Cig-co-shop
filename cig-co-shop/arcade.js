@@ -19,6 +19,7 @@ function renderPrizeBanner(prize) {
       <div class="prize-label">${prize.label}</div>
       <div class="prize-detail">${prize.detail}</div>
       ${prize.type === "discount" && prize.code ? `<div class="prize-code">${prize.code}</div>` : ""}
+      ${typeof prizeTermsNote === "function" && prizeTermsNote(prize) ? `<div class="prize-detail prize-terms">${prizeTermsNote(prize)}</div>` : ""}
     </div>`;
 }
 
