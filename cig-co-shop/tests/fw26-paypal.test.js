@@ -78,13 +78,13 @@ test("FW26 PayPal uses the card prices, promo, international and mask shipping r
   assert.deepEqual(unit.amount.breakdown, { item_total: { currency_code: "USD", value: "60.00" }, shipping: { currency_code: "USD", value: "8.95" } });
   assert.equal(unit.amount.value, "68.95");
   assert.deepEqual(unit.items.map((i) => i.sku), ["pod:FW26-TOTE||Hunter|", "stock:0005|Red|"]);
-  // Two totes + balaclava = $95 → free. The promo is masks only and capped at
-  // 15% (promo.js): totes stay $35, balaclava $21.25 → $91.25, still free.
+  // Two totes + balaclava = $95 → free. The promo is masks only (promo.js):
+  // totes stay $35, balaclava 20% off = $20.00 → $90.00, still free.
   assert.equal((await handler(post({ items: [tote(2), balaclava(1)], promoCode: "T20" }))).statusCode, 200);
   unit = sent.at(-1).purchase_units[0];
-  assert.equal(unit.amount.value, "91.25");
+  assert.equal(unit.amount.value, "90.00");
   assert.equal(unit.amount.breakdown.shipping, undefined);
-  assert.deepEqual(unit.items.map((i) => i.unit_amount.value), ["35.00", "21.25"]);
+  assert.deepEqual(unit.items.map((i) => i.unit_amount.value), ["35.00", "20.00"]);
   // Canada: the tote is in the bag class ($8/item), same as the card quote.
   assert.equal((await handler(post({ items: [tote(1)], shipCountry: "CA" }))).statusCode, 200);
   unit = sent.at(-1).purchase_units[0];

@@ -65,14 +65,16 @@ function prizeById(id) {
 const PROMO_ELIGIBLE_PRODUCT_IDS = ["0008", "0005", "0013"]; // ski mask, balaclava, moto mask
 const PROMO_ELIGIBLE_LABEL = "masks (ski mask, balaclava, moto mask)";
 
-// >>> PENDING BG (Finance): max promo discount on a mask. <<<
-// A code worth more than this is cut down to this cap on each mask.
-// Placeholder 0.15 = the biggest Arcade prize live today (15% off), so nothing
-// changes for current winners. BG sets the real cap from mask unit costs.
-const MASK_PROMO_MAX_DISCOUNT = 0.15;
+// Max promo discount on a mask: 20% (set by BG, Finance, Thu Oct 29, 2026).
+// PROVISIONAL until we have mask unit costs (Alibaba invoices) and a mask
+// label rate (weigh-in); BG may lower it then. A code worth more than this is
+// cut down to this cap on each mask. Codes never stack: checkout takes one
+// promo code per order, and crypto never takes one, so no order gets more
+// than this off a mask.
+const MASK_PROMO_MAX_DISCOUNT = 0.20;
 
-// >>> PENDING BG (Finance): lowest price a promo may take each mask to. <<<
-// Must never go below wholesale (line sheet: ski $15, balaclava $12.50,
+// Lowest price a promo may take each mask to: wholesale (confirmed by BG,
+// Oct 29, 2026; PROVISIONAL like the cap above). Must never go below wholesale (line sheet: ski $15, balaclava $12.50,
 // moto $7.50). A promo can never push a mask's price under its floor, and a
 // mask with no floor listed here gets no promo discount at all (fail safe).
 const MASK_PROMO_PRICE_FLOOR_USD = {

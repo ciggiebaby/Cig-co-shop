@@ -43,11 +43,11 @@ test("exactly $75.00 still pays $8.95 (free is strictly over $75)", () => {
 
 test("mixed mask + FW26: over $75 free, under $75 (after promo) pays", () => {
   assert.equal(usShipping([balaclava(1), bag(1)]), 0);     // $90
-  // Promos are masks only and capped (promo.js): 20% off is cut to the 15% cap
-  // on the balaclava ($21.25); the $65 bag stays full price → $86.25 → free.
+  // Promos are masks only (promo.js): 20% off the balaclava ($20.00); the $65
+  // bag stays full price → $85.00 → free.
   assert.equal(usShipping([balaclava(1), bag(1)], { code: "T20", discountBasisPoints: 2000 }), 0);
   const priced = priceCartForStripe([balaclava(1), bag(1)], null, { code: "T20", discountBasisPoints: 2000 });
-  assert.deepEqual(priced.lineItems.map((l) => l.price_data.unit_amount), [2125, 6500]);
+  assert.deepEqual(priced.lineItems.map((l) => l.price_data.unit_amount), [2000, 6500]);
   // $25 + $35 tote = $60, promo on the mask only → $56.25 → $8.95.
   assert.equal(usShipping([balaclava(1), { productId: "FW26-TOTE", color: "Hunter", quantity: 1 }], TEN_OFF), 895);
 });
@@ -172,8 +172,8 @@ test("drop-test code: pre-drop FW26 + mask test order gets the same mask shippin
   const ok = await post({ dropTestCode: "drop-test-code-2026" });
   assert.equal(ok.statusCode, 200);
   assert.equal(created.metadata.drop_test, "true");
-  // $35 tote + $25 balaclava (promo on the mask only, capped at 15% → $21.25)
-  // = $56.25 → $8.95; the test code doesn't change pricing or shipping.
+  // $35 tote + $25 balaclava (promo on the mask only, 20% → $20.00)
+  // = $55.00 → $8.95; the test code doesn't change pricing or shipping.
   assert.equal(created.shipping_options[0].shipping_rate_data.fixed_amount.amount, 895);
 });
 
@@ -186,7 +186,7 @@ test("tote counts as FW26: free alone, never flagged as a mask, and with a mask 
   assert.equal(usShipping([tote(2), balaclava()]), 0);      // $70 + $25 = $95: free
   assert.equal(usShipping([tote(2), balaclava()], TEN_OFF), 0);   // $85.50 after promo: still free
   assert.equal(usShipping([tote(), balaclava(2)]), 0);      // $85: free
-  // Masks-only promo, capped at 15%: $35 + 2 x $21.25 = $77.50, still free.
-  assert.equal(usShipping([tote(), balaclava(2)], { code: "T20", discountBasisPoints: 2000 }), 0);
-  assert.equal(usShipping([tote(), balaclava(1)], { code: "T20", discountBasisPoints: 2000 }), 895); // $56.25: pays
+  // Masks-only promo at 20%: $35 + 2 x $20.00 = exactly $75.00 → still pays.
+  assert.equal(usShipping([tote(), balaclava(2)], { code: "T20", discountBasisPoints: 2000 }), 895);
+  assert.equal(usShipping([tote(2), balaclava(1)], { code: "T20", discountBasisPoints: 2000 }), 0); // $90: free
 });

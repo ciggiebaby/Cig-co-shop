@@ -30,7 +30,7 @@ test("eligible products are exactly the three masks, and they exist in products.
 
 test("price floors are the wholesale prices and every eligible mask has one", () => {
   assert.deepEqual(promo.MASK_PROMO_PRICE_FLOOR_USD, { "0008": 15.00, "0005": 12.50, "0013": 7.50 });
-  assert.ok(promo.MASK_PROMO_MAX_DISCOUNT > 0 && promo.MASK_PROMO_MAX_DISCOUNT < 0.5);
+  assert.equal(promo.MASK_PROMO_MAX_DISCOUNT, 0.20); // BG, Oct 29 2026 (provisional)
 });
 
 test("promo takes money off mask lines only; FW26 lines keep full price", () => {
@@ -44,6 +44,17 @@ test("a code on a cart with no mask is refused (the Arcade code isn't burned)", 
   assert.throws(() => priceCartForStripe([tote()], null, P(1000)), /only work on masks/);
   // No code: FW26-only carts price as before.
   assert.equal(priceCartForStripe([tote()], null).totalCents, 3500);
+});
+
+test("20% cap: 20% applies in full, anything bigger is cut to 20%", () => {
+  assert.equal(priceCartForStripe([ski()], null, P(2000)).lineItems[0].price_data.unit_amount, 2400);
+  assert.equal(priceCartForStripe([ski()], null, P(2500)).lineItems[0].price_data.unit_amount, 2400);
+  assert.equal(priceCartForStripe([balaclava()], null, P(9000)).lineItems[0].price_data.unit_amount, 2000);
+  assert.equal(priceCartForStripe([moto()], null, P(9000)).lineItems[0].price_data.unit_amount, 1200);
+  // At 20% every mask stays well above wholesale.
+  for (const [id, retail, floor] of [["0008", 3000, 1500], ["0005", 2500, 1250], ["0013", 1500, 750]]) {
+    assert.ok(promo.promoUnitCents(id, retail, 2000) > floor, id);
+  }
 });
 
 test("discount is capped at MASK_PROMO_MAX_DISCOUNT", () => {
@@ -90,4 +101,23 @@ test("the arcade banner and prize email show the masks-only terms", () => {
 test("the drop-test bypass is untouched by this change", () => {
   const dropLock = fs.readFileSync(path.join(__dirname, "..", "netlify", "lib", "drop-lock.js"), "utf8");
   assert.doesNotMatch(dropLock, /promo/i);
+});
+
+test("codes can't stack: one code per order, so no order gets more than 20% off", async () => {
+  const { resolvePromo } = require("../netlify/lib/promo-codes.js");
+  // Several codes in one request are refused, not combined.
+  await assert.rejects(resolvePromo({ promoCode: ["CIG10-ABCDEFGH", "CIG15-ABCDEFGH"], email: "a@b.co" }), PricingValidationError);
+  await assert.rejects(resolvePromo({ promoCode: "CIG10-ABCDEFGH,CIG15-ABCDEFGH", email: "a@b.co" }), /not valid/);
+  assert.throws(() => priceCartForStripe([ski()], ["A", "B"]), /must be a string/);
+  // A whole mask cart at the biggest possible code is at most 20% off.
+  const cart = [ski(2), balaclava(3), moto(4)];
+  const full = priceCartForStripe(cart, null).totalCents;
+  const off = priceCartForStripe(cart, null, P(9999)).totalCents;
+  assert.ok(off >= Math.round(full * 0.8), `${off} vs ${full}`);
+  // Stripe Checkout never adds its own promotion-code box or discounts.
+  const session = fs.readFileSync(path.join(__dirname, "..", "netlify", "functions", "create-stripe-session.js"), "utf8");
+  assert.doesNotMatch(session, /allow_promotion_codes|discounts\s*:/);
+  // Crypto (its own 20%) never takes a promo code.
+  const coinbase = fs.readFileSync(path.join(__dirname, "..", "netlify", "functions", "create-coinbase-charge.js"), "utf8");
+  assert.match(coinbase, /Promo codes never stack with the crypto discount/);
 });
