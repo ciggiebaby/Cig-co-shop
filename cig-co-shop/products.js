@@ -153,6 +153,7 @@ const PRODUCTS = [
     price: 40.00,
     sizeLabel: "Model",
     salePrice: null,
+    shipTime: "7–9 business days",
     description: "Made to order. MagSafe compatible. Shipping to Japan & South Korea takes about 30 days.",
     // Card photo and the color preselected when the product opens (CIG 10/22).
     defaultColor: "Burgundy",
@@ -516,6 +517,7 @@ const PRODUCTS = [
     price: 50.00,
     sizePrices: { "13″": 50.00, "15″": 55.00 },
     salePrice: null,
+    shipTime: "7–9 business days",
     description: "Made to order.",
     // Card photo and the color preselected when the product opens (CIG 10/22).
     defaultColor: "Grape",
@@ -594,6 +596,7 @@ const PRODUCTS = [
     price: 45.00,
     sizePrices: { "14″×14″": 45.00, "16″×16″": 48.00, "18″×18″": 52.00, "20″×12″": 48.00, "22″×22″": 58.00 },
     salePrice: null,
+    shipTime: "7–9 business days",
     description: "Made to order. Ships to the US only.",
     // Card photo and the color preselected when the product opens (CIG 10/22).
     defaultColor: "Black",
@@ -738,6 +741,7 @@ const PRODUCTS = [
     // shipping (US shipping is free to the customer).
     price: 35.00,
     salePrice: null,
+    shipTime: "7–9 business days",
     description: "Made to order.",
     material: "100% polyester",
     details: [
