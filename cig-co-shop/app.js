@@ -274,6 +274,16 @@ function openProductModal(id) {
         <button id="qty-plus">+</button>
       </div>
     </div>
+    <form class="notify-me" id="pd-notify" hidden novalidate>
+      <label for="pd-notify-email">Sold out. Get an email when <span id="pd-notify-variant"></span> is back.</label>
+      <div class="email-gate-row">
+        <input type="email" id="pd-notify-email" placeholder="you@email.com" autocomplete="email" required />
+        <button type="submit" class="btn btn-outline btn-promo">Notify me</button>
+      </div>
+      <div class="hp-field" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>
+      <p class="notify-me-note">One email when it&rsquo;s back. Unsubscribe anytime.</p>
+      <p class="notify-me-message" role="status" aria-live="polite"></p>
+    </form>
     <button class="btn btn-gold btn-full" id="add-to-cart-btn">Add to Bag</button>
     </div>
   `;
@@ -295,6 +305,7 @@ function openProductModal(id) {
     const avail = variantStock(p, modalState.style, modalState.color, modalState.size);
     const addBtn = document.getElementById("add-to-cart-btn");
     const qtyVal = document.getElementById("qty-value");
+    refreshNotifyMe(p, avail);
     if (addBlockedByDrop(p)) {
       addBtn.textContent = dropBadgeText(p);
       addBtn.disabled = true;
@@ -371,9 +382,68 @@ function openProductModal(id) {
     dismissProductModal();
   });
 
+  wireNotifyMe(p);
   refreshAvailability();
   document.getElementById("product-modal").setAttribute("aria-hidden", "false");
   pushProductModalHistory();
+}
+
+// ---------- Notify me (sold-out products/variants) ----------
+// Email list source "notify_me", stored with the product and variant so we can
+// email exactly the people waiting when it restocks.
+function notifyVariantLabel(p, state) {
+  return [p.styles ? state.style : null, state.color, state.size].filter(Boolean).join(" / ");
+}
+// Offer it on anything sold out, but not on drop-locked or coming-soon items.
+function shouldOfferNotifyMe(p, avail) {
+  return !p.comingSoon && !dropLocked(p) && avail <= 0;
+}
+function refreshNotifyMe(p, avail) {
+  const form = document.getElementById("pd-notify");
+  if (!form) return;
+  const offer = shouldOfferNotifyMe(p, avail);
+  form.hidden = !offer;
+  if (!offer) return;
+  const label = notifyVariantLabel(p, modalState);
+  const variantEl = document.getElementById("pd-notify-variant");
+  if (variantEl) variantEl.textContent = label ? `${p.name} (${label})` : p.name;
+  if (form.dataset.variant !== label) {
+    form.dataset.variant = label;
+    const message = form.querySelector(".notify-me-message");
+    if (message) message.textContent = "";
+  }
+}
+function wireNotifyMe(p) {
+  const form = document.getElementById("pd-notify");
+  if (!form || form.dataset.wired) return;
+  form.dataset.wired = "1";
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const input = document.getElementById("pd-notify-email");
+    const message = form.querySelector(".notify-me-message");
+    const button = form.querySelector('button[type="submit"]');
+    const email = input ? input.value : "";
+    if (!isValidEmail(email)) {
+      if (message) message.textContent = "Enter a valid email.";
+      return;
+    }
+    if (button) button.disabled = true;
+    try {
+      await subscribeEmail({
+        email,
+        source: "notify_me",
+        productId: p.id,
+        variant: notifyVariantLabel(p, modalState) || null,
+        website: form.querySelector('input[name="website"]').value,
+      });
+      if (message) message.textContent = "You're on the list. We'll email you when it's back.";
+      if (input) input.value = "";
+    } catch (error) {
+      if (message) message.textContent = error.message;
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
 }
 
 function closeModal(id) {
@@ -1063,6 +1133,21 @@ renderProductGrid();
 })();
 if (typeof renderCart === "function") renderCart();
 
+// Deep links from emails (thank-you "complete the fit"): cigcompany.com/#product-0008
+function productIdFromHash(hash) {
+  const match = /^#product-([A-Za-z0-9-]{1,20})$/.exec(String(hash || ""));
+  return match ? match[1] : null;
+}
+(function openLinkedProduct() {
+  try {
+    if (typeof location === "undefined" || typeof document === "undefined" || !document.getElementById) return;
+    const id = productIdFromHash(location.hash);
+    if (id && document.getElementById("modal-content")) openProductModal(id);
+  } catch {
+    /* a bad link never breaks the shop */
+  }
+})();
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     CheckoutFingerprintError,
@@ -1074,6 +1159,9 @@ if (typeof module !== "undefined" && module.exports) {
     dropLocked,
     minPrice,
     handleCheckoutResult,
+    notifyVariantLabel,
+    productIdFromHash,
+    shouldOfferNotifyMe,
     productTotalStock,
     variantStock,
   };

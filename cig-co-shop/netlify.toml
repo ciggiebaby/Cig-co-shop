@@ -10,3 +10,8 @@
   to = "/index.html"
   status = 200
   force = false
+
+# Printful thank-you email: hourly sweep for "shipped + THANKYOU_DELAY_DAYS"
+# sends and retries. Does nothing unless THANKYOU_EMAIL_ENABLED=true.
+[functions."thankyou-email-sweep"]
+  schedule = "@hourly"
