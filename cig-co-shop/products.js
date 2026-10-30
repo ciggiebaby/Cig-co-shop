@@ -9,11 +9,17 @@
 //   delete the line) when you're ready to put it on the site.
 //
 // shipping: the product's shipping class from shipping-rates.js
-//   ("bag", "case", "sleeve", or "pillow"). Only bag/case/sleeve can ship
-//   internationally; pillows and products with no class ship to the US only.
-//   International: CA, GB, DE, AU, JP, KR (rates in shipping-rates.js). For a
-//   MagSafe case: Printful can't ship it to Japan or South Korea (blocked in shipping-rates.js).
+//   ("bag", "case", "sleeve", or "pillow") — Printful (pod) products only.
+//   Of those, only bag/case/sleeve can ship internationally; pillows ship to the
+//   US only, and Printful can't ship a MagSafe case to Japan or South Korea.
+//   In-hand products (no `pod`: masks and other backstock CIG ships himself)
+//   leave `shipping` out and ship to every store country: CA, GB, DE, AU, JP, KR,
+//   for one per-order USPS charge by weight (shipping-rates.js).
 //   (checkout also shows this automatically).
+//
+// shipWeightOz: in-hand products only. Estimated packed weight of ONE unit in
+//   ounces, for international shipping (default 3 oz; a 3 oz mailer is added
+//   per parcel). Update it when CIG weighs the real thing.
 //
 // pod: { ... } — print-on-demand (made to order by Printful, no stock to track).
 //   Leave out `stock` so it never sells out. Paid card orders are sent to
@@ -845,6 +851,7 @@ const PRODUCTS = [
   },
   {
     id: "0004",
+    shipWeightOz: 3, // bonnet + durag, est.
     sku: "0004",
     name: "Silky Bonnet & Durag",
     // CIG 10/22: sold out (whole product). Counts below are left as-is.
@@ -903,6 +910,7 @@ const PRODUCTS = [
   },
   {
     id: "0005",
+    shipWeightOz: 3, // est., weigh-in pending
     sku: "0005",
     // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
     liveStock: true,
@@ -935,6 +943,7 @@ const PRODUCTS = [
   },
   {
     id: "0008",
+    shipWeightOz: 3, // est., weigh-in pending
     sku: "0008",
     // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
     liveStock: true,
@@ -987,6 +996,7 @@ const PRODUCTS = [
   },
   {
     id: "0013",
+    shipWeightOz: 3, // est., weigh-in pending
     sku: "0013",
     // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
     liveStock: true,
@@ -1026,6 +1036,7 @@ const PRODUCTS = [
   },
   {
     id: "0010",
+    shipWeightOz: 16, // umbrella, est.
     sku: "0010",
     stock: { "Blue": 2, "Green": 0, "Red": 2, "Rainbow": 6 },
     name: "Toile Umbrella",
@@ -1055,6 +1066,7 @@ const PRODUCTS = [
   },
   {
     id: "0011",
+    shipWeightOz: 3, // bikini, est.
     sku: "0011",
     name: "Paisley Bikini",
     // CIG 10/22: sold out (whole product). Counts below are left as-is.
@@ -1110,6 +1122,7 @@ const PRODUCTS = [
   },
   {
     id: "0012",
+    shipWeightOz: 3, // est.
     sku: "0012",
     // Off-site backstock — held ready, not sold on the site.
     // BEFORE setting hidden to false: fill in price and add photos to

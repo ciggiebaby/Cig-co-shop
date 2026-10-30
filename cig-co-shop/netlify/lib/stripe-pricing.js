@@ -194,6 +194,7 @@ function resolveRequestedItem(rawItem) {
     stripeName,
     pod: !!product.pod,
     liveStock: !!product.liveStock,
+    shipWeightOz: typeof product.shipWeightOz === "number" ? product.shipWeightOz : null,
   };
 }
 
@@ -290,8 +291,11 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
       name: item.productName,
       shipping: item.shippingClass,
       quantity: item.quantity,
-      // In-hand backstock (masks): US only, $8.95/order under $75 (shipping-rates.js).
+      // In-hand backstock masks: US $8.95/order under $75 (shipping-rates.js).
       mask: !!item.liveStock,
+      // Shipped by CIG (not Printful): every store country, priced by weight.
+      inHand: !!item.liveStock || (!item.pod && !item.shippingClass),
+      weightOz: item.shipWeightOz,
     })),
     // Same order as lineItems: the live-stock line for each, or null.
     lineStock: resolvedItems.map((item) => (item.liveStock

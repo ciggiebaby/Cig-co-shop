@@ -5,13 +5,20 @@
 //   JP, KR:         APPROVED by CIG on 2026-10-21.
 //
 // US: free shipping on FW26/Printful pieces. In-hand backstock masks (products
-// with `liveStock`, flagged `mask: true` on shipping lines) ship from CIG in the
-// US only: any US order with a mask pays a flat MASK_US_SHIPPING_CENTS per ORDER,
+// with `liveStock`, flagged `mask: true` on shipping lines) ship from CIG:
+// any US order with a mask pays a flat MASK_US_SHIPPING_CENTS per ORDER,
 // free when the merchandise total after promo (before shipping) is OVER
 // MASK_FREE_SHIPPING_OVER_CENTS. Exactly $75.00 still pays. (CIG, 2026-10-22.)
-// International: only the countries below, and only for products whose
-// products.js entry has a `shipping` class listed here. Anything else
-// (pillows, and any product without a class) ships to the US only.
+// International: only the countries below.
+//   - In-hand items (everything CIG ships himself via Pirate Ship: masks and
+//     any other non-Printful product, flagged `inHand: true` on shipping
+//     lines) ship to ALL of them for one per-ORDER charge by package weight
+//     (IN_HAND_INTL_SHIPPING_USD below). CIG 2026-10-30: "There's no reason
+//     any on hand item is blocked from anywhere." No US free-over-$75 abroad.
+//   - Printful pieces ship abroad only if their products.js `shipping` class is
+//     listed in INTERNATIONAL_SHIPPING_PER_ITEM_USD (pillows: US only; MagSafe
+//     cases: not JP/KR). A cart with both pays the in-hand order charge PLUS
+//     the Printful per-item charges (they ship in separate parcels).
 //
 // Each number is the charge PER ITEM in whole US dollars: Printful's cheapest
 // standard per-unit shipping for that country, rounded UP to the next dollar.
@@ -68,7 +75,84 @@ const SLOW_DELIVERY = {};
 
 const MASK_US_SHIPPING_CENTS = 895;
 const MASK_FREE_SHIPPING_OVER_CENTS = 7500;
-const MASK_SHIPPING_NOTE = "Mask orders ship from the US for $8.95 \u2014 free over $75.";
+const MASK_SHIPPING_NOTE = "Mask orders ship from the US for $8.95 \u2014 free over $75. International mask orders pay a flat USPS rate shown at checkout.";
+
+// ---------- In-hand items abroad (CIG ships via Pirate Ship, USPS) ----------
+// Service: USPS First-Class Package International (FCPI), the cheapest USPS
+// international service for parcels up to 4 lb. FCPI price is set by weight
+// band + destination group (no zones, so the Atlanta, GA origin doesn't change it).
+// SOURCE: Pirate Ship's published rate sheet "Pirate-Ship-October-30-2026-USPS-
+//   Rates.xlsx", tab "First Class Package Intl" ("USPS October 2026 Rates,
+//   Effective October 30th 2026"), linked from
+//   https://www.pirateship.com/usps/first-class-package-international
+//   (pulled 2026-10-30, no login). It matches USPS's published Commercial Base
+//   file s-fcpis-com-base.csv (2026, "Final 9/14/2026") to the cent.
+// Groups (same sheet, "International Country Codes" tab):
+//   CA 1, GB 20, DE 16, AU 12, JP 17, KR 18.
+// Raw Pirate Ship quotes, USD per parcel:
+//   band       CA     GB     DE     AU     JP     KR
+//   1-8 oz   18.48  21.95  20.75  23.62  22.99  21.94   (1 mask, ~6 oz est.)
+//   9-16 oz  24.69  30.34  27.92  39.16  32.24  29.90   (2-3 masks, ~9-12 oz est.)
+//   17-32 oz 27.65  33.98  31.27  43.86  36.11  33.49
+//   33-48 oz 36.57  46.33  45.33  62.00  53.78  48.19
+//   49-64 oz 39.59  53.43  54.10  65.75  64.27  55.44
+// Our charge = that band's quote rounded UP to the whole dollar. Cushion: the
+// smallest band we charge is 9-16 oz, so a 1-mask order pays the 2-3 mask rate
+// (CIG's packed mask weigh-in is still pending; the 6 oz guess is close to
+// the 8 oz break). Once real weights are in, the 1-8 oz band could be used for
+// single small items (about $6-$16 less per order).
+// Weight estimate: IN_HAND_MAILER_OZ for the poly mailer + each unit's
+// products.js `shipWeightOz` (default IN_HAND_DEFAULT_ITEM_OZ): 1 mask = 6 oz,
+// 2 = 9 oz, 3 = 12 oz, same as the orders-export Pirate Ship CSV estimate.
+// FCPI caps a parcel at 64 oz (4 lb) and $400 declared value: heavier orders
+// are charged as several parcels (each with its own mailer). Orders over
+// $400 in in-hand goods may need splitting or Priority Mail Intl by hand.
+const IN_HAND_MAILER_OZ = 3;
+const IN_HAND_DEFAULT_ITEM_OZ = 3;
+const IN_HAND_MAX_PARCEL_OZ = 64;
+const IN_HAND_INTL_SHIPPING_USD = [
+  // [max parcel oz, { country: whole dollars per parcel }]
+  [16, { CA: 25, GB: 31, DE: 28, AU: 40, JP: 33, KR: 30 }],
+  [32, { CA: 28, GB: 34, DE: 32, AU: 44, JP: 37, KR: 34 }],
+  [48, { CA: 37, GB: 47, DE: 46, AU: 62, JP: 54, KR: 49 }],
+  [64, { CA: 40, GB: 54, DE: 55, AU: 66, JP: 65, KR: 56 }],
+];
+
+function inHandLine(line) {
+  return !!(line && (line.inHand || line.mask));
+}
+
+function lineWeightOz(line) {
+  const each = Number(line && line.weightOz);
+  const unit = Number.isFinite(each) && each > 0 ? each : IN_HAND_DEFAULT_ITEM_OZ;
+  const qty = Number.isInteger(line && line.quantity) && line.quantity > 0 ? line.quantity : 1;
+  return unit * qty;
+}
+
+function parcelCents(parcelOz, country) {
+  const band = IN_HAND_INTL_SHIPPING_USD.find(([maxOz]) => parcelOz <= maxOz);
+  const dollars = band && band[1][country];
+  return Number.isInteger(dollars) && dollars >= 0 ? dollars * 100 : null;
+}
+
+// Per-order charge abroad for the in-hand lines, in cents; 0 if there are none,
+// null if the country isn't served. Splits into <= 64 oz parcels when needed.
+function inHandInternationalCents(lines, country) {
+  const itemsOz = (lines || []).filter(inHandLine).reduce((sum, line) => sum + lineWeightOz(line), 0);
+  if (!itemsOz) return 0;
+  const perParcelItemsOz = IN_HAND_MAX_PARCEL_OZ - IN_HAND_MAILER_OZ;
+  const parcels = Math.ceil(itemsOz / perParcelItemsOz);
+  let cents = 0;
+  let remaining = itemsOz;
+  for (let i = 0; i < parcels; i += 1) {
+    const chunk = Math.min(remaining, perParcelItemsOz);
+    remaining -= chunk;
+    const one = parcelCents(chunk + IN_HAND_MAILER_OZ, country);
+    if (one === null) return null;
+    cents += one;
+  }
+  return cents;
+}
 
 // US shipping for a cart: $8.95 per order if any line is a mask and the
 // merchandise total after promo is not over $75; otherwise free. A missing
@@ -95,13 +179,14 @@ function shipsAbroad(shippingClass) {
   return !!rates && Object.keys(rates).length > 0;
 }
 
-// lines: [{ name, shipping, quantity, mask }] (shipping = the product's class;
-// mask = in-hand backstock, US only). merchandiseCents = items total after
-// promo, before shipping (only used for the US mask rule).
+// lines: [{ name, shipping, quantity, mask, inHand, weightOz }] (shipping = the
+// product's class; mask = live-stock mask (US $8.95 rule); inHand = shipped by
+// CIG, priced abroad by weight; weightOz = per unit). merchandiseCents = items
+// total after promo, before shipping (only used for the US mask rule).
 // Returns { country, shippingCents, blocked, usOnly } where blocked lists the
 // product names that can't ship to that country (shippingCents is null if any)
-// and usOnly is the subset that can't ship outside the US at all (pillows,
-// masks); the rest (e.g. MagSafe cases to JP/KR) only miss that one country.
+// and usOnly is the subset that can't ship outside the US at all (pillows);
+// the rest (e.g. MagSafe cases to JP/KR) only miss that one country.
 function quoteShipping(lines, country, { merchandiseCents } = {}) {
   if (!Object.prototype.hasOwnProperty.call(SHIP_TO_COUNTRIES, country)) {
     return { country, shippingCents: null, blocked: [], usOnly: [], unsupportedCountry: true };
@@ -113,6 +198,7 @@ function quoteShipping(lines, country, { merchandiseCents } = {}) {
   const blocked = [];
   const usOnly = [];
   lines.forEach((line) => {
+    if (inHandLine(line)) return; // priced per order below
     const perItem = shippingCentsPerItem(line.shipping, country);
     if (perItem === null) {
       if (!blocked.includes(line.name)) blocked.push(line.name);
@@ -121,6 +207,12 @@ function quoteShipping(lines, country, { merchandiseCents } = {}) {
     }
     shippingCents += perItem * line.quantity;
   });
+  const inHandCents = inHandInternationalCents(lines, country);
+  if (inHandCents === null) {
+    lines.filter(inHandLine).forEach((line) => { if (!blocked.includes(line.name)) blocked.push(line.name); });
+  } else {
+    shippingCents += inHandCents;
+  }
   return { country, shippingCents: blocked.length ? null : shippingCents, blocked, usOnly, unsupportedCountry: false };
 }
 
@@ -141,6 +233,9 @@ function slowDeliveryNote(lines, country) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     DUTIES_NOTICE,
+    IN_HAND_DEFAULT_ITEM_OZ,
+    IN_HAND_INTL_SHIPPING_USD,
+    IN_HAND_MAILER_OZ,
     INTERNATIONAL_SHIPPING_PER_ITEM_USD,
     MASK_FREE_SHIPPING_OVER_CENTS,
     MASK_SHIPPING_NOTE,
@@ -148,6 +243,7 @@ if (typeof module !== "undefined" && module.exports) {
     PCCC_PATTERN,
     SHIP_TO_COUNTRIES,
     SLOW_DELIVERY,
+    inHandInternationalCents,
     normalizePccc,
     quoteShipping,
     slowDeliveryNote,

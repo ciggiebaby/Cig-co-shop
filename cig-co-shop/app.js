@@ -564,8 +564,11 @@ function cartShippingLines(cart) {
       name: product ? product.name : item.name,
       shipping: product && typeof product.shipping === "string" ? product.shipping : null,
       quantity: item.qty,
-      // In-hand backstock (masks): US only, flat fee under $75 (shipping-rates.js).
+      // In-hand backstock masks: US flat fee under $75 (shipping-rates.js).
       mask: !!(product && product.liveStock),
+      // Shipped by CIG (not Printful): every store country, priced by weight.
+      inHand: !!(product && (product.liveStock || (!product.pod && typeof product.shipping !== "string"))),
+      weightOz: product && typeof product.shipWeightOz === "number" ? product.shipWeightOz : null,
     };
   });
 }
