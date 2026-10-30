@@ -687,6 +687,7 @@ a { color: inherit; text-decoration: none; }
   padding: 4px 10px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
 }
 .pd-soldout-badge { position: static; display: inline-block; margin: 4px 0 8px; }
+.new-badge { background: var(--gold); color: #000; }
 
 /* ---------- FW26/27 drop hero ---------- */
 .drop-hero {

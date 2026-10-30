@@ -937,6 +937,7 @@ const PRODUCTS = [
     // Photo -> color: the pinkish-red mask is "Pink" and the orange-red one is
     // "Orange" (per CIG's brief; CIG to confirm), the gold/tan one is "Yellow".
     stock: { "Yellow": 17, "Pink": 22, "Brown": 16, "Purple": 14, "Green": 13, "Orange": 12 },
+    isNew: true,
     name: "Moto Mask",
     price: 15.00,
     salePrice: null,

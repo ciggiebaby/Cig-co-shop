@@ -57,7 +57,7 @@ function renderProductGrid() {
     return `
     <div class="product-card reveal" data-id="${p.id}">
       <div class="product-card-image-wrap">
-        ${p.comingSoon ? `<div class="soldout-badge">Coming Soon</div>` : dropLocked(p) ? `<div class="soldout-badge drop-badge">${dropBadgeText(p)}</div>` : productTotalStock(p) <= 0 ? `<div class="soldout-badge">Sold Out</div>` : ""}
+        ${p.comingSoon ? `<div class="soldout-badge">Coming Soon</div>` : dropLocked(p) ? `<div class="soldout-badge drop-badge">${dropBadgeText(p)}</div>` : productTotalStock(p) <= 0 ? `<div class="soldout-badge">Sold Out</div>` : p.isNew ? `<div class="soldout-badge new-badge">New</div>` : ""}
         <div class="product-card-parallax">
           <img src="${p.image}" alt="${p.name}" />
         </div>
@@ -237,7 +237,7 @@ function openProductModal(id) {
     <div class="pd-details">
     ${p.photoComingSoon ? `<p class="pd-photo-note" id="pd-photo-note" hidden>Photo coming soon</p>` : ""}
     <h3 class="pd-name">${p.name}</h3>
-    ${p.soldOut ? `<div class="soldout-badge pd-soldout-badge">Sold Out</div>` : ""}
+    ${p.soldOut ? `<div class="soldout-badge pd-soldout-badge">Sold Out</div>` : p.isNew ? `<div class="soldout-badge pd-soldout-badge new-badge">New</div>` : ""}
     <div class="pd-price" id="pd-price"></div>
     ${p.description ? `<p class="pd-description">${p.description}</p>` : ""}
     ${p.styles ? `
