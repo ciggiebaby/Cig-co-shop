@@ -922,7 +922,13 @@ const PRODUCTS = [
     stock: { "Red": 70, "Blue": 68, "Gold": 24, "Black": 0 },
     name: "CIG Balaclava",
     price: 25.00,
-    salePrice: null,
+    // Halloween mask sale (CIG approved 10/30 via YG: "Have G set the mask sale
+    // prices on the site for Saturday, ending 11:59 PM ET"). 20% off = BG's cap,
+    // no code, no stacking. Applies only inside saleStart..saleEnd (see
+    // saleActive below), so full price returns at midnight with no redeploy.
+    salePrice: 20.00,
+    saleStart: "2026-10-31T04:00:00.000Z", // Sat 10/31 12:00 AM ET (EDT, UTC-4)
+    saleEnd: "2026-11-01T04:00:00.000Z",   // exclusive: last sale moment is 11:59:59.999 PM ET Sat
     // CIG 10/22: card and product view open on the black-and-gold balaclava.
     defaultColor: "Gold",
     image: "assets/products/balaclava-gold-front-upright.jpg",
@@ -958,7 +964,13 @@ const PRODUCTS = [
     },
     name: "CIG Ski Mask",
     price: 30.00,
-    salePrice: null,
+    // Halloween mask sale (CIG approved 10/30 via YG: "Have G set the mask sale
+    // prices on the site for Saturday, ending 11:59 PM ET"). 20% off = BG's cap,
+    // no code, no stacking. Applies only inside saleStart..saleEnd (see
+    // saleActive below), so full price returns at midnight with no redeploy.
+    salePrice: 24.00,
+    saleStart: "2026-10-31T04:00:00.000Z", // Sat 10/31 12:00 AM ET (EDT, UTC-4)
+    saleEnd: "2026-11-01T04:00:00.000Z",   // exclusive: last sale moment is 11:59:59.999 PM ET Sat
     // CIG 10/22 4:56 PM: card and product view open on Red (1-Hole).
     defaultColor: "Red",
     image: "assets/products/skimask-red-1hole.jpg",
@@ -1014,7 +1026,13 @@ const PRODUCTS = [
     isNew: true,
     name: "Moto Mask",
     price: 15.00,
-    salePrice: null,
+    // Halloween mask sale (CIG approved 10/30 via YG: "Have G set the mask sale
+    // prices on the site for Saturday, ending 11:59 PM ET"). 20% off = BG's cap,
+    // no code, no stacking. Applies only inside saleStart..saleEnd (see
+    // saleActive below), so full price returns at midnight with no redeploy.
+    salePrice: 12.00,
+    saleStart: "2026-10-31T04:00:00.000Z", // Sat 10/31 12:00 AM ET (EDT, UTC-4)
+    saleEnd: "2026-11-01T04:00:00.000Z",   // exclusive: last sale moment is 11:59:59.999 PM ET Sat
     // CIG 10/22 5:07 PM: "Make the first one the purple one".
     defaultColor: "Purple",
     image: "assets/products/moto-purple.jpg",
@@ -1148,6 +1166,36 @@ const POD_CARD_ONLY = false;
 // it up later under a new LLC. One switch for the site and the server.
 const CRYPTO_ENABLED = false;
 
+
+// ---------- Timed sales ----------
+// salePrice applies when it's a number and `now` is inside the product's
+// optional window: saleStart (inclusive) to saleEnd (exclusive), ISO times.
+// No saleStart/saleEnd = the sale is always on (the original salePrice
+// behavior). An unreadable time fails safe to full price. Shared by the
+// storefront (app.js, cart.js) and the server (stripe-pricing.js), so the
+// price shown is the price charged, and both flip on their own at the edges.
+function saleActive(p, now = Date.now()) {
+  if (!p || typeof p.salePrice !== "number" || !Number.isFinite(p.salePrice)) return false;
+  const start = p.saleStart == null ? -Infinity : Date.parse(p.saleStart);
+  const end = p.saleEnd == null ? Infinity : Date.parse(p.saleEnd);
+  if (Number.isNaN(start) || Number.isNaN(end)) return false;
+  return now >= start && now < end;
+}
+
+// The sale price if the sale is on at `now`, otherwise null.
+function activeSalePrice(p, now = Date.now()) {
+  return saleActive(p, now) ? p.salePrice : null;
+}
+
+// Timed sales (a saleStart or saleEnd is set, e.g. the Halloween mask sale)
+// never stack with promo or Arcade codes: while one is on, no code takes
+// anything off that product (BG: 20% cap, no stacking). An always-on
+// salePrice (no window) keeps the older rule, where a mask promo still
+// applies to it within the cap and wholesale floor (promo.js).
+function saleBlocksPromo(p, now = Date.now()) {
+  return !!p && (p.saleStart != null || p.saleEnd != null) && saleActive(p, now);
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { CRYPTO_ENABLED, DROP_AT, POD_CARD_ONLY, PRODUCTS };
+  module.exports = { CRYPTO_ENABLED, DROP_AT, POD_CARD_ONLY, PRODUCTS, activeSalePrice, saleActive, saleBlocksPromo };
 }

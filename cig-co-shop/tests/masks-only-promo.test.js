@@ -2,6 +2,7 @@
 // codes, take money off the ski mask, balaclava and moto mask only. FW26/27
 // pieces stay full price; mask prices are capped and never go below wholesale.
 // Free prize masks always pay the $8.95 mask shipping (they ship separately).
+require("./full-price-clock-fixture.js");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");

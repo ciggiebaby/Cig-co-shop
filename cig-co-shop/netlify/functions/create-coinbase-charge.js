@@ -72,7 +72,7 @@ function createHandler({
       );
       const address = requireShippingAddress(customer, country);
       // No promo code here — crypto always gets its 20% instead.
-      const pricing = priceCartForStripe(trustedCartItems(body), null);
+      const pricing = priceCartForStripe(trustedCartItems(body), null, undefined, { now: now() });
       // Live-stock backstock isn't decremented by the Coinbase webhook, so keep
       // it to card/PayPal (crypto is off anyway; see CRYPTO_ENABLED).
       if (pricing.stockLines.length) {

@@ -42,7 +42,7 @@ function createHandler({
       // Arcade codes must belong to the email entered on the site.
       const email = body.customer && body.customer.email ? normalizeEmail(body.customer.email) : null;
       const promo = await promoResolver({ promoCode: body.promoCode, email });
-      const pricing = priceCartForStripe(trustedCartItems(body), body.promoCode, promo);
+      const pricing = priceCartForStripe(trustedCartItems(body), body.promoCode, promo, { now: now() });
       // Backstock masks: refuse if the live Supabase count is lower than asked.
       await assertLiveStock(pricing.stockLines, { stockStoreFactory, logger });
       // Shipping is priced for the country picked on the site (shipping-rates.js);
