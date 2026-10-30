@@ -8,4 +8,13 @@ Object.assign(PROMO_CODES, {
   CIG20: { discount: 0.20, label: "20% off" },
 });
 
+// Promos are masks only (promo.js). The legacy fixture products these tests
+// price (TEST-PILLOW, 0011) stand in for masks here so the code/cents
+// mechanics stay covered; tests/masks-only-promo.test.js covers the real rule.
+const { PROMO_ELIGIBLE_PRODUCT_IDS, MASK_PROMO_PRICE_FLOOR_USD } = require("../promo.js");
+for (const id of ["TEST-PILLOW", "0011"]) {
+  if (!PROMO_ELIGIBLE_PRODUCT_IDS.includes(id)) PROMO_ELIGIBLE_PRODUCT_IDS.push(id);
+  MASK_PROMO_PRICE_FLOOR_USD[id] = 0.01;
+}
+
 module.exports = { PROMO_CODES };

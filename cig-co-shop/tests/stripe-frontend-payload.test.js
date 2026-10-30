@@ -129,6 +129,7 @@ function loadFrontend({
   const context = vm.createContext({
     PRODUCTS,
     PROMO_CODES: promoCodes,
+    promoUnitCents: require("../promo.js").promoUnitCents,
     CRYPTO_ENABLED: cryptoEnabled,
     SHIP_TO_COUNTRIES: shippingRates.SHIP_TO_COUNTRIES,
     quoteShipping: shippingRates.quoteShipping,

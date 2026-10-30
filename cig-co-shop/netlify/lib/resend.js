@@ -1,4 +1,5 @@
 const { requiredEnvironment } = require("./supabase.js");
+const { prizeTermsNote } = require("../../promo.js");
 
 class ResendRequestError extends Error {
   constructor(code, status) {
@@ -60,11 +61,13 @@ function createResendClient({
         ? `<p style="font-size:26px;letter-spacing:3px;font-weight:bold;color:#D4AF37;margin:16px 0;">${escapeHtml(prize.code)}</p>
            <p style="color:#ccc;">${escapeHtml(prize.detail || "Enter this code at checkout to redeem your discount.")}</p>`
         : `<p style="color:#ccc;">${escapeHtml(prize.detail)}</p>`;
+      const terms = prizeTermsNote(prize);
+      const termsBlock = terms ? `<p style="color:#ccc;">${escapeHtml(terms)}</p>` : "";
       return send({
         to: email,
         subject: `You won: ${prize.label} — CIG & CO. Arcade`,
         idempotencyKey: `arcade-prize/${playId}`,
-        html: emailFrame(`You won: ${prize.label}`, `${codeBlock}
+        html: emailFrame(`You won: ${prize.label}`, `${codeBlock}${termsBlock}
           <p style="margin-top:28px;color:#777;font-size:12px;">This prize is yours to use right away.</p>`),
       });
     },
