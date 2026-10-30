@@ -83,7 +83,7 @@ test("shipping is free in the US and charged per item abroad", () => {
   assert.equal(pricing.totalCents, 4500 * 2 + 3000 + 3500);
 });
 
-test("pillows (and products without an international class) block non-US shipping", () => {
+test("pillows block non-US shipping; in-hand items (no Printful class) ship abroad", () => {
   const pillowPricing = priceCartForStripe([bag(), pillow()]);
   assert.equal(resolveCheckoutShipping(pillowPricing, "US").shippingCents, 0);
   assert.throws(
@@ -93,7 +93,7 @@ test("pillows (and products without an international class) block non-US shippin
   );
   assert.equal(PRODUCTS.find((product) => product.id === "TEST-PILLOW").shipping, "pillow");
   const balaclava = priceCartForStripe([{ productId: "0005", quantity: 1, ...variantOf("0005") }]);
-  assert.throws(() => resolveCheckoutShipping(balaclava, "CA"), /ships to the US only/);
+  assert.deepEqual(resolveCheckoutShipping(balaclava, "CA"), { country: "CA", shippingCents: 2500 });
   assert.equal(quoteShipping([{ name: "Pillow", shipping: "pillow", quantity: 1 }], "CA").shippingCents, null);
 });
 

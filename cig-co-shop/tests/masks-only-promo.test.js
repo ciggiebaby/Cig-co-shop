@@ -83,7 +83,14 @@ test("free prize masks always pay standard mask shipping", () => {
     assert.match(note, /one mask only/);
     assert.match(note, /\$8\.95 shipping/);
     assert.match(note, /even if your order ships free/);
+    assert.match(note, /abroad, our international mask rate, from \$25/);
   }
+  // Winners abroad pay the one-mask international rate for their country.
+  assert.equal(promo.giftMaskShippingCents("US"), 895);
+  assert.deepEqual(
+    ["CA", "GB", "DE", "AU", "JP", "KR"].map((c) => promo.giftMaskShippingCents(c)),
+    [2500, 3100, 2800, 4000, 3300, 3000],
+  );
   assert.match(promo.prizeTermsNote({ type: "discount", code: "CIG10-ABCDEFGH" }), /masks .* only/);
   assert.equal(promo.prizeTermsNote({ id: "early", type: "perk" }), "");
   assert.equal(promo.prizeTermsNote(null), "");

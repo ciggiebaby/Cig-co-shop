@@ -3,9 +3,10 @@
 // (site root) so the checkout page shows exactly what the server charges.
 //
 // US: free shipping, except orders with a mask: $8.95 per order unless the
-// items total after promo is over $75 (shipping-rates.js). International (CA, GB, DE, AU, JP, KR only): allowed
-// only when every product in the cart has an international shipping class;
-// pillows (and products without a class) are US only.
+// items total after promo is over $75 (shipping-rates.js). International (CA, GB, DE, AU, JP, KR only):
+// in-hand items (masks and other non-Printful stock) ship to all of them for one
+// per-order charge by weight; Printful pieces need an international shipping
+// class (pillows are US only; MagSafe cases can't go to JP/KR).
 const { SHIP_TO_COUNTRIES, normalizePccc, quoteShipping } = require("../../shipping-rates.js");
 const { RequestValidationError } = require("./customer-utils.js");
 
@@ -53,7 +54,7 @@ function resolveCheckoutShipping(pricing, rawCountry, options = {}) {
   const quote = quoteShipping(pricing.shippingLines || [], country, { merchandiseCents: pricing.totalCents });
   if (quote.unsupportedCountry) throw new RequestValidationError(UNSUPPORTED_COUNTRY_MESSAGE);
   if (quote.blocked.length) {
-    // Pillows/masks: "ships to the US only". A product that ships abroad but not
+    // Pillows: "ships to the US only". A product that ships abroad but not
     // to this country (MagSafe cases to JP/KR, per Printful): "can't ship to X".
     const usOnly = quote.usOnly || [];
     const notHere = quote.blocked.filter((name) => !usOnly.includes(name));
