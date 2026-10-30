@@ -79,6 +79,7 @@ const PRODUCTS = [
     colorPrices: { "Multi": 75.00 },
     description: "Made to order.",
     material: "100% polyester",
+    shipTime: "7–9 business days",
     details: [
       "Fabric weight: 9 oz./yd.² (305 g/m²)",
       "Bag size: 5.7″ × 7.7″ × 2″ (14.5 cm × 19.5 cm × 5 cm)",
