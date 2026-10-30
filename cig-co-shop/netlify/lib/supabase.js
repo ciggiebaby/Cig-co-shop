@@ -55,6 +55,14 @@ function createSupabaseClient({
   }
 
   return {
+    // Plain insert into a table (service role; RLS stays on with no public policies).
+    insert(table, row) {
+      return request(encodeURIComponent(table), {
+        method: "POST",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify(row),
+      });
+    },
     rpc(name, parameters = {}) {
       return request(`rpc/${encodeURIComponent(name)}`, {
         method: "POST",
