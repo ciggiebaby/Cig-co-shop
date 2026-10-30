@@ -53,9 +53,15 @@ function resolveCheckoutShipping(pricing, rawCountry, options = {}) {
   const quote = quoteShipping(pricing.shippingLines || [], country, { merchandiseCents: pricing.totalCents });
   if (quote.unsupportedCountry) throw new RequestValidationError(UNSUPPORTED_COUNTRY_MESSAGE);
   if (quote.blocked.length) {
-    const names = quote.blocked.join(", ");
+    // Pillows/masks: "ships to the US only". A product that ships abroad but not
+    // to this country (MagSafe cases to JP/KR, per Printful): "can't ship to X".
+    const usOnly = quote.usOnly || [];
+    const notHere = quote.blocked.filter((name) => !usOnly.includes(name));
+    const parts = [];
+    if (usOnly.length) parts.push(`${usOnly.join(", ")} ${usOnly.length === 1 ? "ships" : "ship"} to the US only.`);
+    if (notHere.length) parts.push(`${notHere.join(", ")} can't ship to ${countryName(country)}.`);
     throw new RequestValidationError(
-      `${names} ${quote.blocked.length === 1 ? "ships" : "ship"} to the US only. `
+      `${parts.join(" ")} `
         + `Remove ${quote.blocked.length === 1 ? "it" : "them"} from your bag to ship to ${countryName(country)}.`,
     );
   }

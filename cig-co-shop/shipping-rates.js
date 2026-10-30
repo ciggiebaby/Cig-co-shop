@@ -89,29 +89,39 @@ function shippingCentsPerItem(shippingClass, country) {
   return Number.isInteger(dollars) && dollars >= 0 ? dollars * 100 : null;
 }
 
+// True if the shipping class ships to at least one country outside the US.
+function shipsAbroad(shippingClass) {
+  const rates = INTERNATIONAL_SHIPPING_PER_ITEM_USD[shippingClass];
+  return !!rates && Object.keys(rates).length > 0;
+}
+
 // lines: [{ name, shipping, quantity, mask }] (shipping = the product's class;
 // mask = in-hand backstock, US only). merchandiseCents = items total after
 // promo, before shipping (only used for the US mask rule).
-// Returns { country, shippingCents, blocked } where blocked lists the product
-// names that can't ship to that country (shippingCents is null if any).
+// Returns { country, shippingCents, blocked, usOnly } where blocked lists the
+// product names that can't ship to that country (shippingCents is null if any)
+// and usOnly is the subset that can't ship outside the US at all (pillows,
+// masks); the rest (e.g. MagSafe cases to JP/KR) only miss that one country.
 function quoteShipping(lines, country, { merchandiseCents } = {}) {
   if (!Object.prototype.hasOwnProperty.call(SHIP_TO_COUNTRIES, country)) {
-    return { country, shippingCents: null, blocked: [], unsupportedCountry: true };
+    return { country, shippingCents: null, blocked: [], usOnly: [], unsupportedCountry: true };
   }
   if (country === "US") {
-    return { country, shippingCents: usShippingCents(lines, merchandiseCents), blocked: [], unsupportedCountry: false };
+    return { country, shippingCents: usShippingCents(lines, merchandiseCents), blocked: [], usOnly: [], unsupportedCountry: false };
   }
   let shippingCents = 0;
   const blocked = [];
+  const usOnly = [];
   lines.forEach((line) => {
     const perItem = shippingCentsPerItem(line.shipping, country);
     if (perItem === null) {
       if (!blocked.includes(line.name)) blocked.push(line.name);
+      if (!shipsAbroad(line.shipping) && !usOnly.includes(line.name)) usOnly.push(line.name);
       return;
     }
     shippingCents += perItem * line.quantity;
   });
-  return { country, shippingCents: blocked.length ? null : shippingCents, blocked, unsupportedCountry: false };
+  return { country, shippingCents: blocked.length ? null : shippingCents, blocked, usOnly, unsupportedCountry: false };
 }
 
 // lines: [{ name, shipping }]. Returns a short note for items on a slow route
@@ -142,6 +152,7 @@ if (typeof module !== "undefined" && module.exports) {
     quoteShipping,
     slowDeliveryNote,
     shippingCentsPerItem,
+    shipsAbroad,
     usShippingCents,
   };
 }
