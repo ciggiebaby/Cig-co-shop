@@ -34,7 +34,7 @@ test("site: hidden products never render on the grid or open a product view", ()
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   assert.match(app, /const visible = products\.filter\(\(p\) => !p\.hidden\);/);
   assert.match(app, /grid\.innerHTML = shopGridProducts\(\)\.map/);
-  assert.match(app, /if \(!p \|\| p\.hidden\) return;/);
+  assert.match(app, /if \(!p \|\| p\.hidden\) return( false)?;/);
   const listed = PRODUCTS.filter((p) => !p.hidden).map((p) => p.id);
   for (const id of ["0010", "0012"]) assert.ok(!listed.includes(id), id);
   // The moto mask sits where the umbrella was (between the ski mask and the bikini).
