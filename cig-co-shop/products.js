@@ -78,6 +78,17 @@ const PRODUCTS = [
     salePrice: null,
     colorPrices: { "Multi": 75.00 },
     description: "Made to order.",
+    material: "100% polyester",
+    details: [
+      "Fabric weight: 9 oz./yd.² (305 g/m²)",
+      "Bag size: 5.7″ × 7.7″ × 2″ (14.5 cm × 19.5 cm × 5 cm)",
+      "Capacity: 0.37 gallons (1.4 l)",
+      "Water-resistant and durable",
+      "Sturdy fabric with fusible backing to add firmness",
+      "Inside and outside pockets",
+      "Adjustable strap",
+      "Two-way zipper",
+    ],
     // Card photo and the color preselected when the product opens (CIG 10/22).
     defaultColor: "Navy",
     image: "assets/products/fw26/crossbody_navy_front.webp",

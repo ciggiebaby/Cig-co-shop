@@ -240,6 +240,7 @@ function openProductModal(id) {
     ${p.soldOut ? `<div class="soldout-badge pd-soldout-badge">Sold Out</div>` : p.isNew ? `<div class="soldout-badge pd-soldout-badge new-badge">New</div>` : ""}
     <div class="pd-price" id="pd-price"></div>
     ${p.description ? `<p class="pd-description">${p.description}</p>` : ""}
+    ${p.material || (p.details && p.details.length) ? `<div class="pd-specs">${p.material ? `<p class="pd-material">${p.material}</p>` : ""}${p.details && p.details.length ? `<ul class="pd-details-list">${p.details.map((d) => `<li>${d}</li>`).join("")}</ul>` : ""}</div>` : ""}
     ${p.styles ? `
       <div class="pd-field">
         <label>Style</label>
