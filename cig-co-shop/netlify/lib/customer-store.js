@@ -138,6 +138,67 @@ function createCustomerStore(client = createSupabaseClient()) {
       });
     },
 
+    // Email list (supabase/migrations/202610310001_email_list_subscribers.sql)
+    subscribe({
+      email,
+      emailOriginal = null,
+      source,
+      productId = null,
+      variant = null,
+      marketingConsent = false,
+      consentText = null,
+    }) {
+      return client.rpc("cigco_subscribe", {
+        p_email: email,
+        p_email_original: emailOriginal,
+        p_source: source,
+        p_product_id: productId,
+        p_variant: variant,
+        p_marketing_consent: marketingConsent,
+        p_consent_text: consentText,
+      });
+    },
+
+    unsubscribe(email) {
+      return client.rpc("cigco_unsubscribe", { p_email: email });
+    },
+
+    exportSubscribers(source = null) {
+      return client.rpc("cigco_export_subscribers", { p_source: source });
+    },
+
+    subscriberCounts() {
+      return client.rpc("cigco_subscriber_counts", {});
+    },
+
+    // Printful thank-you email
+    // (supabase/migrations/202610310002_printful_thankyou_emails.sql)
+    thankyouRecordEvent({ printfulOrderId, externalId = null, event, occurredAt = null, delayDays = 5 }) {
+      return client.rpc("cigco_thankyou_record_event", {
+        p_printful_order_id: printfulOrderId,
+        p_external_id: externalId,
+        p_event: event,
+        p_occurred_at: occurredAt,
+        p_delay_days: delayDays,
+      });
+    },
+
+    thankyouClaim(printfulOrderId) {
+      return client.rpc("cigco_thankyou_claim", { p_printful_order_id: printfulOrderId });
+    },
+
+    thankyouComplete(printfulOrderId, status, reason = null) {
+      return client.rpc("cigco_thankyou_complete", {
+        p_printful_order_id: printfulOrderId,
+        p_status: status,
+        p_reason: reason,
+      });
+    },
+
+    thankyouDue(limit = 25) {
+      return client.rpc("cigco_thankyou_due", { p_limit: limit });
+    },
+
     exportContacts(filter) {
       return client.rpc("cigco_export_contacts", { p_filter: filter });
     },
