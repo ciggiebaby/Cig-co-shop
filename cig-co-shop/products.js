@@ -12,7 +12,7 @@
 //   ("bag", "case", "sleeve", or "pillow"). Only bag/case/sleeve can ship
 //   internationally; pillows and products with no class ship to the US only.
 //   International: CA, GB, DE, AU, JP, KR (rates in shipping-rates.js). For a
-//   MagSafe case, add to its description: "Japan & South Korea: allow ~30 days."
+//   MagSafe case: Printful can't ship it to Japan or South Korea (blocked in shipping-rates.js).
 //   (checkout also shows this automatically).
 //
 // pod: { ... } — print-on-demand (made to order by Printful, no stock to track).
@@ -154,7 +154,20 @@ const PRODUCTS = [
     sizeLabel: "Model",
     salePrice: null,
     shipTime: "7–9 business days",
-    description: "Made to order. MagSafe compatible. Shipping to Japan & South Korea takes about 30 days.",
+    description: "Made to order. Can't ship to Japan or South Korea.",
+    details: [
+      "Polycarbonate outer shell",
+      "Thermoplastic Polyurethane inner liner",
+      "Dual-layer protection",
+      "Precisely aligned port openings",
+      "MagSafe® compatible",
+      "Induction charging-compatible",
+      "Customizable edges (3D wrap)",
+      "Matte or gloss finish",
+      "Blank product sourced from Korea",
+      "Keep away from liquids containing high alcohol levels, as designs on the phone case may rub off. Keep away from direct sunlight to prevent yellowing.",
+      "iPhone® is a trademark of Apple Inc., registered in the US and other countries and regions.",
+    ],
     // Card photo and the color preselected when the product opens (CIG 10/22).
     defaultColor: "Burgundy",
     image: "assets/products/fw26/case_burgundy_iphone-16-pro.webp",

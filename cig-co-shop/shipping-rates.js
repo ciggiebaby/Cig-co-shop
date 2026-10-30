@@ -35,9 +35,11 @@ const INTERNATIONAL_SHIPPING_PER_ITEM_USD = {
   // and the tote (Printful product 274, variant 9039; quoted identically 10/22)
   //   Printful per-unit: CA 7.29  GB 4.59  DE 4.99  AU 7.99 | JP 4.89  KR 12.49
   bag:    { CA: 8,  GB: 5, DE: 5, AU: 8,  JP: 5, KR: 13 },
-  // MagSafe phone cases (JP/KR delivery is slow: ~30 days)
-  //   Printful per-unit: CA 9.29  GB 2.59  DE 7.29  AU 8.39 | JP 5.19  KR 8.29
-  case:   { CA: 10, GB: 3, DE: 8, AU: 9,  JP: 6, KR: 9 },
+  // MagSafe phone cases: NOT to JP/KR. Printful's product page says this case
+  //   can't ship to South Korea, Hong Kong, Taiwan, Japan, or Singapore
+  //   (CIG pasted it 10/30), so JP/KR are blocked even though the rate API quoted them.
+  //   Printful per-unit: CA 9.29  GB 2.59  DE 7.29  AU 8.39
+  case:   { CA: 10, GB: 3, DE: 8, AU: 9 },
   // laptop sleeves
   //   Printful per-unit: CA 9.79  GB 7.29  DE 7.29  AU 12.49 | JP 7.89  KR 17.69
   sleeve: { CA: 10, GB: 8, DE: 8, AU: 13, JP: 8, KR: 18 },
@@ -60,11 +62,9 @@ function normalizePccc(value) {
 }
 
 // Slow routes: shown to the buyer at checkout so the wait isn't a surprise.
-// Printful's standard estimate for MagSafe cases to Japan/South Korea is up
-// to 30 days (bags and sleeves are ~8-11 days).
-const SLOW_DELIVERY = {
-  case: { JP: "about 30 days", KR: "about 30 days" },
-};
+// No slow routes right now (MagSafe cases to Japan/South Korea were here, but
+// Printful can't ship cases there, so those routes are blocked instead).
+const SLOW_DELIVERY = {};
 
 const MASK_US_SHIPPING_CENTS = 895;
 const MASK_FREE_SHIPPING_OVER_CENTS = 7500;
