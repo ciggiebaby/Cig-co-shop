@@ -739,6 +739,18 @@ const PRODUCTS = [
     price: 35.00,
     salePrice: null,
     description: "Made to order.",
+    material: "100% polyester",
+    details: [
+      "Fabric weight (may vary by 5%): 6.64 oz/yd² (225 g/m²)",
+      "Maximum weight limit: 44lbs (20kg)",
+      "Capacity: 4.4 US gal (17.8l)",
+      "Large inside pocket that can be customized with a logo",
+      "Printed, cut, and hand-sewn by our in-house team",
+      "Comfortable cotton webbing handles",
+      "Vibrant colors that won't fade",
+      "Available in one size",
+      "Fabric is OEKO-TEX® STANDARD 100 (Certificate No. D09-1028, Hohenstein Laboratories) certified",
+    ],
     // Card photo and the color preselected when the product opens: green, i.e.
     // the collection's "Hunter" colorway (CIG 10/22: "make it green").
     defaultColor: "Hunter",
