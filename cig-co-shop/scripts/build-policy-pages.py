@@ -115,6 +115,7 @@ def page(slug, md_file, title_tag, description):
 {cart_drawer}
 
 {checkout_modal}
+<script src="site-visits.js"></script>
 <script src="products.js"></script>
 <script src="promo.js"></script>
 <script src="shipping-rates.js"></script>

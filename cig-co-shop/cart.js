@@ -51,6 +51,13 @@ function lineKey(item) {
   return [item.productId, item.color || "", item.size || "", itemStyleKey(item)].join("::");
 }
 
+// Site-visit events (site-visits.js). Never throws, so tracking can't break the bag.
+function trackSiteEvent(event, productId) {
+  try {
+    if (typeof cigTrack === "function") cigTrack(event, productId);
+  } catch {}
+}
+
 function addToCart(item) {
   const cart = getCart();
   const key = lineKey(item);
@@ -61,6 +68,7 @@ function addToCart(item) {
     cart.push(item);
   }
   saveCart(cart);
+  trackSiteEvent("add_to_bag", item.productId);
   openCart();
 }
 
