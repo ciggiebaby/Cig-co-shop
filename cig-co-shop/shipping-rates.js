@@ -75,7 +75,7 @@ const SLOW_DELIVERY = {};
 
 const MASK_US_SHIPPING_CENTS = 895;
 const MASK_FREE_SHIPPING_OVER_CENTS = 7500;
-const MASK_SHIPPING_NOTE = "Mask orders ship from the US for $8.95 \u2014 free over $75. International mask orders pay a flat USPS rate shown at checkout.";
+const MASK_SHIPPING_NOTE = "US mask orders ship for $8.95 \u2014 free over $75. Abroad, mask orders pay one USPS rate per order, priced by package weight and shown at checkout.";
 
 // ---------- In-hand items abroad (CIG ships via Pirate Ship, USPS) ----------
 // Service: USPS First-Class Package International (FCPI), the cheapest USPS
