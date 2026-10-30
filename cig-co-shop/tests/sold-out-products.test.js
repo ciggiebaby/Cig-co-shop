@@ -85,7 +85,8 @@ test("site: sold-out cards and product views show Sold Out and can't be added", 
   assert.match(app, /function variantStock\(p, style, color, size\) \{\n  if \(p\.soldOut\) return 0;/);
   assert.match(app, /function productTotalStock\(p\) \{\n  if \(p\.soldOut\) return 0;/);
   assert.match(app, /productTotalStock\(p\) <= 0 \? `<div class="soldout-badge">Sold Out<\/div>`/);
-  assert.match(app, /\$\{p\.soldOut \? `<div class="soldout-badge pd-soldout-badge">Sold Out<\/div>` : ""\}/);
+  // Product page: Sold Out wins over the "New" badge (Moto Mask re-drop).
+  assert.match(app, /\$\{p\.soldOut \? `<div class="soldout-badge pd-soldout-badge">Sold Out<\/div>` : p\.isNew \? `<div class="soldout-badge pd-soldout-badge new-badge">New<\/div>` : ""\}/);
   assert.match(app, /else if \(avail <= 0\) \{\n      addBtn\.textContent = "Sold Out";\n      addBtn\.disabled = true;/);
 });
 

@@ -953,25 +953,39 @@ test("a pillow in the bag disables non-US countries and explains why", () => {
   assert.match(frontend.shippingNoteElement.textContent, /Test Pillow Case ships to the US only/);
 });
 
-test("Japan and South Korea are selectable for bags, cases and sleeves; cases warn about ~30 days", () => {
+test("Japan and South Korea are selectable for bags and sleeves; a MagSafe case disables just JP/KR", () => {
   const caseItem = { productId: "T-CASE", name: "Test MagSafe Case", price: 30, image: "", color: null, size: null, style: null, qty: 1 };
   const sleeveItem = { productId: "T-SLEEVE", name: "Test Laptop Sleeve", price: 35, image: "", color: null, size: null, style: null, qty: 1 };
-  const frontend = loadFrontend({ shipCountry: "JP", storedCart: [bagItem, caseItem, sleeveItem] });
+  const frontend = loadFrontend({ shipCountry: "JP", storedCart: [bagItem, sleeveItem] });
   frontend.context.renderCheckoutSummary();
   assert.equal(frontend.countrySelect.value, "JP");
   assert.ok(frontend.countrySelect.options.every((option) => option.disabled === false));
-  // JP: bag $5 x2 + case $6 + sleeve $8
-  assert.match(frontend.summaryElement.innerHTML, /Shipping \(Japan\)<\/span><span>\$24\.00/);
-  assert.equal(frontend.shippingNoteElement.hidden, false);
-  assert.match(frontend.shippingNoteElement.textContent, /Test MagSafe Case to Japan takes about 30 days/);
+  // JP: bag $5 x2 + sleeve $8
+  assert.match(frontend.summaryElement.innerHTML, /Shipping \(Japan\)<\/span><span>\$18\.00/);
+  assert.equal(frontend.shippingNoteElement.hidden, true);
   frontend.countrySelect.value = "KR";
   frontend.context.renderCheckoutSummary();
-  // KR: bag $13 x2 + case $9 + sleeve $18
-  assert.match(frontend.summaryElement.innerHTML, /Shipping \(South Korea\)<\/span><span>\$53\.00/);
-  assert.match(frontend.shippingNoteElement.textContent, /South Korea takes about 30 days/);
-  frontend.countrySelect.value = "GB";
-  frontend.context.renderCheckoutSummary();
+  // KR: bag $13 x2 + sleeve $18
+  assert.match(frontend.summaryElement.innerHTML, /Shipping \(South Korea\)<\/span><span>\$44\.00/);
   assert.equal(frontend.shippingNoteElement.hidden, true);
+
+  // Add a MagSafe case: JP/KR switch off (Printful can't ship cases there), the
+  // rest stay on, the picked JP falls back to US, and the note says why (no ~30-day note).
+  const withCase = loadFrontend({ shipCountry: "JP", storedCart: [bagItem, caseItem, sleeveItem] });
+  withCase.context.renderCheckoutSummary();
+  assert.deepEqual(
+    withCase.countrySelect.options.map((option) => [option.value, option.disabled]),
+    [["US", false], ["CA", false], ["GB", false], ["DE", false], ["AU", false], ["JP", true], ["KR", true]],
+  );
+  assert.equal(withCase.countrySelect.value, "US");
+  assert.equal(withCase.shippingNoteElement.hidden, false);
+  assert.equal(withCase.shippingNoteElement.textContent, "Test MagSafe Case can't ship to Japan or South Korea.");
+  assert.doesNotMatch(withCase.shippingNoteElement.textContent, /US only|30 days/);
+  withCase.countrySelect.value = "GB";
+  withCase.context.renderCheckoutSummary();
+  // GB: bag $5 x2 + case $3 + sleeve $8
+  assert.match(withCase.summaryElement.innerHTML, /Shipping \(United Kingdom\)<\/span><span>\$21\.00/);
+
   const bagOnly = loadFrontend({ shipCountry: "KR", storedCart: [bagItem] });
   bagOnly.context.renderCheckoutSummary();
   assert.equal(bagOnly.shippingNoteElement.hidden, true);
@@ -1323,4 +1337,71 @@ test("a mask in the bag disables non-US countries; FW26-only US stays free with 
   const maskNote = fw.context.document.getElementById("checkout-mask-shipping-note");
   assert.match(fw.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>Free/);
   assert.equal(maskNote.hidden, true);
+});
+
+// ---------- Product descriptions (Printful specs, CIG 10/30) + Moto Mask "New" ----------
+
+// Renders a product page (the sheet's template) the way openProductModal does.
+// The fake document has no carousel/querySelector, so wiring after the template
+// is written may throw; the template itself is what's checked here.
+function renderProductPage(id) {
+  const frontend = loadFrontend();
+  const content = { innerHTML: "" };
+  frontend.checkoutFields["modal-content"] = content;
+  try {
+    frontend.context.openProductModal(id);
+  } catch (error) {
+    if (!content.innerHTML) throw error;
+  }
+  return content.innerHTML;
+}
+
+test("the Moto Mask card and product page show a gold New badge; other cards don't", () => {
+  const moto = PRODUCTS.find((p) => p.name === "Moto Mask");
+  assert.equal(moto.isNew, true);
+  assert.deepEqual(PRODUCTS.filter((p) => p.isNew).map((p) => p.name), ["Moto Mask"]);
+  const frontend = loadFrontend();
+  frontend.context.renderProductGrid();
+  const html = frontend.checkoutFields["product-grid"].innerHTML;
+  const cards = html.split('<div class="product-card reveal"').slice(1);
+  const motoCard = cards.find((card) => card.startsWith(` data-id="${moto.id}"`));
+  assert.ok(motoCard, "Moto Mask card is in the grid");
+  assert.match(motoCard, /<div class="soldout-badge new-badge">New<\/div>/);
+  assert.equal((html.match(/new-badge">New</g) || []).length, 1);
+  assert.match(renderProductPage(moto.id), /<div class="soldout-badge pd-soldout-badge new-badge">New<\/div>/);
+  const css = fs.readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
+  assert.match(css, /\.new-badge\s*\{/);
+});
+
+test("FW26 product pages show material, shipping time and the Printful spec list", () => {
+  const expected = {
+    "FW26-BAG": { material: "100% polyester", first: "Fabric weight: 9 oz./yd.² (305 g/m²)", count: 8 },
+    "FW26-TOTE": { material: "100% polyester", first: "Fabric weight (may vary by 5%): 6.64 oz/yd² (225 g/m²)", count: 9 },
+    "FW26-PILLOW": { material: "100% cotton", first: "Fabric weight: 263 gsm", count: 7 },
+    "FW26-SLEEVE": { material: "100% neoprene", first: "13″ sleeve weight: 6.49 oz (220 g)", count: 10 },
+    "FW26-CASE": { material: null, first: "Polycarbonate outer shell", count: 11 },
+  };
+  for (const [id, want] of Object.entries(expected)) {
+    const product = PRODUCTS.find((p) => p.id === id);
+    assert.equal(product.shipTime, "7–9 business days", id);
+    assert.equal(product.details.length, want.count, id);
+    assert.equal(product.details[0], want.first, id);
+    const page = renderProductPage(id);
+    const specs = page.match(/<div class="pd-specs">([\s\S]*?)<\/ul><\/div>/);
+    assert.ok(specs, `${id} has a spec block`);
+    if (want.material) assert.match(specs[1], new RegExp(`<p class="pd-material">${want.material}</p>`), id);
+    else assert.doesNotMatch(specs[1], /pd-material/, id);
+    assert.match(specs[1], /<p class="pd-shiptime">Shipping: 7–9 business days<\/p>/, id);
+    assert.equal((specs[1].match(/<li>/g) || []).length, want.count, id);
+    assert.ok(specs[1].includes(`<li>${want.first}</li>`), id);
+    // Printful's internal product code never reaches shoppers.
+    assert.doesNotMatch(page, /611SCO|Product code/, id);
+  }
+  // The case page carries the can't-ship note, not the old ~30-day one.
+  const casePage = renderProductPage("FW26-CASE");
+  assert.match(casePage, /<p class="pd-description">Made to order\. Can't ship to Japan or South Korea\.<\/p>/);
+  assert.doesNotMatch(casePage, /30 days/);
+  // Products without specs (e.g. masks) render no empty spec block.
+  const moto = PRODUCTS.find((p) => p.name === "Moto Mask");
+  assert.doesNotMatch(renderProductPage(moto.id), /pd-specs/);
 });

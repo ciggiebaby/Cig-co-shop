@@ -37,7 +37,9 @@ function post(body) {
 // Printful's cheapest standard per-unit quotes (USD) from SERVI's pull.
 const PRINTFUL_PER_UNIT = {
   bag: { CA: 7.29, GB: 4.59, DE: 4.99, AU: 7.99, JP: 4.89, KR: 12.49 },
-  case: { CA: 9.29, GB: 2.59, DE: 7.29, AU: 8.39, JP: 5.19, KR: 8.29 },
+  // MagSafe cases: no JP/KR. Printful can't ship this case to Japan or South
+  // Korea (product page, CIG 10/30), even though its rate API quoted JP 5.19 / KR 8.29.
+  case: { CA: 9.29, GB: 2.59, DE: 7.29, AU: 8.39 },
   sleeve: { CA: 9.79, GB: 7.29, DE: 7.29, AU: 12.49, JP: 7.89, KR: 17.69 },
 };
 
@@ -50,6 +52,7 @@ test("international rates are Printful's per-unit cost rounded up to the next do
     for (const [country, cost] of Object.entries(costs)) {
       assert.equal(INTERNATIONAL_SHIPPING_PER_ITEM_USD[shippingClass][country], Math.ceil(cost), `${shippingClass} ${country}`);
     }
+    assert.deepEqual(Object.keys(INTERNATIONAL_SHIPPING_PER_ITEM_USD[shippingClass]), Object.keys(costs), shippingClass);
   }
 });
 
@@ -63,9 +66,19 @@ test("shipping is free in the US and charged per item abroad", () => {
   assert.equal(resolveCheckoutShipping(pricing, "AU").shippingCents, 3800);
   assert.equal(resolveCheckoutShipping(pricing, "GB").shippingCents, 2100);
   assert.equal(resolveCheckoutShipping(pricing, "DE").shippingCents, 2600);
-  // JP: bag $5 x2 + case $6 + sleeve $8; KR: bag $13 x2 + case $9 + sleeve $18
-  assert.equal(resolveCheckoutShipping(pricing, "JP").shippingCents, 2400);
-  assert.equal(resolveCheckoutShipping(pricing, "kr").shippingCents, 5300);
+  // JP/KR: the MagSafe case can't ship there (Printful), so the whole bag is refused.
+  for (const country of ["JP", "kr"]) {
+    assert.throws(
+      () => resolveCheckoutShipping(pricing, country),
+      (error) => error instanceof RequestValidationError
+        && /^Test MagSafe Case can't ship to (Japan|South Korea)\. Remove it from your bag to ship to (Japan|South Korea)\.$/.test(error.message),
+      country,
+    );
+  }
+  // Without the case: JP bag $5 x2 + sleeve $8; KR bag $13 x2 + sleeve $18
+  const noCase = priceCartForStripe([bag(2), sleeve()]);
+  assert.equal(resolveCheckoutShipping(noCase, "JP").shippingCents, 1800);
+  assert.equal(resolveCheckoutShipping(noCase, "kr").shippingCents, 4400);
   // Item prices are untouched by shipping.
   assert.equal(pricing.totalCents, 4500 * 2 + 3000 + 3500);
 });
@@ -329,14 +342,20 @@ test("crypto refuses pillows abroad, bad postal codes, and unsupported countries
   assert.equal(sent.length, 0);
 });
 
-test("Japan and South Korea checkouts price shipping and keep pillows US-only", async () => {
+test("Japan and South Korea checkouts price shipping, refuse MagSafe cases and keep pillows US-only", async () => {
   const { handler, sent } = coinbaseHandler();
-  const jp = await handler(post({ items: [phoneCase()], customer: { ...intlCustomer, country: "JP", zip: "100-0001" } }));
+  const jp = await handler(post({ items: [sleeve()], customer: { ...intlCustomer, country: "JP", zip: "100-0001" } }));
   assert.equal(jp.statusCode, 200);
-  assert.equal(sent[0].local_price.amount, "30.00"); // $30 case -> $24, plus JP $6
+  assert.equal(sent[0].local_price.amount, "36.00"); // $35 sleeve -> $28, plus JP $8
   const kr = await handler(post({ items: [pillow()], customer: { ...intlCustomer, country: "KR", zip: "04524" } }));
   assert.equal(kr.statusCode, 400);
-  assert.match(JSON.parse(kr.body).error, /ship to South Korea/);
+  assert.match(JSON.parse(kr.body).error, /Test Pillow Case ships to the US only\. Remove it from your bag to ship to South Korea/);
+  for (const [country, zip] of [["JP", "100-0001"], ["KR", "04524"]]) {
+    const refused = await handler(post({ items: [phoneCase()], customer: { ...intlCustomer, country, zip } }));
+    assert.equal(refused.statusCode, 400, country);
+    assert.match(JSON.parse(refused.body).error, /Test MagSafe Case can't ship to (Japan|South Korea)/, country);
+  }
+  assert.equal(sent.length, 1);
 
   const stripe = stripeStub();
   const stripeHandler = createStripeHandler({ stripeFactory: stripe.factory, siteUrl: "https://shop.test", logger: silent });
@@ -355,25 +374,34 @@ test("Japan and South Korea are approved and live: no PROPOSED flags left", () =
   const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
   assert.match(html, /<option value="JP">Japan<\/option>/);
   assert.match(html, /<option value="KR">South Korea<\/option>/);
-  assert.match(html, /MagSafe cases to Japan &amp; South Korea take about 30 days/);
+  assert.match(html, /MagSafe cases can&rsquo;t ship to Japan or South Korea\./);
+  assert.doesNotMatch(html, /about 30 days/);
   assert.deepEqual(INTERNATIONAL_SHIPPING_PER_ITEM_USD.bag, { CA: 8, GB: 5, DE: 5, AU: 8, JP: 5, KR: 13 });
-  assert.deepEqual(INTERNATIONAL_SHIPPING_PER_ITEM_USD.case, { CA: 10, GB: 3, DE: 8, AU: 9, JP: 6, KR: 9 });
+  assert.deepEqual(INTERNATIONAL_SHIPPING_PER_ITEM_USD.case, { CA: 10, GB: 3, DE: 8, AU: 9 });
   assert.deepEqual(INTERNATIONAL_SHIPPING_PER_ITEM_USD.sleeve, { CA: 10, GB: 8, DE: 8, AU: 13, JP: 8, KR: 18 });
 });
 
-test("only MagSafe cases to Japan/South Korea get the ~30-day note", () => {
-  assert.deepEqual(Object.keys(SLOW_DELIVERY), ["case"]);
+test("no ~30-day note anymore: MagSafe cases to Japan/South Korea are blocked, not slow", () => {
+  assert.deepEqual(SLOW_DELIVERY, {});
   const lines = [{ name: "Case", shipping: "case", quantity: 2 }, { name: "Bag", shipping: "bag", quantity: 1 }];
-  assert.equal(slowDeliveryNote(lines, "JP"), "Case to Japan takes about 30 days to arrive.");
-  assert.equal(slowDeliveryNote(lines, "KR"), "Case to South Korea takes about 30 days to arrive.");
+  assert.equal(slowDeliveryNote(lines, "JP"), "");
+  assert.equal(slowDeliveryNote(lines, "KR"), "");
   assert.equal(slowDeliveryNote(lines, "GB"), "");
+  for (const country of ["JP", "KR"]) {
+    const quote = quoteShipping(lines, country);
+    assert.equal(quote.shippingCents, null, country);
+    assert.deepEqual(quote.blocked, ["Case"], country);
+    assert.deepEqual(quote.usOnly, [], country); // cases still ship to CA/GB/DE/AU
+  }
+  assert.equal(quoteShipping(lines, "GB").shippingCents, 2 * 300 + 500);
+  assert.deepEqual(quoteShipping([{ name: "Pillow", shipping: "pillow", quantity: 1 }], "JP").usOnly, ["Pillow"]);
   assert.equal(slowDeliveryNote(lines, "US"), "");
   assert.equal(slowDeliveryNote([{ name: "Bag", shipping: "bag", quantity: 1 }], "KR"), "");
 });
 
-test("Stripe accepts Japan and South Korea for bags, cases and sleeves, never pillows", async () => {
+test("Stripe and PayPal accept Japan and South Korea for bags and sleeves, never cases or pillows", async () => {
   for (const [country, zip] of [["JP", "150-0001"], ["KR", "06236"]]) {
-    for (const item of [bag(), phoneCase(), sleeve()]) {
+    for (const item of [bag(), sleeve()]) {
       const stripe = stripeStub();
       const handler = createStripeHandler({ stripeFactory: stripe.factory, siteUrl: "https://shop.test", logger: silent });
       const customer = { email: "a@b.co", ...(country === "KR" ? { pccc: "P123456789012" } : {}) };
@@ -389,6 +417,34 @@ test("Stripe accepts Japan and South Korea for bags, cases and sleeves, never pi
   const refused = await handler(post({ items: [pillow()], shipCountry: "JP" }));
   assert.equal(refused.statusCode, 400);
   assert.equal(stripe.request, undefined);
+
+  // MagSafe cases (alone or with a bag) are refused to JP/KR before any Stripe
+  // session or PayPal order exists; Canada still works.
+  let paypalCreated = 0;
+  const paypal = createPayPalOrderHandler({
+    paypalFactory: () => ({ createOrder: async () => { paypalCreated += 1; return { links: [{ rel: "approve", href: "https://paypal.test/a" }] }; } }),
+    environment: ENV,
+    logger: silent,
+  });
+  for (const country of ["JP", "KR"]) {
+    for (const items of [[phoneCase()], [bag(), phoneCase()]]) {
+      const customer = { email: "a@b.co", ...(country === "KR" ? { pccc: "P123456789012" } : {}) };
+      const caseStripe = stripeStub();
+      const caseHandler = createStripeHandler({ stripeFactory: caseStripe.factory, siteUrl: "https://shop.test", logger: silent });
+      const stripeRefused = await caseHandler(post({ items, shipCountry: country, customer }));
+      assert.equal(stripeRefused.statusCode, 400, `stripe ${country}`);
+      assert.match(JSON.parse(stripeRefused.body).error, /Test MagSafe Case can't ship to (Japan|South Korea)/);
+      assert.equal(caseStripe.request, undefined);
+      const paypalRefused = await paypal(post({ items, shipCountry: country, customer }));
+      assert.equal(paypalRefused.statusCode, 400, `paypal ${country}`);
+      assert.match(JSON.parse(paypalRefused.body).error, /Test MagSafe Case can't ship to (Japan|South Korea)/);
+    }
+  }
+  assert.equal(paypalCreated, 0);
+  const caStripe = stripeStub();
+  const caHandler = createStripeHandler({ stripeFactory: caStripe.factory, siteUrl: "https://shop.test", logger: silent });
+  assert.equal((await caHandler(post({ items: [phoneCase()], shipCountry: "CA" }))).statusCode, 200);
+  assert.deepEqual(caStripe.request.shipping_address_collection, { allowed_countries: ["CA"] });
 });
 
 // ---------- Duties notice + South Korea customs code (CIG decision 10/21) ----------

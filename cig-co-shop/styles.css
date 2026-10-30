@@ -591,6 +591,11 @@ a { color: inherit; text-decoration: none; }
 .drop-test-row[hidden] { display: none; }
 .drop-test-row input { width: 100%; }
 .pd-description { font-size: 13px; color: var(--gray); margin: 6px 0 14px; line-height: 1.5; }
+.pd-specs { font-size: 13px; color: var(--gray); margin: -6px 0 14px; line-height: 1.5; }
+.pd-material { margin: 0 0 4px; font-weight: 600; }
+.pd-shiptime { margin: 0 0 6px; }
+.pd-details-list { margin: 0; padding-left: 18px; }
+.pd-details-list li { margin: 2px 0; }
 .pd-option.pd-swatch { display: inline-flex; align-items: center; gap: 8px; }
 .pd-swatch-img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); }
 .pd-swatch-dot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); flex: none; }
@@ -687,6 +692,7 @@ a { color: inherit; text-decoration: none; }
   padding: 4px 10px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
 }
 .pd-soldout-badge { position: static; display: inline-block; margin: 4px 0 8px; }
+.new-badge { background: var(--gold); color: #000; }
 
 /* ---------- FW26/27 drop hero ---------- */
 .drop-hero {

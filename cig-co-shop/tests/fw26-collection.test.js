@@ -71,8 +71,9 @@ test("shipping classes: bag/case/sleeve ship abroad, pillows stay US-only", () =
   assert.equal(quoteShipping([{ name: "Pillow", shipping: "pillow", quantity: 1 }], "JP").shippingCents, null);
 });
 
-test("MagSafe case description carries the ~30-day Asia note", () => {
-  assert.match(product("FW26-CASE").description, /Japan & South Korea takes about 30 days/);
+test("MagSafe case description says it can't ship to Japan or South Korea (no ~30-day note)", () => {
+  assert.match(product("FW26-CASE").description, /Can't ship to Japan or South Korea\./);
+  assert.doesNotMatch(product("FW26-CASE").description, /30 days/);
 });
 
 test("plain product names (CIG 10/21)", () => {

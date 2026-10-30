@@ -12,7 +12,7 @@
 //   ("bag", "case", "sleeve", or "pillow"). Only bag/case/sleeve can ship
 //   internationally; pillows and products with no class ship to the US only.
 //   International: CA, GB, DE, AU, JP, KR (rates in shipping-rates.js). For a
-//   MagSafe case, add to its description: "Japan & South Korea: allow ~30 days."
+//   MagSafe case: Printful can't ship it to Japan or South Korea (blocked in shipping-rates.js).
 //   (checkout also shows this automatically).
 //
 // pod: { ... } — print-on-demand (made to order by Printful, no stock to track).
@@ -78,6 +78,18 @@ const PRODUCTS = [
     salePrice: null,
     colorPrices: { "Multi": 75.00 },
     description: "Made to order.",
+    material: "100% polyester",
+    shipTime: "7–9 business days",
+    details: [
+      "Fabric weight: 9 oz./yd.² (305 g/m²)",
+      "Bag size: 5.7″ × 7.7″ × 2″ (14.5 cm × 19.5 cm × 5 cm)",
+      "Capacity: 0.37 gallons (1.4 l)",
+      "Water-resistant and durable",
+      "Sturdy fabric with fusible backing to add firmness",
+      "Inside and outside pockets",
+      "Adjustable strap",
+      "Two-way zipper",
+    ],
     // Card photo and the color preselected when the product opens (CIG 10/22).
     defaultColor: "Navy",
     image: "assets/products/fw26/crossbody_navy_front.webp",
@@ -141,7 +153,21 @@ const PRODUCTS = [
     price: 40.00,
     sizeLabel: "Model",
     salePrice: null,
-    description: "Made to order. MagSafe compatible. Shipping to Japan & South Korea takes about 30 days.",
+    shipTime: "7–9 business days",
+    description: "Made to order. Can't ship to Japan or South Korea.",
+    details: [
+      "Polycarbonate outer shell",
+      "Thermoplastic Polyurethane inner liner",
+      "Dual-layer protection",
+      "Precisely aligned port openings",
+      "MagSafe® compatible",
+      "Induction charging-compatible",
+      "Customizable edges (3D wrap)",
+      "Matte or gloss finish",
+      "Blank product sourced from Korea",
+      "Keep away from liquids containing high alcohol levels, as designs on the phone case may rub off. Keep away from direct sunlight to prevent yellowing.",
+      "iPhone® is a trademark of Apple Inc., registered in the US and other countries and regions.",
+    ],
     // Card photo and the color preselected when the product opens (CIG 10/22).
     defaultColor: "Burgundy",
     image: "assets/products/fw26/case_burgundy_iphone-16-pro.webp",
@@ -504,7 +530,21 @@ const PRODUCTS = [
     price: 50.00,
     sizePrices: { "13″": 50.00, "15″": 55.00 },
     salePrice: null,
+    shipTime: "7–9 business days",
     description: "Made to order.",
+    material: "100% neoprene",
+    details: [
+      "13″ sleeve weight: 6.49 oz (220 g)",
+      "15″ sleeve weight: 8.8 oz (250 g)",
+      "Lightweight and resistant to water, oil, and heat",
+      "Snug fit",
+      "Faux fur interior lining",
+      "Top-loading zippered enclosure with two sliders",
+      "Padded zipper binding",
+      "Customizable front, solid black rear",
+      "Blank product sourced from China",
+      "The laptop sleeve fits most 13″ and 15″ laptops",
+    ],
     // Card photo and the color preselected when the product opens (CIG 10/22).
     defaultColor: "Grape",
     image: "assets/products/fw26/sleeve_grape.webp",
@@ -582,7 +622,18 @@ const PRODUCTS = [
     price: 45.00,
     sizePrices: { "14″×14″": 45.00, "16″×16″": 48.00, "18″×18″": 52.00, "20″×12″": 48.00, "22″×22″": 58.00 },
     salePrice: null,
+    shipTime: "7–9 business days",
     description: "Made to order. Ships to the US only.",
+    material: "100% cotton",
+    details: [
+      "Fabric weight: 263 gsm",
+      "Durable, midweight cotton with a crisp, structured finish",
+      "Print on both sides of the pillow case",
+      "Hidden zipper",
+      "Machine-washable",
+      "Ideal for indoor use",
+      "Pillow cover and insert are shipped unassembled. Product images show the assembled result.",
+    ],
     // Card photo and the color preselected when the product opens (CIG 10/22).
     defaultColor: "Black",
     image: "assets/products/fw26/pillow_black_front.webp",
@@ -726,7 +777,20 @@ const PRODUCTS = [
     // shipping (US shipping is free to the customer).
     price: 35.00,
     salePrice: null,
+    shipTime: "7–9 business days",
     description: "Made to order.",
+    material: "100% polyester",
+    details: [
+      "Fabric weight (may vary by 5%): 6.64 oz/yd² (225 g/m²)",
+      "Maximum weight limit: 44lbs (20kg)",
+      "Capacity: 4.4 US gal (17.8l)",
+      "Large inside pocket that can be customized with a logo",
+      "Printed, cut, and hand-sewn by our in-house team",
+      "Comfortable cotton webbing handles",
+      "Vibrant colors that won't fade",
+      "Available in one size",
+      "Fabric is OEKO-TEX® STANDARD 100 (Certificate No. D09-1028, Hohenstein Laboratories) certified",
+    ],
     // Card photo and the color preselected when the product opens: green, i.e.
     // the collection's "Hunter" colorway (CIG 10/22: "make it green").
     defaultColor: "Hunter",
@@ -937,6 +1001,7 @@ const PRODUCTS = [
     // Photo -> color: the pinkish-red mask is "Pink" and the orange-red one is
     // "Orange" (per CIG's brief; CIG to confirm), the gold/tan one is "Yellow".
     stock: { "Yellow": 17, "Pink": 22, "Brown": 16, "Purple": 14, "Green": 13, "Orange": 12 },
+    isNew: true,
     name: "Moto Mask",
     price: 15.00,
     salePrice: null,

@@ -57,7 +57,7 @@ function renderProductGrid() {
     return `
     <div class="product-card reveal" data-id="${p.id}">
       <div class="product-card-image-wrap">
-        ${p.comingSoon ? `<div class="soldout-badge">Coming Soon</div>` : dropLocked(p) ? `<div class="soldout-badge drop-badge">${dropBadgeText(p)}</div>` : productTotalStock(p) <= 0 ? `<div class="soldout-badge">Sold Out</div>` : ""}
+        ${p.comingSoon ? `<div class="soldout-badge">Coming Soon</div>` : dropLocked(p) ? `<div class="soldout-badge drop-badge">${dropBadgeText(p)}</div>` : productTotalStock(p) <= 0 ? `<div class="soldout-badge">Sold Out</div>` : p.isNew ? `<div class="soldout-badge new-badge">New</div>` : ""}
         <div class="product-card-parallax">
           <img src="${p.image}" alt="${p.name}" />
         </div>
@@ -237,9 +237,10 @@ function openProductModal(id) {
     <div class="pd-details">
     ${p.photoComingSoon ? `<p class="pd-photo-note" id="pd-photo-note" hidden>Photo coming soon</p>` : ""}
     <h3 class="pd-name">${p.name}</h3>
-    ${p.soldOut ? `<div class="soldout-badge pd-soldout-badge">Sold Out</div>` : ""}
+    ${p.soldOut ? `<div class="soldout-badge pd-soldout-badge">Sold Out</div>` : p.isNew ? `<div class="soldout-badge pd-soldout-badge new-badge">New</div>` : ""}
     <div class="pd-price" id="pd-price"></div>
     ${p.description ? `<p class="pd-description">${p.description}</p>` : ""}
+    ${p.material || p.shipTime || (p.details && p.details.length) ? `<div class="pd-specs">${p.material ? `<p class="pd-material">${p.material}</p>` : ""}${p.shipTime ? `<p class="pd-shiptime">Shipping: ${p.shipTime}</p>` : ""}${p.details && p.details.length ? `<ul class="pd-details-list">${p.details.map((d) => `<li>${d}</li>`).join("")}</ul>` : ""}</div>` : ""}
     ${p.styles ? `
       <div class="pd-field">
         <label>Style</label>
@@ -552,7 +553,8 @@ function selectedShipCountry() {
 }
 
 // Same quote the server charges (shipping-rates.js). Returns
-// { shippingCents, blocked: [product names that ship to the US only] }.
+// { shippingCents, blocked: [product names that can't ship to that country],
+//   usOnly: [the subset that ships to the US only] }.
 function cartShippingLines(cart) {
   return cart.map((item) => {
     const product = PRODUCTS.find((entry) => entry.id === item.productId);
@@ -584,15 +586,24 @@ function cartShippingQuote(cart, country) {
   const lines = cartShippingLines(cart);
   const merchandiseCents = cartMerchandiseCents(cart, promoDetails(promoState));
   if (typeof quoteShipping !== "function") {
-    if (country === "US") return { shippingCents: lines.some((l) => l.mask) ? null : 0, blocked: [] };
-    return { shippingCents: null, blocked: lines.map((line) => line.name) };
+    if (country === "US") return { shippingCents: lines.some((l) => l.mask) ? null : 0, blocked: [], usOnly: [] };
+    const names = lines.map((line) => line.name);
+    return { shippingCents: null, blocked: names, usOnly: names };
   }
   const quote = quoteShipping(lines, country, { merchandiseCents });
-  return { shippingCents: quote.shippingCents, blocked: quote.blocked };
+  return { shippingCents: quote.shippingCents, blocked: quote.blocked, usOnly: quote.usOnly || quote.blocked };
 }
 
 function usOnlyMessage(blocked) {
   return `${blocked.join(", ")} ${blocked.length === 1 ? "ships" : "ship"} to the US only, so international shipping isn't available for this bag.`;
+}
+
+// Products that ship abroad but not to some countries (MagSafe cases: not to
+// Japan or South Korea, per Printful). byName: { name: [country names] }.
+function cantShipToMessage(byName) {
+  return Object.entries(byName)
+    .map(([name, places]) => `${name} can't ship to ${places.join(" or ")}.`)
+    .join(" ");
 }
 
 // Disables countries the bag can't ship to and updates the address hints.
@@ -600,19 +611,24 @@ function updateShipToOptions(cart) {
   const select = document.getElementById("checkout-country");
   const note = document.getElementById("checkout-shipping-note");
   let blockedNames = [];
+  const notHere = {};
   if (select && select.options) {
     Array.from(select.options).forEach((option) => {
       if (option.value === "US") return;
       const quote = cartShippingQuote(cart, option.value);
       option.disabled = quote.shippingCents === null;
-      if (quote.blocked.length) blockedNames = quote.blocked;
+      if (quote.usOnly.length) blockedNames = quote.usOnly;
+      quote.blocked.filter((name) => !quote.usOnly.includes(name)).forEach((name) => {
+        const place = shipCountryNames()[option.value] || option.value;
+        (notHere[name] = notHere[name] || []).push(place);
+      });
     });
     const current = Array.from(select.options).find((option) => option.value === select.value);
     if (current && current.disabled) select.value = "US";
   }
   const country = selectedShipCountry();
   if (note) {
-    let text = blockedNames.length ? usOnlyMessage(blockedNames) : "";
+    let text = blockedNames.length ? usOnlyMessage(blockedNames) : cantShipToMessage(notHere);
     if (!text && country !== "US" && typeof slowDeliveryNote === "function") {
       text = slowDeliveryNote(cartShippingLines(cart), country);
     }
@@ -929,9 +945,12 @@ paymentButtons.forEach((btn) => {
 
     const shipQuote = cartShippingQuote(cart, fields.country);
     if (shipQuote.shippingCents === null) {
-      errorEl.textContent = shipQuote.blocked.length
-        ? usOnlyMessage(shipQuote.blocked)
-        : "Shipping isn't available to that country yet.";
+      const notHereNames = shipQuote.blocked.filter((name) => !shipQuote.usOnly.includes(name));
+      errorEl.textContent = shipQuote.usOnly.length
+        ? usOnlyMessage(shipQuote.usOnly)
+        : notHereNames.length
+          ? cantShipToMessage(Object.fromEntries(notHereNames.map((name) => [name, [shipCountryNames()[fields.country] || fields.country]])))
+          : "Shipping isn't available to that country yet.";
       return;
     }
 
