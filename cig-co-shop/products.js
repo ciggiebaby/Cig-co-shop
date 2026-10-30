@@ -598,6 +598,16 @@ const PRODUCTS = [
     salePrice: null,
     shipTime: "7–9 business days",
     description: "Made to order. Ships to the US only.",
+    material: "100% cotton",
+    details: [
+      "Fabric weight: 263 gsm",
+      "Durable, midweight cotton with a crisp, structured finish",
+      "Print on both sides of the pillow case",
+      "Hidden zipper",
+      "Machine-washable",
+      "Ideal for indoor use",
+      "Pillow cover and insert are shipped unassembled. Product images show the assembled result.",
+    ],
     // Card photo and the color preselected when the product opens (CIG 10/22).
     defaultColor: "Black",
     image: "assets/products/fw26/pillow_black_front.webp",
