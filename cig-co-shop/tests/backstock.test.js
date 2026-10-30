@@ -1,6 +1,7 @@
 // Backstock counted 10/21 (bg/backstock_2026-10-21.csv) with CIG-approved
 // prices 10/22: Ski Mask $30, Balaclava $25, Moto Mask $15. Stock values are
 // static caps (not decremented on sale).
+require("./full-price-clock-fixture.js");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");

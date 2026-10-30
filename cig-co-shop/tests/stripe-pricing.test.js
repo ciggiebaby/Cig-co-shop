@@ -1,3 +1,4 @@
+require("./full-price-clock-fixture.js");
 require("./soldout-fixture.js");
 require("./legacy-fixture.js");
 const test = require("node:test");

@@ -2,6 +2,7 @@
 // a mask pays $8.95 per ORDER, free when the items total after promo is over
 // $75 (exactly $75 still pays). FW26-only carts stay free. Abroad (CIG
 // 2026-10-30), masks ship to every store country for a per-order USPS charge.
+require("./full-price-clock-fixture.js");
 const assert = require("node:assert/strict");
 const test = require("node:test");
 

@@ -51,8 +51,8 @@ function renderProductGrid() {
   grid.innerHTML = shopGridProducts().map((p) => {
     const price = p.styles || hasPriceRange(p)
       ? `From $${minPrice(p).toFixed(2)}`
-      : p.salePrice
-      ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${p.salePrice.toFixed(2)}</span>`
+      : salePriceNow(p) != null
+      ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${salePriceNow(p).toFixed(2)}</span>`
       : `$${p.price.toFixed(2)}`;
     return `
     <div class="product-card reveal" data-id="${p.id}">
@@ -122,18 +122,36 @@ function styleObj(p, name) { return (p.styles || []).find((s) => s.name === name
 function optionPriceFor(map, key) {
   return map && key != null && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
 }
+// Timed sale price right now (products.js activeSalePrice: only inside the
+// product's saleStart/saleEnd window), or null. `now` is for tests.
+function salePriceNow(p, now = Date.now()) {
+  if (typeof activeSalePrice === "function") return activeSalePrice(p, now);
+  // products.js helper missing: an always-on salePrice still shows; a timed
+  // one shows full price (the server decides anyway).
+  if (!p || typeof p.salePrice !== "number") return null;
+  return p.saleStart == null && p.saleEnd == null ? p.salePrice : null;
+}
+// True when this exact selection is charged its sale price (same order as currentPrice).
+function selectionOnSale(p, style, color, size, now = Date.now()) {
+  if (!p || p.styles) return false;
+  if (optionPriceFor(p.sizePrices, size) !== undefined) return false;
+  if (optionPriceFor(p.colorPrices, color) !== undefined) return false;
+  return salePriceNow(p, now) != null;
+}
 // Same order as the server (stripe-pricing.js): style, size, color, sale, base.
-function currentPrice(p, style, color, size) {
+function currentPrice(p, style, color, size, now = Date.now()) {
   if (p.styles) { const s = styleObj(p, style); return s ? s.price : p.styles[0].price; }
   const bySize = optionPriceFor(p.sizePrices, size);
   if (bySize !== undefined) return bySize;
   const byColor = optionPriceFor(p.colorPrices, color);
   if (byColor !== undefined) return byColor;
-  return p.salePrice != null ? p.salePrice : p.price;
+  const sale = salePriceNow(p, now);
+  return sale != null ? sale : p.price;
 }
 function allPrices(p) {
   if (p.styles) return p.styles.map((s) => s.price);
-  const base = p.salePrice != null ? p.salePrice : p.price;
+  const sale = salePriceNow(p);
+  const base = sale != null ? sale : p.price;
   const extra = Object.values(p.sizePrices || {}).concat(Object.values(p.colorPrices || {}));
   // With per-size prices on every size, the base price never applies.
   const allSizesPriced = p.sizes && p.sizes.length && p.sizes.every((sz) => optionPriceFor(p.sizePrices, sz) !== undefined);
@@ -293,7 +311,12 @@ function openProductModal(id) {
       b.classList.toggle("soldout", colorStock(p, modalState.style, b.dataset.color) <= 0);
     });
     const priceEl = document.getElementById("pd-price");
-    if (priceEl) priceEl.textContent = `$${currentPrice(p, modalState.style, modalState.color, modalState.size).toFixed(2)}`;
+    if (priceEl) {
+      const shown = currentPrice(p, modalState.style, modalState.color, modalState.size);
+      priceEl.innerHTML = selectionOnSale(p, modalState.style, modalState.color, modalState.size)
+        ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${shown.toFixed(2)}</span>`
+        : `$${shown.toFixed(2)}`;
+    }
     const avail = variantStock(p, modalState.style, modalState.color, modalState.size);
     const addBtn = document.getElementById("add-to-cart-btn");
     const qtyVal = document.getElementById("qty-value");
@@ -576,11 +599,21 @@ function cartShippingLines(cart) {
 // Items total after promo, in cents, rounded per unit exactly like the server
 // (stripe-pricing.js discountedUnitAmount), so the $75 threshold matches.
 // Promos are masks only (promo.js promoUnitCents): FW26/27 lines stay full price.
+// No stacking: a line at a timed sale price gets no promo (same as the server,
+// products.js saleBlocksPromo). item.price is already the sale price during a
+// sale (cart.js getCart reprices).
+function cartItemOnSale(item, now = Date.now()) {
+  const product = typeof PRODUCTS !== "undefined" ? PRODUCTS.find((entry) => entry.id === item.productId) : null;
+  if (!product || typeof saleBlocksPromo !== "function" || !saleBlocksPromo(product, now)) return false;
+  return selectionOnSale(product, item.style || null, item.color || null, item.size || null, now);
+}
 function cartMerchandiseCents(cart, promoInfo) {
   const basisPoints = promoInfo && promoInfo.discount ? Math.round(promoInfo.discount * 10000) : 0;
   return cart.reduce((sum, item) => {
     const unit = Math.round(Number(item.price) * 100);
-    const charged = typeof promoUnitCents === "function"
+    const charged = cartItemOnSale(item)
+      ? unit
+      : typeof promoUnitCents === "function"
       ? promoUnitCents(item.productId, unit, basisPoints)
       : unit; // promo.js missing: show full price (the server decides anyway)
     return sum + charged * item.qty;
@@ -686,6 +719,9 @@ function renderCheckoutSummary() {
 
   if (discountFraction > 0 && discountAmount > 0) {
     rows += `<div class="checkout-summary-row" style="color:var(--gold);"><span>Promo (${promoState}, masks only)</span><span>&minus;$${discountAmount.toFixed(2)}</span></div>`;
+  } else if (discountFraction > 0 && cart.some((item) => cartItemOnSale(item))) {
+    // No stacking with sale prices; checkout refuses the code (stripe-pricing.js).
+    rows += `<div class="checkout-summary-row promo-error"><span>Promo (${promoState}) doesn't stack with sale prices. Your masks are already on sale, so remove the code.</span><span></span></div>`;
   } else if (discountFraction > 0) {
     // Promos are masks only (promo.js); checkout refuses a code on a bag with no mask.
     rows += `<div class="checkout-summary-row promo-error"><span>Promo (${promoState}) only works on masks (ski mask, balaclava, moto mask). Add a mask or remove the code.</span><span></span></div>`;
@@ -1085,6 +1121,28 @@ renderProductGrid();
   const wait = Math.min.apply(null, upcoming) + 1000;
   if (wait < 2147483647) setTimeout(() => renderProductGrid(), wait);
 })();
+// Re-render when a timed sale starts or ends (products.js saleStart/saleEnd),
+// for shoppers who leave the page open across midnight.
+(function scheduleSaleEdges() {
+  if (typeof setTimeout !== "function") return;
+  const now = Date.now();
+  const edges = [];
+  PRODUCTS.forEach((p) => {
+    if (typeof p.salePrice !== "number") return;
+    [p.saleStart, p.saleEnd].forEach((iso) => {
+      const at = iso ? Date.parse(iso) : NaN;
+      if (Number.isFinite(at) && at > now) edges.push(at - now);
+    });
+  });
+  edges.forEach((wait) => {
+    if (wait + 1000 < 2147483647) {
+      setTimeout(() => {
+        renderProductGrid();
+        if (typeof renderCart === "function") renderCart();
+      }, wait + 1000);
+    }
+  });
+})();
 if (typeof renderCart === "function") renderCart();
 
 if (typeof module !== "undefined" && module.exports) {
@@ -1094,11 +1152,14 @@ if (typeof module !== "undefined" && module.exports) {
     addCheckoutFingerprint,
     buildCheckoutRequestBody,
     componentVariantStock,
+    cartMerchandiseCents,
     currentPrice,
     dropLocked,
     minPrice,
     handleCheckoutResult,
     productTotalStock,
+    salePriceNow,
+    selectionOnSale,
     variantStock,
   };
 }
