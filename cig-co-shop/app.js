@@ -73,6 +73,8 @@ function renderProductGrid() {
     card.addEventListener("click", () => openProductModal(card.dataset.id));
   });
 
+  renderCatalogJsonLd();
+  if (openProductId) syncProductView();
   if (window.initScrollEffects) window.initScrollEffects();
 }
 
@@ -243,11 +245,20 @@ function watchModalScroll() {
   }
 }
 
-function openProductModal(id) {
+// pick: optional { color, size, style } from a shared link (?product=...).
+// Anything that isn't one of this product's own options is ignored, so the
+// product's usual default shows instead.
+function openProductModal(id, pick = null) {
   const p = PRODUCTS.find((x) => x.id === id);
-  if (!p || p.hidden) return;
+  if (!p || p.hidden) return false;
   if (typeof trackSiteEvent === "function") trackSiteEvent("product_view", p.id);
   modalState = { style: (p.styles && p.styles[0].name) || null, color: (p.defaultColor && p.colors.includes(p.defaultColor) ? p.defaultColor : p.colors[0]) || null, size: p.sizes[0] || null, qty: 1, slide: 0 };
+  if (pick) {
+    if (pick.style && (p.styles || []).some((st) => st.name === pick.style)) modalState.style = pick.style;
+    if (pick.color && p.colors.includes(pick.color)) modalState.color = pick.color;
+    if (pick.size && p.sizes.includes(pick.size)) modalState.size = pick.size;
+  }
+  openProductId = p.id;
 
   document.getElementById("modal-content").innerHTML = `
     <div class="pd-media" id="pd-media">
@@ -317,6 +328,7 @@ function openProductModal(id) {
         ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${shown.toFixed(2)}</span>`
         : `$${shown.toFixed(2)}`;
     }
+    syncProductView();
     const avail = variantStock(p, modalState.style, modalState.color, modalState.size);
     const addBtn = document.getElementById("add-to-cart-btn");
     const qtyVal = document.getElementById("qty-value");
@@ -396,14 +408,80 @@ function openProductModal(id) {
     dismissProductModal();
   });
 
-  refreshAvailability();
   document.getElementById("product-modal").setAttribute("aria-hidden", "false");
   pushProductModalHistory();
+  refreshAvailability();
+  return true;
 }
 
 function closeModal(id) {
   const el = document.getElementById(id);
   if (el) el.setAttribute("aria-hidden", "true");
+  if (id === "product-modal") {
+    openProductId = null;
+    syncProductView();
+  }
+}
+
+// ---------- Shareable product links + Google product data (product-links.js) ----------
+// The open pop-up's product (or null) — kept in the address bar and in the
+// page's schema.org data so a copied link reopens the same product and pick.
+let openProductId = null;
+
+function structuredDataHelpers() {
+  return {
+    priceFor: (p, style, color, size) => currentPrice(p, style, color, size),
+    stockFor: (p, style, color, size) => variantStock(p, style, color, size),
+    imageFor: (p, color, size, style) => productImageForColor(p, color, size, style),
+  };
+}
+
+function setJsonLd(elementId, data) {
+  if (typeof document === "undefined" || !document.getElementById || typeof jsonLdText !== "function") return;
+  let el = document.getElementById(elementId);
+  if (!data) { if (el && el.parentNode) el.parentNode.removeChild(el); return; }
+  if (!el) {
+    if (!document.createElement || !document.head) return;
+    el = document.createElement("script");
+    el.type = "application/ld+json";
+    el.id = elementId;
+    document.head.appendChild(el);
+  }
+  el.textContent = jsonLdText(data);
+}
+
+// Puts the open product + pick in the URL (or takes it out once closed) and
+// refreshes that product's JSON-LD. replaceState only: the pop-up's own
+// history entry (pushProductModalHistory) is what Back closes.
+function syncProductView() {
+  const p = openProductId ? PRODUCTS.find((x) => x.id === openProductId) : null;
+  const sel = p ? { id: p.id, style: modalState.style, color: modalState.color, size: modalState.size } : null;
+  const nav = typeof window !== "undefined" ? window.history : null;
+  const loc = typeof window !== "undefined" ? window.location : null;
+  if (nav && loc && typeof urlWithProductView === "function" && typeof nav.replaceState === "function") {
+    try {
+      const next = urlWithProductView(loc.href, sel);
+      if (next !== `${loc.pathname}${loc.search}${loc.hash}`) nav.replaceState(nav.state, "", next);
+    } catch { /* address bar update is best-effort */ }
+  }
+  if (typeof productJsonLd === "function") setJsonLd("product-jsonld", p ? productJsonLd(p, sel, structuredDataHelpers()) : null);
+}
+
+function renderCatalogJsonLd() {
+  if (typeof catalogJsonLd === "function") setJsonLd("catalog-jsonld", catalogJsonLd(PRODUCTS, structuredDataHelpers()));
+}
+
+// On page load: ?product=<id>&color=..&size=.. opens that pop-up. A link to an
+// unknown or hidden product just shows the grid (and its params are dropped).
+function openProductFromLink(href = typeof window !== "undefined" && window.location ? window.location.href : "") {
+  if (!href || typeof parseProductLink !== "function") return false;
+  let hasParam = false;
+  try { hasParam = new URL(href).searchParams.has("product"); } catch { return false; }
+  if (!hasParam) return false;
+  const link = parseProductLink(href, PRODUCTS);
+  if (link && openProductModal(link.id, link)) return true;
+  syncProductView();   // bad link: strip the params, stay on the grid
+  return false;
 }
 
 // ---------- Product modal dismissal ----------
@@ -1106,6 +1184,7 @@ paymentButtons.forEach((btn) => {
 // ---------- Init ----------
 handleCheckoutResult();
 renderProductGrid();
+openProductFromLink();
 
 // Show the drop-test code box only in test mode.
 (function showDropTestRow() {
@@ -1157,6 +1236,7 @@ if (typeof module !== "undefined" && module.exports) {
     dropLocked,
     minPrice,
     handleCheckoutResult,
+    openProductFromLink,
     productTotalStock,
     salePriceNow,
     selectionOnSale,
