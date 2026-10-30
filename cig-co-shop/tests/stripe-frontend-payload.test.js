@@ -1379,7 +1379,7 @@ test("the Moto Mask card and product page show a gold New badge; other cards don
 test("FW26 product pages show material, shipping time and the Printful spec list", () => {
   const expected = {
     "FW26-BAG": { material: "100% polyester", first: "Fabric weight: 9 oz./yd.² (305 g/m²)", count: 8 },
-    "FW26-TOTE": { material: "100% polyester", first: "Fabric weight (may vary by 5%): 6.64 oz/yd² (225 g/m²)", count: 9 },
+    "FW26-TOTE": { material: "100% polyester", first: "Fabric weight (may vary by 5%): 6.64 oz/yd² (225 g/m²)", count: 8 },
     "FW26-PILLOW": { material: "100% cotton", first: "Fabric weight: 263 gsm", count: 7 },
     "FW26-SLEEVE": { material: "100% neoprene", first: "13″ sleeve weight: 6.49 oz (220 g)", count: 10 },
     "FW26-CASE": { material: null, first: "Polycarbonate outer shell", count: 11 },
@@ -1404,6 +1404,14 @@ test("FW26 product pages show material, shipping time and the Printful spec list
   const casePage = renderProductPage("FW26-CASE");
   assert.match(casePage, /<p class="pd-description">Made to order\. Can't ship to Japan or South Korea\.<\/p>/);
   assert.doesNotMatch(casePage, /30 days/);
+  // Every case variant is Printful's Matte MagSafe Tough Case, so the page says matte only.
+  assert.ok(casePage.includes("<li>Matte finish</li>"));
+  assert.doesNotMatch(casePage, /gloss/i);
+  // Printful's own "in-house team" wording never shows on our product pages.
+  for (const p of PRODUCTS) {
+    assert.ok(!(p.details || []).some((d) => /in-house|hand-sewn/i.test(d)), p.id);
+  }
+  assert.doesNotMatch(renderProductPage("FW26-TOTE"), /in-house|hand-sewn/i);
   // Products without specs (e.g. masks) render no empty spec block.
   const moto = PRODUCTS.find((p) => p.name === "Moto Mask");
   assert.doesNotMatch(renderProductPage(moto.id), /pd-specs/);
