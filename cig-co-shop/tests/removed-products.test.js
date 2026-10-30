@@ -16,7 +16,9 @@ test("0003 and 0009 are no longer in the catalog, pages or sitemap", () => {
   for (const name of ["CIG Pillow Case", "CIG Metallic Puffer Jacket"]) assert.equal(PRODUCTS.find((p) => p.name === name), undefined, name);
   for (const file of ["products.js", "index.html", "gallery.html", "arcade.html", "sitemap.xml", "gallery-data.js"]) {
     const text = fs.readFileSync(path.join(root, file), "utf8");
-    assert.doesNotMatch(text, /Pillow Case|Puffer|pillow-(red|blue|purple|teal|black)\.jpg|puffer-jacket/i, file);
+    // "CIG Pillow Case" (the removed product), not the Throw Pillow's Printful
+    // spec line "Print on both sides of the pillow case".
+    assert.doesNotMatch(text.replace(/Print on both sides of the pillow case/g, ""), /Pillow Case|Puffer|pillow-(red|blue|purple|teal|black)\.jpg|puffer-jacket/i, file);
   }
   for (const f of ["pillow-red.jpg", "pillow-black.jpg", "puffer-jacket-front.jpg"]) assert.equal(fs.existsSync(path.join(root, "assets/products", f)), false, f);
 });
