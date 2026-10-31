@@ -1,5 +1,7 @@
 const { requiredEnvironment } = require("./supabase.js");
 const { prizeTermsNote } = require("../../promo.js");
+const { unsubscribeUrl } = require("./subscribers.js");
+const { renderThankYouEmail } = require("./thankyou-email-template.js");
 
 class ResendRequestError extends Error {
   constructor(code, status) {
@@ -38,8 +40,9 @@ function createResendClient({
   apiKey = requiredEnvironment("RESEND_API_KEY"),
   fromEmail = requiredEnvironment("RESEND_FROM_EMAIL"),
   fetchImpl = fetch,
+  environment = process.env,
 } = {}) {
-  async function send({ to, subject, html, idempotencyKey }) {
+  async function send({ to, subject, html, idempotencyKey, headers = null }) {
     const response = await fetchImpl("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -47,7 +50,9 @@ function createResendClient({
         "Content-Type": "application/json",
         "Idempotency-Key": idempotencyKey,
       },
-      body: JSON.stringify({ from: fromEmail, to, subject, html }),
+      body: JSON.stringify(headers
+        ? { from: fromEmail, to, subject, html, headers }
+        : { from: fromEmail, to, subject, html }),
     });
     if (!response.ok) {
       throw new ResendRequestError(`resend_http_${response.status}`, response.status);
@@ -63,12 +68,41 @@ function createResendClient({
         : `<p style="color:#ccc;">${escapeHtml(prize.detail)}</p>`;
       const terms = prizeTermsNote(prize);
       const termsBlock = terms ? `<p style="color:#ccc;">${escapeHtml(terms)}</p>` : "";
+      const unsubscribe = unsubscribeUrl(email, environment);
+      const unsubscribeBlock = unsubscribe
+        ? `<p style="color:#777;font-size:12px;">You're getting this because you played the CIG &amp; CO. Arcade with this email. <a style="color:#999;" href="${escapeHtml(unsubscribe)}">Unsubscribe</a> from CIG &amp; CO. emails anytime.</p>`
+        : `<p style="color:#777;font-size:12px;">You're getting this because you played the CIG &amp; CO. Arcade with this email. To unsubscribe from CIG &amp; CO. emails, reply &ldquo;unsubscribe&rdquo;.</p>`;
       return send({
         to: email,
         subject: `You won: ${prize.label} — CIG & CO. Arcade`,
         idempotencyKey: `arcade-prize/${playId}`,
+        headers: unsubscribe
+          ? { "List-Unsubscribe": `<${unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }
+          : null,
         html: emailFrame(`You won: ${prize.label}`, `${codeBlock}${termsBlock}
-          <p style="margin-top:28px;color:#777;font-size:12px;">This prize is yours to use right away.</p>`),
+          <p style="margin-top:28px;color:#777;font-size:12px;">This prize is yours to use right away.</p>
+          ${unsubscribeBlock}`),
+      });
+    },
+
+    // Printful-fulfilled orders (no QR card in the box). Copy and layout:
+    // netlify/lib/thankyou-email-template.js.
+    sendThankYou({ email, orderRef, firstName = null, printfulOrderId }) {
+      const unsubscribe = unsubscribeUrl(email, environment);
+      const { subject, html } = renderThankYouEmail({
+        orderRef,
+        firstName,
+        unsubscribeUrl: unsubscribe,
+        qrImageUrl: environment.THANKYOU_QR_IMAGE_URL || null,
+      });
+      return send({
+        to: email,
+        subject,
+        idempotencyKey: `thankyou/${printfulOrderId}`,
+        headers: unsubscribe
+          ? { "List-Unsubscribe": `<${unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }
+          : null,
+        html,
       });
     },
 
