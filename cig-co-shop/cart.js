@@ -27,9 +27,15 @@ function getCart() {
     const product = byId.get(item.productId);
     const style = product.styles && product.styles.length ? itemStyleKey(item) : "";
     const name = style ? `${product.name} (${style})` : product.name;
-    if (item.name === name && (!style || item.style === style)) return item;
+    // Products with a (timed) sale price: refresh the saved price from the
+    // catalog, so a bag filled during the sale shows full price once it ends
+    // (and vice versa), matching what the server charges.
+    const price = typeof product.salePrice === "number" && typeof currentPrice === "function"
+      ? currentPrice(product, style || null, item.color || null, item.size || null)
+      : item.price;
+    if (item.name === name && (!style || item.style === style) && item.price === price) return item;
     changed = true;
-    return style ? { ...item, name, style } : { ...item, name };
+    return style ? { ...item, name, style, price } : { ...item, name, price };
   });
   if (changed || kept.length !== cart.length) localStorage.setItem(CART_KEY, JSON.stringify(kept));
   return kept;

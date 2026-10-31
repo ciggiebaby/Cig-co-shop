@@ -1,6 +1,8 @@
 // US shipping for in-hand backstock masks (CIG, 2026-10-22): any US order with
 // a mask pays $8.95 per ORDER, free when the items total after promo is over
-// $75 (exactly $75 still pays). FW26-only carts stay free; masks stay US only.
+// $75 (exactly $75 still pays). FW26-only carts stay free. Abroad (CIG
+// 2026-10-30), masks ship to every store country for a per-order USPS charge.
+require("./full-price-clock-fixture.js");
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
@@ -67,15 +69,46 @@ test("FW26-only carts stay free in the US; no merchandise total never undercharg
   assert.equal(rates.quoteShipping([{ name: "Mask", shipping: null, quantity: 1, mask: true }], "US").shippingCents, 895);
 });
 
-test("international is unchanged and a mask is still refused as US-only", () => {
+test("international: FW26 rates unchanged; masks ship to every country for the in-hand order charge", () => {
   const bagOnly = priceCartForStripe([bag(2)], null);
   assert.deepEqual(resolveCheckoutShipping(bagOnly, "CA"), { country: "CA", shippingCents: 1600 });
+  // 4 balaclavas = 12 oz + 3 oz mailer = 15 oz -> 9-16 oz band; plus the bag's per-item rate.
+  const tier16 = { CA: 2500, GB: 3100, DE: 2800, AU: 4000, JP: 3300, KR: 3000 };
+  const bagRate = { CA: 800, GB: 500, DE: 500, AU: 800, JP: 500, KR: 1300 };
   for (const country of ["CA", "GB", "DE", "AU", "JP", "KR"]) {
-    assert.throws(
-      () => resolveCheckoutShipping(priceCartForStripe([balaclava(4), bag(1)], null), country),
-      /CIG Balaclava ships to the US only/,
+    assert.deepEqual(
+      resolveCheckoutShipping(priceCartForStripe([balaclava(4), bag(1)], null), country),
+      { country, shippingCents: tier16[country] + bagRate[country] },
       country,
     );
+    // One mask pays the same cushioned 9-16 oz band (no free-over-$75 abroad).
+    assert.equal(resolveCheckoutShipping(priceCartForStripe([balaclava(1)], null), country).shippingCents, tier16[country]);
+    assert.equal(resolveCheckoutShipping(priceCartForStripe([balaclava(2), skiMask(2)], null), country).shippingCents, tier16[country]);
+  }
+});
+
+test("in-hand weight bands: 1-4 masks, 5 masks (18 oz), parcels split over 64 oz", () => {
+  const q = (lines, country) => rates.quoteShipping(lines, country).shippingCents;
+  const mask = (quantity, extra = {}) => ({ name: "Mask", shipping: null, quantity, mask: true, ...extra });
+  assert.equal(q([mask(4)], "KR"), 3000);   // 15 oz
+  assert.equal(q([mask(5)], "KR"), 3400);   // 18 oz -> 17-32 oz
+  assert.equal(q([mask(10)], "KR"), 4900);  // 33 oz -> 33-48 oz
+  assert.equal(q([mask(20)], "KR"), 5600);  // 63 oz -> 49-64 oz
+  assert.equal(q([mask(21)], "KR"), 5600 + 3000); // 66 oz -> 61 + 2 item oz: two parcels
+  // Non-mask in-hand items (no liveStock) are priced by weightOz.
+  assert.equal(q([{ name: "Umbrella", shipping: null, quantity: 1, inHand: true, weightOz: 16 }], "JP"), 3700);
+  assert.deepEqual(rates.quoteShipping([mask(1)], "AU").blocked, []);
+  assert.deepEqual(rates.quoteShipping([mask(1)], "AU").usOnly, []);
+  // Every in-hand product in the catalog has a weight and ships to all six countries.
+  const { PRODUCTS } = require("../products.js");
+  const inHand = PRODUCTS.filter((p) => !p.pod);
+  assert.ok(inHand.length >= 3);
+  for (const product of inHand) {
+    assert.equal(typeof product.shipWeightOz, "number", product.name);
+    for (const country of ["CA", "GB", "DE", "AU", "JP", "KR"]) {
+      const quote = rates.quoteShipping([{ name: product.name, shipping: product.shipping || null, quantity: 1, inHand: true, weightOz: product.shipWeightOz }], country);
+      assert.ok(quote.shippingCents > 0, `${product.name} -> ${country}`);
+    }
   }
 });
 
@@ -143,9 +176,11 @@ test("Stripe: mask orders under/at $75 get one $8.95 US shipping option; over $7
   assert.equal(created.shipping_options, undefined);
   assert.equal(created.metadata.shipping_cents, undefined);
 
-  ({ res } = await stripe.post({ items: [balaclava(1)], shipCountry: "GB" }));
-  assert.equal(res.statusCode, 400);
-  assert.match(JSON.parse(res.body).error, /ships to the US only/);
+  ({ res, created } = await stripe.post({ items: [balaclava(1)], shipCountry: "GB" }));
+  assert.equal(res.statusCode, 200);
+  assert.equal(created.shipping_options[0].shipping_rate_data.fixed_amount.amount, 3100);
+  assert.equal(created.shipping_options[0].shipping_rate_data.display_name, "Standard shipping to United Kingdom");
+  assert.deepEqual(created.shipping_address_collection.allowed_countries, ["GB"]);
 });
 
 test("Stripe: a promo that drops an $80 mask order to $72 adds the $8.95 back", async () => {

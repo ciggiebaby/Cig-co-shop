@@ -51,8 +51,8 @@ function renderProductGrid() {
   grid.innerHTML = shopGridProducts().map((p) => {
     const price = p.styles || hasPriceRange(p)
       ? `From $${minPrice(p).toFixed(2)}`
-      : p.salePrice
-      ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${p.salePrice.toFixed(2)}</span>`
+      : salePriceNow(p) != null
+      ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${salePriceNow(p).toFixed(2)}</span>`
       : `$${p.price.toFixed(2)}`;
     return `
     <div class="product-card reveal" data-id="${p.id}">
@@ -73,6 +73,8 @@ function renderProductGrid() {
     card.addEventListener("click", () => openProductModal(card.dataset.id));
   });
 
+  renderCatalogJsonLd();
+  if (openProductId) syncProductView();
   if (window.initScrollEffects) window.initScrollEffects();
 }
 
@@ -122,18 +124,36 @@ function styleObj(p, name) { return (p.styles || []).find((s) => s.name === name
 function optionPriceFor(map, key) {
   return map && key != null && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
 }
+// Timed sale price right now (products.js activeSalePrice: only inside the
+// product's saleStart/saleEnd window), or null. `now` is for tests.
+function salePriceNow(p, now = Date.now()) {
+  if (typeof activeSalePrice === "function") return activeSalePrice(p, now);
+  // products.js helper missing: an always-on salePrice still shows; a timed
+  // one shows full price (the server decides anyway).
+  if (!p || typeof p.salePrice !== "number") return null;
+  return p.saleStart == null && p.saleEnd == null ? p.salePrice : null;
+}
+// True when this exact selection is charged its sale price (same order as currentPrice).
+function selectionOnSale(p, style, color, size, now = Date.now()) {
+  if (!p || p.styles) return false;
+  if (optionPriceFor(p.sizePrices, size) !== undefined) return false;
+  if (optionPriceFor(p.colorPrices, color) !== undefined) return false;
+  return salePriceNow(p, now) != null;
+}
 // Same order as the server (stripe-pricing.js): style, size, color, sale, base.
-function currentPrice(p, style, color, size) {
+function currentPrice(p, style, color, size, now = Date.now()) {
   if (p.styles) { const s = styleObj(p, style); return s ? s.price : p.styles[0].price; }
   const bySize = optionPriceFor(p.sizePrices, size);
   if (bySize !== undefined) return bySize;
   const byColor = optionPriceFor(p.colorPrices, color);
   if (byColor !== undefined) return byColor;
-  return p.salePrice != null ? p.salePrice : p.price;
+  const sale = salePriceNow(p, now);
+  return sale != null ? sale : p.price;
 }
 function allPrices(p) {
   if (p.styles) return p.styles.map((s) => s.price);
-  const base = p.salePrice != null ? p.salePrice : p.price;
+  const sale = salePriceNow(p);
+  const base = sale != null ? sale : p.price;
   const extra = Object.values(p.sizePrices || {}).concat(Object.values(p.colorPrices || {}));
   // With per-size prices on every size, the base price never applies.
   const allSizesPriced = p.sizes && p.sizes.length && p.sizes.every((sz) => optionPriceFor(p.sizePrices, sz) !== undefined);
@@ -225,11 +245,20 @@ function watchModalScroll() {
   }
 }
 
-function openProductModal(id) {
+// pick: optional { color, size, style } from a shared link (?product=...).
+// Anything that isn't one of this product's own options is ignored, so the
+// product's usual default shows instead.
+function openProductModal(id, pick = null) {
   const p = PRODUCTS.find((x) => x.id === id);
-  if (!p || p.hidden) return;
+  if (!p || p.hidden) return false;
   if (typeof trackSiteEvent === "function") trackSiteEvent("product_view", p.id);
   modalState = { style: (p.styles && p.styles[0].name) || null, color: (p.defaultColor && p.colors.includes(p.defaultColor) ? p.defaultColor : p.colors[0]) || null, size: p.sizes[0] || null, qty: 1, slide: 0 };
+  if (pick) {
+    if (pick.style && (p.styles || []).some((st) => st.name === pick.style)) modalState.style = pick.style;
+    if (pick.color && p.colors.includes(pick.color)) modalState.color = pick.color;
+    if (pick.size && p.sizes.includes(pick.size)) modalState.size = pick.size;
+  }
+  openProductId = p.id;
 
   document.getElementById("modal-content").innerHTML = `
     <div class="pd-media" id="pd-media">
@@ -303,7 +332,13 @@ function openProductModal(id) {
       b.classList.toggle("soldout", colorStock(p, modalState.style, b.dataset.color) <= 0);
     });
     const priceEl = document.getElementById("pd-price");
-    if (priceEl) priceEl.textContent = `$${currentPrice(p, modalState.style, modalState.color, modalState.size).toFixed(2)}`;
+    if (priceEl) {
+      const shown = currentPrice(p, modalState.style, modalState.color, modalState.size);
+      priceEl.innerHTML = selectionOnSale(p, modalState.style, modalState.color, modalState.size)
+        ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${shown.toFixed(2)}</span>`
+        : `$${shown.toFixed(2)}`;
+    }
+    syncProductView();
     const avail = variantStock(p, modalState.style, modalState.color, modalState.size);
     const addBtn = document.getElementById("add-to-cart-btn");
     const qtyVal = document.getElementById("qty-value");
@@ -385,9 +420,10 @@ function openProductModal(id) {
   });
 
   wireNotifyMe(p);
-  refreshAvailability();
   document.getElementById("product-modal").setAttribute("aria-hidden", "false");
   pushProductModalHistory();
+  refreshAvailability();
+  return true;
 }
 
 // ---------- Notify me (sold-out products/variants) ----------
@@ -451,6 +487,71 @@ function wireNotifyMe(p) {
 function closeModal(id) {
   const el = document.getElementById(id);
   if (el) el.setAttribute("aria-hidden", "true");
+  if (id === "product-modal") {
+    openProductId = null;
+    syncProductView();
+  }
+}
+
+// ---------- Shareable product links + Google product data (product-links.js) ----------
+// The open pop-up's product (or null) — kept in the address bar and in the
+// page's schema.org data so a copied link reopens the same product and pick.
+let openProductId = null;
+
+function structuredDataHelpers() {
+  return {
+    priceFor: (p, style, color, size) => currentPrice(p, style, color, size),
+    stockFor: (p, style, color, size) => variantStock(p, style, color, size),
+    imageFor: (p, color, size, style) => productImageForColor(p, color, size, style),
+  };
+}
+
+function setJsonLd(elementId, data) {
+  if (typeof document === "undefined" || !document.getElementById || typeof jsonLdText !== "function") return;
+  let el = document.getElementById(elementId);
+  if (!data) { if (el && el.parentNode) el.parentNode.removeChild(el); return; }
+  if (!el) {
+    if (!document.createElement || !document.head) return;
+    el = document.createElement("script");
+    el.type = "application/ld+json";
+    el.id = elementId;
+    document.head.appendChild(el);
+  }
+  el.textContent = jsonLdText(data);
+}
+
+// Puts the open product + pick in the URL (or takes it out once closed) and
+// refreshes that product's JSON-LD. replaceState only: the pop-up's own
+// history entry (pushProductModalHistory) is what Back closes.
+function syncProductView() {
+  const p = openProductId ? PRODUCTS.find((x) => x.id === openProductId) : null;
+  const sel = p ? { id: p.id, style: modalState.style, color: modalState.color, size: modalState.size } : null;
+  const nav = typeof window !== "undefined" ? window.history : null;
+  const loc = typeof window !== "undefined" ? window.location : null;
+  if (nav && loc && typeof urlWithProductView === "function" && typeof nav.replaceState === "function") {
+    try {
+      const next = urlWithProductView(loc.href, sel);
+      if (next !== `${loc.pathname}${loc.search}${loc.hash}`) nav.replaceState(nav.state, "", next);
+    } catch { /* address bar update is best-effort */ }
+  }
+  if (typeof productJsonLd === "function") setJsonLd("product-jsonld", p ? productJsonLd(p, sel, structuredDataHelpers()) : null);
+}
+
+function renderCatalogJsonLd() {
+  if (typeof catalogJsonLd === "function") setJsonLd("catalog-jsonld", catalogJsonLd(PRODUCTS, structuredDataHelpers()));
+}
+
+// On page load: ?product=<id>&color=..&size=.. opens that pop-up. A link to an
+// unknown or hidden product just shows the grid (and its params are dropped).
+function openProductFromLink(href = typeof window !== "undefined" && window.location ? window.location.href : "") {
+  if (!href || typeof parseProductLink !== "function") return false;
+  let hasParam = false;
+  try { hasParam = new URL(href).searchParams.has("product"); } catch { return false; }
+  if (!hasParam) return false;
+  const link = parseProductLink(href, PRODUCTS);
+  if (link && openProductModal(link.id, link)) return true;
+  syncProductView();   // bad link: strip the params, stay on the grid
+  return false;
 }
 
 // ---------- Product modal dismissal ----------
@@ -634,8 +735,11 @@ function cartShippingLines(cart) {
       name: product ? product.name : item.name,
       shipping: product && typeof product.shipping === "string" ? product.shipping : null,
       quantity: item.qty,
-      // In-hand backstock (masks): US only, flat fee under $75 (shipping-rates.js).
+      // In-hand backstock masks: US flat fee under $75 (shipping-rates.js).
       mask: !!(product && product.liveStock),
+      // Shipped by CIG (not Printful): every store country, priced by weight.
+      inHand: !!(product && (product.liveStock || (!product.pod && typeof product.shipping !== "string"))),
+      weightOz: product && typeof product.shipWeightOz === "number" ? product.shipWeightOz : null,
     };
   });
 }
@@ -643,11 +747,21 @@ function cartShippingLines(cart) {
 // Items total after promo, in cents, rounded per unit exactly like the server
 // (stripe-pricing.js discountedUnitAmount), so the $75 threshold matches.
 // Promos are masks only (promo.js promoUnitCents): FW26/27 lines stay full price.
+// No stacking: a line at a timed sale price gets no promo (same as the server,
+// products.js saleBlocksPromo). item.price is already the sale price during a
+// sale (cart.js getCart reprices).
+function cartItemOnSale(item, now = Date.now()) {
+  const product = typeof PRODUCTS !== "undefined" ? PRODUCTS.find((entry) => entry.id === item.productId) : null;
+  if (!product || typeof saleBlocksPromo !== "function" || !saleBlocksPromo(product, now)) return false;
+  return selectionOnSale(product, item.style || null, item.color || null, item.size || null, now);
+}
 function cartMerchandiseCents(cart, promoInfo) {
   const basisPoints = promoInfo && promoInfo.discount ? Math.round(promoInfo.discount * 10000) : 0;
   return cart.reduce((sum, item) => {
     const unit = Math.round(Number(item.price) * 100);
-    const charged = typeof promoUnitCents === "function"
+    const charged = cartItemOnSale(item)
+      ? unit
+      : typeof promoUnitCents === "function"
       ? promoUnitCents(item.productId, unit, basisPoints)
       : unit; // promo.js missing: show full price (the server decides anyway)
     return sum + charged * item.qty;
@@ -753,6 +867,9 @@ function renderCheckoutSummary() {
 
   if (discountFraction > 0 && discountAmount > 0) {
     rows += `<div class="checkout-summary-row" style="color:var(--gold);"><span>Promo (${promoState}, masks only)</span><span>&minus;$${discountAmount.toFixed(2)}</span></div>`;
+  } else if (discountFraction > 0 && cart.some((item) => cartItemOnSale(item))) {
+    // No stacking with sale prices; checkout refuses the code (stripe-pricing.js).
+    rows += `<div class="checkout-summary-row promo-error"><span>Promo (${promoState}) doesn't stack with sale prices. Your masks are already on sale, so remove the code.</span><span></span></div>`;
   } else if (discountFraction > 0) {
     // Promos are masks only (promo.js); checkout refuses a code on a bag with no mask.
     rows += `<div class="checkout-summary-row promo-error"><span>Promo (${promoState}) only works on masks (ski mask, balaclava, moto mask). Add a mask or remove the code.</span><span></span></div>`;
@@ -1137,6 +1254,7 @@ paymentButtons.forEach((btn) => {
 // ---------- Init ----------
 handleCheckoutResult();
 renderProductGrid();
+openProductFromLink();
 
 // Show the drop-test code box only in test mode.
 (function showDropTestRow() {
@@ -1151,6 +1269,28 @@ renderProductGrid();
   if (!upcoming.length || typeof setTimeout !== "function") return;
   const wait = Math.min.apply(null, upcoming) + 1000;
   if (wait < 2147483647) setTimeout(() => renderProductGrid(), wait);
+})();
+// Re-render when a timed sale starts or ends (products.js saleStart/saleEnd),
+// for shoppers who leave the page open across midnight.
+(function scheduleSaleEdges() {
+  if (typeof setTimeout !== "function") return;
+  const now = Date.now();
+  const edges = [];
+  PRODUCTS.forEach((p) => {
+    if (typeof p.salePrice !== "number") return;
+    [p.saleStart, p.saleEnd].forEach((iso) => {
+      const at = iso ? Date.parse(iso) : NaN;
+      if (Number.isFinite(at) && at > now) edges.push(at - now);
+    });
+  });
+  edges.forEach((wait) => {
+    if (wait + 1000 < 2147483647) {
+      setTimeout(() => {
+        renderProductGrid();
+        if (typeof renderCart === "function") renderCart();
+      }, wait + 1000);
+    }
+  });
 })();
 if (typeof renderCart === "function") renderCart();
 
@@ -1176,14 +1316,18 @@ if (typeof module !== "undefined" && module.exports) {
     addCheckoutFingerprint,
     buildCheckoutRequestBody,
     componentVariantStock,
+    cartMerchandiseCents,
     currentPrice,
     dropLocked,
     minPrice,
     handleCheckoutResult,
     notifyVariantLabel,
+    openProductFromLink,
     productIdFromHash,
     shouldOfferNotifyMe,
     productTotalStock,
+    salePriceNow,
+    selectionOnSale,
     variantStock,
   };
 }

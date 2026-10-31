@@ -1327,11 +1327,14 @@ test("checkout summary shows mask shipping: $8.95 at or under $75, free over $75
   assert.match(promoUnder.summaryElement.innerHTML, /Total<\/span><span>\$80\.95/);
 });
 
-test("a mask in the bag disables non-US countries; FW26-only US stays free with no mask note", () => {
+test("a mask in the bag keeps every country open; FW26-only US stays free with no mask note", () => {
   const frontend = loadFrontend({ storedCart: [maskItem(1), bagItem] });
   frontend.context.renderCheckoutSummary();
-  assert.ok(frontend.countrySelect.options.filter((o) => o.value !== "US").every((o) => o.disabled));
-  assert.match(frontend.shippingNoteElement.textContent, /CIG Balaclava ships to the US only/);
+  assert.ok(frontend.countrySelect.options.every((o) => !o.disabled));
+  assert.doesNotMatch(frontend.shippingNoteElement.textContent || "", /US only/);
+  const kr = loadFrontend({ storedCart: [maskItem(1)], shipCountry: "KR" });
+  kr.context.renderCheckoutSummary();
+  assert.match(kr.summaryElement.innerHTML, /Shipping \(South Korea\)<\/span><span>\$30\.00/);
   const fw = loadFrontend({ storedCart: [bagItem] });
   fw.context.renderCheckoutSummary();
   const maskNote = fw.context.document.getElementById("checkout-mask-shipping-note");

@@ -2,8 +2,9 @@
 // applied automatically, and returns the hosted checkout URL.
 // Prices come from products.js on the server (browser prices are ignored).
 // Promo codes never stack with the crypto discount: any promo code is ignored.
-// Ships to the country picked on the site: US (state + ZIP required, free
-// shipping) or CA/GB/DE/AU/JP/KR (postal code required, per-item shipping from
+// Ships to the country picked on the site: US (state + ZIP required; free
+// shipping except the mask rule) or CA/GB/DE/AU/JP/KR (postal code required;
+// Printful per-item shipping plus the in-hand per-order rate from
 // shipping-rates.js; pillows are US only).
 // The 20% crypto discount applies to the items only, never to shipping, so
 // international shipping always covers Printful's cost.
@@ -71,7 +72,7 @@ function createHandler({
       );
       const address = requireShippingAddress(customer, country);
       // No promo code here — crypto always gets its 20% instead.
-      const pricing = priceCartForStripe(trustedCartItems(body), null);
+      const pricing = priceCartForStripe(trustedCartItems(body), null, undefined, { now: now() });
       // Live-stock backstock isn't decremented by the Coinbase webhook, so keep
       // it to card/PayPal (crypto is off anyway; see CRYPTO_ENABLED).
       if (pricing.stockLines.length) {

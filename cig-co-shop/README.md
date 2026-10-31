@@ -41,7 +41,10 @@ unit costs and a mask label rate. Codes never stack: one code per order, and
 crypto orders take no code.
 Free-item Arcade prizes are redeemable for one mask only and ship separately on
 their own Pirate Ship label, so the winner pays the $8.95 mask shipping
-(`GIFT_MASK_SHIPPING_CENTS`) even if their order ships free. The 20% crypto
+(`GIFT_MASK_SHIPPING_CENTS`) even if their order ships free. Winners outside
+the US pay the international one-mask rate for their country instead
+(`giftMaskShippingCents(country)`: CA $25, GB $31, DE $28, AU $40, JP $33,
+KR $30, from `IN_HAND_INTL_SHIPPING_USD` in `shipping-rates.js`). The 20% crypto
 discount is separate and unchanged.
 
 Store-wide promo codes live in `promo.js` under `PROMO_CODES` (Arcade codes

@@ -1,4 +1,4 @@
-const { PRODUCTS } = require("../../products.js");
+const { PRODUCTS, activeSalePrice, saleActive, saleBlocksPromo } = require("../../products.js");
 const {
   PROMO_CODES,
   PROMO_ELIGIBLE_LABEL,
@@ -7,6 +7,10 @@ const {
 } = require("../../promo.js");
 
 const MASKS_ONLY_PROMO_MESSAGE = `Promo codes only work on ${PROMO_ELIGIBLE_LABEL}. Add a mask to your bag to use this code.`;
+// No stacking: a promo never applies to a line at a timed sale price
+// (products.js saleBlocksPromo). If every mask in the bag is on sale, the code is refused (so an
+// Arcade code isn't burned for nothing).
+const SALE_NO_STACK_PROMO_MESSAGE = "Promo codes don't stack with sale prices. Your masks are already on sale, so remove the code to check out.";
 
 const MAX_CART_LINES = 50;
 const MAX_QUANTITY_PER_VARIANT = 99;
@@ -67,18 +71,29 @@ function validateQuantity(value) {
 }
 
 // Style price, then a per-size or per-color price (products.js sizePrices /
-// colorPrices), then the sale price, then the base price.
+// colorPrices), then the sale price (only inside its saleStart/saleEnd window,
+// products.js saleActive), then the base price.
 function optionPrice(map, key) {
   return map && key != null && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
 }
 
-function catalogUnitPrice(product, selectedStyle, color, size) {
+function catalogUnitPrice(product, selectedStyle, color, size, now = Date.now()) {
   if (selectedStyle) return selectedStyle.price;
   const bySize = optionPrice(product.sizePrices, size);
   if (bySize !== undefined) return bySize;
   const byColor = optionPrice(product.colorPrices, color);
   if (byColor !== undefined) return byColor;
-  return product.salePrice != null ? product.salePrice : product.price;
+  const sale = activeSalePrice(product, now);
+  return sale != null ? sale : product.price;
+}
+
+// True when this line is charged a timed sale price that promos can't stack
+// on (style/size/color prices win over a sale, same order as catalogUnitPrice).
+function lineSaleBlocksPromo(product, selectedStyle, color, size, now) {
+  if (selectedStyle) return false;
+  if (optionPrice(product.sizePrices, size) !== undefined) return false;
+  if (optionPrice(product.colorPrices, color) !== undefined) return false;
+  return saleActive(product, now) && saleBlocksPromo(product, now);
 }
 
 function priceToCents(value, productId) {
@@ -144,12 +159,12 @@ function normalizePromoCode(rawCode) {
 
 // Promos are masks only (promo.js): FW26/27 lines keep full price, and a
 // mask's discount is capped at MASK_PROMO_MAX_DISCOUNT and its floor price.
-function discountedUnitAmount(unitAmount, promo, productId) {
-  if (!promo) return unitAmount;
+function discountedUnitAmount(unitAmount, promo, productId, onSale = false) {
+  if (!promo || onSale) return unitAmount;
   return promoUnitCents(productId, unitAmount, promo.discountBasisPoints);
 }
 
-function resolveRequestedItem(rawItem) {
+function resolveRequestedItem(rawItem, now = Date.now()) {
   if (!rawItem || typeof rawItem !== "object" || Array.isArray(rawItem)) {
     validationError("Each cart item must be an object.");
   }
@@ -166,7 +181,8 @@ function resolveRequestedItem(rawItem) {
   const quantity = validateQuantity(rawItem.quantity);
 
   const selectedStyle = style ? styles.find((entry) => entry.name === style) : null;
-  const catalogPrice = catalogUnitPrice(product, selectedStyle, color, size);
+  const catalogPrice = catalogUnitPrice(product, selectedStyle, color, size, now);
+  const onSale = lineSaleBlocksPromo(product, selectedStyle, color, size, now);
   const unitAmount = priceToCents(catalogPrice, productId);
   const availableStock = variantStock(product, style, color, size);
   const componentRequirements = product.componentStock && selectedStyle
@@ -188,18 +204,22 @@ function resolveRequestedItem(rawItem) {
     size,
     quantity,
     unitAmount,
+    onSale,
     availableStock,
     componentRequirements,
     componentAvailability,
     stripeName,
     pod: !!product.pod,
     liveStock: !!product.liveStock,
+    shipWeightOz: typeof product.shipWeightOz === "number" ? product.shipWeightOz : null,
   };
 }
 
 // resolvedPromo ({ code, discountBasisPoints } or null) comes from
 // resolvePromo() when the code was already checked (e.g. an Arcade code).
-function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
+// options.now (ms) is the pricing time for timed sales; defaults to the clock.
+// The checkout functions pass their injectable now() so tests can price any moment.
+function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo, { now = Date.now() } = {}) {
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
     validationError("Cart must contain at least one item.");
   }
@@ -212,7 +232,7 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
   let totalQuantity = 0;
 
   rawItems.forEach((rawItem) => {
-    const resolved = resolveRequestedItem(rawItem);
+    const resolved = resolveRequestedItem(rawItem, now);
     totalQuantity += resolved.quantity;
     if (totalQuantity > MAX_TOTAL_QUANTITY) {
       validationError(`Cart quantity cannot exceed ${MAX_TOTAL_QUANTITY} items.`);
@@ -230,8 +250,10 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
   });
 
   const resolvedItems = Array.from(variants.values());
-  if (promo && !cartHasPromoEligibleItem(resolvedItems.map((item) => item.productId))) {
-    validationError(MASKS_ONLY_PROMO_MESSAGE);
+  if (promo && !cartHasPromoEligibleItem(resolvedItems.filter((item) => !item.onSale).map((item) => item.productId))) {
+    validationError(cartHasPromoEligibleItem(resolvedItems.map((item) => item.productId))
+      ? SALE_NO_STACK_PROMO_MESSAGE
+      : MASKS_ONLY_PROMO_MESSAGE);
   }
   const componentUsage = new Map();
   resolvedItems.forEach((item) => {
@@ -253,7 +275,7 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
       validationError(`Requested quantity is unavailable for product ${item.productId}.`);
     }
 
-    const chargedUnitAmount = discountedUnitAmount(item.unitAmount, promo, item.productId);
+    const chargedUnitAmount = discountedUnitAmount(item.unitAmount, promo, item.productId, item.onSale);
     subtotalCents += item.unitAmount * item.quantity;
     totalCents += chargedUnitAmount * item.quantity;
 
@@ -290,8 +312,11 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
       name: item.productName,
       shipping: item.shippingClass,
       quantity: item.quantity,
-      // In-hand backstock (masks): US only, $8.95/order under $75 (shipping-rates.js).
+      // In-hand backstock masks: US $8.95/order under $75 (shipping-rates.js).
       mask: !!item.liveStock,
+      // Shipped by CIG (not Printful): every store country, priced by weight.
+      inHand: !!item.liveStock || (!item.pod && !item.shippingClass),
+      weightOz: item.shipWeightOz,
     })),
     // Same order as lineItems: the live-stock line for each, or null.
     lineStock: resolvedItems.map((item) => (item.liveStock
@@ -313,6 +338,7 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo) {
 
 module.exports = {
   MASKS_ONLY_PROMO_MESSAGE,
+  SALE_NO_STACK_PROMO_MESSAGE,
   catalogUnitPrice,
   MAX_CART_LINES,
   MAX_QUANTITY_PER_VARIANT,

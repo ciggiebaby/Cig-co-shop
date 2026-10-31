@@ -86,7 +86,21 @@ const MASK_PROMO_PRICE_FLOOR_USD = {
 // Free prize masks ship separately on their own Pirate Ship label, so the
 // winner always pays the standard mask shipping for the gift, even when their
 // own order is over $75. (Same $8.95 as MASK_US_SHIPPING_CENTS in shipping-rates.js.)
+// Winners abroad (CIG 2026-10-30) pay the international in-hand rate for one
+// mask to their country instead (giftMaskShippingCents; $25 CA to $40 AU).
 const GIFT_MASK_SHIPPING_CENTS = 895;
+const GIFT_MASK_INTL_FROM_USD = 25; // cheapest country (Canada), for the prize text
+
+// Shipping in cents for one free prize mask to `country` ("US" = $8.95).
+function giftMaskShippingCents(country) {
+  const code = typeof country === "string" ? country.trim().toUpperCase() : "US";
+  if (!code || code === "US") return GIFT_MASK_SHIPPING_CENTS;
+  const rates = typeof module !== "undefined" && module.exports && typeof require === "function"
+    ? require("./shipping-rates.js")
+    : (typeof inHandInternationalCents === "function" ? { inHandInternationalCents } : null);
+  if (!rates) return null;
+  return rates.inHandInternationalCents([{ name: "Prize mask", quantity: 1, inHand: true }], code);
+}
 
 function isPromoEligibleProduct(productId) {
   return PROMO_ELIGIBLE_PRODUCT_IDS.includes(productId);
@@ -120,7 +134,8 @@ function prizeTermsNote(prize) {
   }
   if (prize.type === "merch" || prize.type === "gift" || prize.id === "giveaway") {
     return `Redeemable for one mask only (ski mask, balaclava or moto mask). `
-      + `The free mask ships separately: you pay ${shipping} shipping for it, even if your order ships free.`;
+      + `The free mask ships separately: you pay ${shipping} shipping for it in the US `
+      + `(abroad, our international mask rate, from $${GIFT_MASK_INTL_FROM_USD}), even if your order ships free.`;
   }
   return "";
 }
@@ -129,6 +144,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     ARCADE_CODE_PATTERN,
     GIFT_MASK_SHIPPING_CENTS,
+    giftMaskShippingCents,
     MASK_PROMO_MAX_DISCOUNT,
     MASK_PROMO_PRICE_FLOOR_USD,
     PROMO_CODES,

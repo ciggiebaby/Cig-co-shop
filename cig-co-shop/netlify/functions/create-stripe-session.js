@@ -114,7 +114,7 @@ function createHandler({
       // FW26/27 items can't be bought before DROP_AT (products.js) unless the
       // DROP_TEST_CODE env var is set and sent as dropTestCode.
       assertDropOpen(trustedItems, { dropTestCode: body.dropTestCode, environment, now: now() });
-      const pricing = priceCartForStripe(trustedItems, body.promoCode, promo);
+      const pricing = priceCartForStripe(trustedItems, body.promoCode, promo, { now: now() });
       // Backstock masks: refuse if the live Supabase count is lower than asked.
       await assertLiveStock(pricing.stockLines, { stockStoreFactory, logger });
       // Ship-to country is picked on the site before checkout (US by default).

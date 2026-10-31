@@ -9,11 +9,17 @@
 //   delete the line) when you're ready to put it on the site.
 //
 // shipping: the product's shipping class from shipping-rates.js
-//   ("bag", "case", "sleeve", or "pillow"). Only bag/case/sleeve can ship
-//   internationally; pillows and products with no class ship to the US only.
-//   International: CA, GB, DE, AU, JP, KR (rates in shipping-rates.js). For a
-//   MagSafe case: Printful can't ship it to Japan or South Korea (blocked in shipping-rates.js).
+//   ("bag", "case", "sleeve", or "pillow") — Printful (pod) products only.
+//   Of those, only bag/case/sleeve can ship internationally; pillows ship to the
+//   US only, and Printful can't ship a MagSafe case to Japan or South Korea.
+//   In-hand products (no `pod`: masks and other backstock CIG ships himself)
+//   leave `shipping` out and ship to every store country: CA, GB, DE, AU, JP, KR,
+//   for one per-order USPS charge by weight (shipping-rates.js).
 //   (checkout also shows this automatically).
+//
+// shipWeightOz: in-hand products only. Estimated packed weight of ONE unit in
+//   ounces, for international shipping (default 3 oz; a 3 oz mailer is added
+//   per parcel). Update it when CIG weighs the real thing.
 //
 // pod: { ... } — print-on-demand (made to order by Printful, no stock to track).
 //   Leave out `stock` so it never sells out. Paid card orders are sent to
@@ -845,6 +851,7 @@ const PRODUCTS = [
   },
   {
     id: "0004",
+    shipWeightOz: 3, // bonnet + durag, est.
     sku: "0004",
     name: "Silky Bonnet & Durag",
     // CIG 10/22: sold out (whole product). Counts below are left as-is.
@@ -903,6 +910,7 @@ const PRODUCTS = [
   },
   {
     id: "0005",
+    shipWeightOz: 3, // est., weigh-in pending
     sku: "0005",
     // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
     liveStock: true,
@@ -914,7 +922,13 @@ const PRODUCTS = [
     stock: { "Red": 70, "Blue": 68, "Gold": 24, "Black": 0 },
     name: "CIG Balaclava",
     price: 25.00,
-    salePrice: null,
+    // Halloween mask sale (CIG approved 10/30 via YG: "Have G set the mask sale
+    // prices on the site for Saturday, ending 11:59 PM ET"). 20% off = BG's cap,
+    // no code, no stacking. Applies only inside saleStart..saleEnd (see
+    // saleActive below), so full price returns at midnight with no redeploy.
+    salePrice: 20.00,
+    saleStart: "2026-10-31T04:00:00.000Z", // Sat 10/31 12:00 AM ET (EDT, UTC-4)
+    saleEnd: "2026-11-01T04:00:00.000Z",   // exclusive: last sale moment is 11:59:59.999 PM ET Sat
     // CIG 10/22: card and product view open on the black-and-gold balaclava.
     defaultColor: "Gold",
     image: "assets/products/balaclava-gold-front-upright.jpg",
@@ -935,6 +949,7 @@ const PRODUCTS = [
   },
   {
     id: "0008",
+    shipWeightOz: 3, // est., weigh-in pending
     sku: "0008",
     // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
     liveStock: true,
@@ -949,7 +964,13 @@ const PRODUCTS = [
     },
     name: "CIG Ski Mask",
     price: 30.00,
-    salePrice: null,
+    // Halloween mask sale (CIG approved 10/30 via YG: "Have G set the mask sale
+    // prices on the site for Saturday, ending 11:59 PM ET"). 20% off = BG's cap,
+    // no code, no stacking. Applies only inside saleStart..saleEnd (see
+    // saleActive below), so full price returns at midnight with no redeploy.
+    salePrice: 24.00,
+    saleStart: "2026-10-31T04:00:00.000Z", // Sat 10/31 12:00 AM ET (EDT, UTC-4)
+    saleEnd: "2026-11-01T04:00:00.000Z",   // exclusive: last sale moment is 11:59:59.999 PM ET Sat
     // CIG 10/22 4:56 PM: card and product view open on Red (1-Hole).
     defaultColor: "Red",
     image: "assets/products/skimask-red-1hole.jpg",
@@ -987,6 +1008,7 @@ const PRODUCTS = [
   },
   {
     id: "0013",
+    shipWeightOz: 3, // est., weigh-in pending
     sku: "0013",
     // Live count in Supabase (live_stock table); `stock` below is the seed/cap.
     liveStock: true,
@@ -1004,7 +1026,13 @@ const PRODUCTS = [
     isNew: true,
     name: "Moto Mask",
     price: 15.00,
-    salePrice: null,
+    // Halloween mask sale (CIG approved 10/30 via YG: "Have G set the mask sale
+    // prices on the site for Saturday, ending 11:59 PM ET"). 20% off = BG's cap,
+    // no code, no stacking. Applies only inside saleStart..saleEnd (see
+    // saleActive below), so full price returns at midnight with no redeploy.
+    salePrice: 12.00,
+    saleStart: "2026-10-31T04:00:00.000Z", // Sat 10/31 12:00 AM ET (EDT, UTC-4)
+    saleEnd: "2026-11-01T04:00:00.000Z",   // exclusive: last sale moment is 11:59:59.999 PM ET Sat
     // CIG 10/22 5:07 PM: "Make the first one the purple one".
     defaultColor: "Purple",
     image: "assets/products/moto-purple.jpg",
@@ -1026,6 +1054,7 @@ const PRODUCTS = [
   },
   {
     id: "0010",
+    shipWeightOz: 16, // umbrella, est.
     sku: "0010",
     stock: { "Blue": 2, "Green": 0, "Red": 2, "Rainbow": 6 },
     name: "Toile Umbrella",
@@ -1055,6 +1084,7 @@ const PRODUCTS = [
   },
   {
     id: "0011",
+    shipWeightOz: 3, // bikini, est.
     sku: "0011",
     name: "Paisley Bikini",
     // CIG 10/22: sold out (whole product). Counts below are left as-is.
@@ -1110,6 +1140,7 @@ const PRODUCTS = [
   },
   {
     id: "0012",
+    shipWeightOz: 3, // est.
     sku: "0012",
     // Off-site backstock — held ready, not sold on the site.
     // BEFORE setting hidden to false: fill in price and add photos to
@@ -1135,6 +1166,36 @@ const POD_CARD_ONLY = false;
 // it up later under a new LLC. One switch for the site and the server.
 const CRYPTO_ENABLED = false;
 
+
+// ---------- Timed sales ----------
+// salePrice applies when it's a number and `now` is inside the product's
+// optional window: saleStart (inclusive) to saleEnd (exclusive), ISO times.
+// No saleStart/saleEnd = the sale is always on (the original salePrice
+// behavior). An unreadable time fails safe to full price. Shared by the
+// storefront (app.js, cart.js) and the server (stripe-pricing.js), so the
+// price shown is the price charged, and both flip on their own at the edges.
+function saleActive(p, now = Date.now()) {
+  if (!p || typeof p.salePrice !== "number" || !Number.isFinite(p.salePrice)) return false;
+  const start = p.saleStart == null ? -Infinity : Date.parse(p.saleStart);
+  const end = p.saleEnd == null ? Infinity : Date.parse(p.saleEnd);
+  if (Number.isNaN(start) || Number.isNaN(end)) return false;
+  return now >= start && now < end;
+}
+
+// The sale price if the sale is on at `now`, otherwise null.
+function activeSalePrice(p, now = Date.now()) {
+  return saleActive(p, now) ? p.salePrice : null;
+}
+
+// Timed sales (a saleStart or saleEnd is set, e.g. the Halloween mask sale)
+// never stack with promo or Arcade codes: while one is on, no code takes
+// anything off that product (BG: 20% cap, no stacking). An always-on
+// salePrice (no window) keeps the older rule, where a mask promo still
+// applies to it within the cap and wholesale floor (promo.js).
+function saleBlocksPromo(p, now = Date.now()) {
+  return !!p && (p.saleStart != null || p.saleEnd != null) && saleActive(p, now);
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { CRYPTO_ENABLED, DROP_AT, POD_CARD_ONLY, PRODUCTS };
+  module.exports = { CRYPTO_ENABLED, DROP_AT, POD_CARD_ONLY, PRODUCTS, activeSalePrice, saleActive, saleBlocksPromo };
 }

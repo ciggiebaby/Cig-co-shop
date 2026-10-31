@@ -92,8 +92,11 @@ test("FW26 PayPal uses the card prices, promo, international and mask shipping r
   assert.equal(cardQuote.shippingCents, 800);
   assert.deepEqual(unit.amount.breakdown.shipping, { currency_code: "USD", value: "8.00" });
   assert.equal(unit.amount.value, "43.00");
-  // A mask still can't ship abroad.
-  assert.equal((await handler(post({ items: [tote(1), balaclava(1)], shipCountry: "CA" }))).statusCode, 400);
+  // A mask ships abroad too (CIG 10/30): tote $8 + in-hand order $25 to Canada.
+  assert.equal((await handler(post({ items: [tote(1), balaclava(1)], shipCountry: "CA" }))).statusCode, 200);
+  unit = sent.at(-1).purchase_units[0];
+  assert.deepEqual(unit.amount.breakdown.shipping, { currency_code: "USD", value: "33.00" });
+  assert.equal(unit.amount.value, "93.00");
 });
 
 test("drop gating is unchanged for PayPal; the drop-test order is flagged", async () => {
