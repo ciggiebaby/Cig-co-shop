@@ -1221,6 +1221,12 @@ paymentButtons.forEach((btn) => {
       // Pre-launch test order only (see the drop lock above).
       const dropTestCode = DROP_TEST_MODE ? checkoutFieldValue("drop-test-code") : "";
       if (dropTestCode) requestBody.dropTestCode = dropTestCode;
+      // Marketing attribution (?src= / utm_*) for BG's reports.
+      const attribution =
+        typeof window !== "undefined" && window.CIGAttribution
+          ? window.CIGAttribution.current()
+          : {};
+      if (attribution && Object.keys(attribution).length) requestBody.attribution = attribution;
       if (method === "stripe") {
         requestBody = await addCheckoutFingerprint(
           requestBody,

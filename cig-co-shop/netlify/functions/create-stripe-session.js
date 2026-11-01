@@ -8,6 +8,7 @@ const {
   RequestValidationError,
   normalizeEmail,
 } = require("../lib/customer-utils.js");
+const { normalizeAttribution } = require("../lib/attribution.js");
 const { assertDropOpen, dropTestCodeValid } = require("../lib/drop-lock.js");
 const {
   LiveStockUnavailableError,
@@ -169,6 +170,8 @@ function createHandler({
           promo_code: pricing.promoCode || "",
           // Read back by stripe-webhook to decrement live stock once paid.
           ...encodeStockMetadata(pricing.stockLines),
+          // Marketing attribution (?src= / utm_*), only keys that were present.
+          ...normalizeAttribution(body.attribution),
         },
         shipping_address_collection: { allowed_countries: [shipping.country] },
         success_url: `${resolvedSiteUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,

@@ -126,7 +126,7 @@ function createPayPalClient({ environment = process.env, fetchImpl = fetch } = {
 // chosen country is stored in custom_id so capture can check PayPal's address.
 // pccc: South Korea customs code (validated by create-paypal-order), kept for
 // the Printful draft. dropTest: CIG's pre-launch test order, flagged in PayPal.
-function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping = { country: "US", shippingCents: 0 }, pccc = null, dropTest = false }) {
+function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping = { country: "US", shippingCents: 0 }, pccc = null, dropTest = false, src = null }) {
   const items = pricing.lineItems.map((line, index) => {
     const stock = pricing.lineStock && pricing.lineStock[index];
     const meta = line.price_data.product_data.metadata || {};
@@ -162,6 +162,8 @@ function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping
           ...(shipping.country !== "US" ? { c: shipping.country } : {}),
           ...(shipping.country === "KR" && pccc ? { k: pccc } : {}),
           ...(dropTest ? { t: 1 } : {}),
+          // ?src= tag (custom_id is capped at 127 chars, so src only, max 24).
+          ...(src ? { s: String(src).slice(0, 24) } : {}),
         }),
         items,
       },
@@ -185,9 +187,10 @@ function parseCustomId(value) {
       shipCountry: typeof parsed.c === "string" && parsed.c ? parsed.c : "US",
       pccc: typeof parsed.k === "string" ? parsed.k : null,
       dropTest: parsed.t === 1,
+      src: typeof parsed.s === "string" && parsed.s ? parsed.s : null,
     };
   } catch {
-    return { promoCode: null, marketingConsent: false, shipCountry: "US", pccc: null, dropTest: false };
+    return { promoCode: null, marketingConsent: false, shipCountry: "US", pccc: null, dropTest: false, src: null };
   }
 }
 
@@ -353,6 +356,7 @@ async function recordPayPalOrder(order, { eventId, eventType }, options = {}) {
 }
 
 module.exports = {
+  parseCustomId,
   PayPalError,
   buildPayPalOrder,
   createPayPalClient,
