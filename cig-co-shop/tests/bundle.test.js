@@ -20,12 +20,12 @@ const pcCase = PRODUCTS.find((p) => p.id === "FW26-CASE");
 const line = (extra = {}) => ({ productId: "FW26-BUNDLE", color: "Navy", style: "Burgundy", size: "iPhone 16 Pro", quantity: 1, ...extra });
 const quiet = { log() {}, error() {}, warn() {} };
 
-test("the bundle price is one constant, defaulting to full price ($105) until CIG picks", () => {
-  assert.equal(BUNDLE_PRICE, 105);
+test("the bundle price is one constant: $99, $6 off buying separately", () => {
+  assert.equal(BUNDLE_PRICE, 99);
   assert.equal(bundle.price, BUNDLE_PRICE);
   assert.ok(bundle.styles.every((s) => s.price === BUNDLE_PRICE));
   assert.equal(bundle.compareAtPrice, bag.price + pcCase.price);
-  assert.match(fs.readFileSync(path.join(__dirname, "..", "products.js"), "utf8"), /const BUNDLE_PRICE = 105\.00;/);
+  assert.match(fs.readFileSync(path.join(__dirname, "..", "products.js"), "utf8"), /const BUNDLE_PRICE = 99\.00;/);
 });
 
 test("buyer picks Crossbody color, MagSafe color and phone model (Multi left out)", () => {
@@ -76,7 +76,7 @@ test("a paid bundle becomes two Printful items (bag + case) whose retail prices 
 
 test("Stripe webhook lines and PayPal capture both send the bundle as a Printful draft", async () => {
   const pricing = priceCartForStripe([line()]);
-  const stripeLines = podLines([{ quantity: 1, amount_total: 10500, price: { product: { metadata: pricing.lineItems[0].price_data.product_data.metadata } } }]);
+  const stripeLines = podLines([{ quantity: 1, amount_total: 9900, price: { product: { metadata: pricing.lineItems[0].price_data.product_data.metadata } } }]);
   assert.equal(stripeLines.flatMap(printfulItemsForLine).length, 2);
 
   const built = buildPayPalOrder(pricing, { siteUrl: "https://cigcompany.com", shipping: resolveCheckoutShipping(pricing, "US") });

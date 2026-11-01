@@ -1167,13 +1167,12 @@ const PRODUCTS = [
 // case, mapped through the FW26-BAG and FW26-CASE sync variants) in the same
 // draft order. Deep link: /?product=FW26-BUNDLE&color=Navy&style=Burgundy&size=iPhone%2016%20Pro
 //
-// BUNDLE_PRICE: the one number to change. CIG still has to pick it:
-//   105 = full price (Crossbody $65 + MagSafe $40, no discount; the default)
-//    99 = $6 off (BG's version, about $51 profit)
+// BUNDLE_PRICE: the one number to change. CIG picked $99 on 11/1/2026:
+//    99 = $6 off buying separately (Crossbody $65 + MagSafe $40 = $105), about $51 profit
 // The Multi Crossbody ($75) is left out so the bundle has one price.
 // US shipping is free like the rest of FW26; abroad it pays the bag + case
 // rates (shipping-rates.js "bundle"), and like the case it can't ship to JP/KR.
-const BUNDLE_PRICE = 105.00;
+const BUNDLE_PRICE = 99.00;
 
 function buildBundleProduct(products) {
   const bag = products.find((p) => p.id === "FW26-BAG");
