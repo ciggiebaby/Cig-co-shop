@@ -49,7 +49,9 @@ function renderProductGrid() {
   const grid = document.getElementById("product-grid");
   if (!grid) return;
   grid.innerHTML = shopGridProducts().map((p) => {
-    const price = p.styles || hasPriceRange(p)
+    const price = p.bundle
+      ? bundlePriceHtml(p, p.price)
+      : p.styles || hasPriceRange(p)
       ? `From $${minPrice(p).toFixed(2)}`
       : salePriceNow(p) != null
       ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${salePriceNow(p).toFixed(2)}</span>`
@@ -166,6 +168,14 @@ function hasPriceRange(p) {
   return new Set(allPrices(p)).size > 1;
 }
 
+// Crossbody + MagSafe bundle: its price, with the separate total struck through
+// only when the bundle is actually cheaper (products.js BUNDLE_PRICE).
+function bundlePriceHtml(p, price) {
+  return typeof p.compareAtPrice === "number" && p.compareAtPrice > price
+    ? `<span class="price-strike">$${p.compareAtPrice.toFixed(2)}</span><span class="price-sale">$${price.toFixed(2)}</span>`
+    : `$${price.toFixed(2)}`;
+}
+
 function productImageForColor(p, color, size, style) {
   if (p.styleImages && style && p.styleImages[style]) {
     return p.styleImages[style][color] || p.image;
@@ -184,6 +194,8 @@ function productGalleryImages(p, color, size, style) {
   let extra = [];
   if (p.styleGallery && style && p.styleGallery[style]) extra = p.styleGallery[style][color] || [];
   else extra = (p.gallery && p.gallery[color]) || [];
+  // Bundle: the picked MagSafe case (on the picked phone) right after the bag.
+  if (typeof p.bundleImages === "function") extra = p.bundleImages(style, size).concat(extra);
   const seen = new Set([primary]);
   const rest = extra.filter((img) => {
     if (seen.has(img)) return false;
@@ -273,14 +285,19 @@ function openProductModal(id, pick = null) {
     ${p.material || p.shipTime || (p.details && p.details.length) ? `<div class="pd-specs">${p.material ? `<p class="pd-material">${p.material}</p>` : ""}${p.shipTime ? `<p class="pd-shiptime">Shipping: ${p.shipTime}</p>` : ""}${p.details && p.details.length ? `<ul class="pd-details-list">${p.details.map((d) => `<li>${d}</li>`).join("")}</ul>` : ""}</div>` : ""}
     ${p.styles ? `
       <div class="pd-field">
-        <label>Style</label>
+        <label>${p.styleLabel || "Style"}</label>
         <div class="pd-options" id="pd-styles">
-          ${p.styles.map((st) => `<button class="pd-option${st.name === modalState.style ? " selected" : ""}" data-style="${st.name}">${st.name} \u00b7 $${st.price.toFixed(2)}</button>`).join("")}
+          ${p.styles.map((st) => {
+            const swatch = p.styleSwatches && p.styleSwatches[st.name];
+            const dot = swatch ? `<img class="pd-swatch-img" src="${swatch}" alt="" loading="lazy" />` : "";
+            const label = p.bundle ? st.name : `${st.name} \u00b7 $${st.price.toFixed(2)}`;
+            return `<button class="pd-option${dot ? " pd-swatch" : ""}${st.name === modalState.style ? " selected" : ""}" data-style="${st.name}" title="${st.name}">${dot}<span>${label}</span></button>`;
+          }).join("")}
         </div>
       </div>` : ""}
     ${p.colors.length ? `
       <div class="pd-field">
-        <label>Color</label>
+        <label>${p.colorLabel || "Color"}</label>
         <div class="pd-options" id="pd-colors">
           ${p.colors.map((c) => {
             const swatch = p.colorSwatches && p.colorSwatches[c];
@@ -334,7 +351,7 @@ function openProductModal(id, pick = null) {
     const priceEl = document.getElementById("pd-price");
     if (priceEl) {
       const shown = currentPrice(p, modalState.style, modalState.color, modalState.size);
-      priceEl.innerHTML = selectionOnSale(p, modalState.style, modalState.color, modalState.size)
+      priceEl.innerHTML = p.bundle ? bundlePriceHtml(p, shown) : selectionOnSale(p, modalState.style, modalState.color, modalState.size)
         ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${shown.toFixed(2)}</span>`
         : `$${shown.toFixed(2)}`;
     }
@@ -408,7 +425,7 @@ function openProductModal(id, pick = null) {
     addToCart({
       productId: p.id,
       sku: p.sku,
-      name: p.styles ? `${p.name} (${modalState.style})` : p.name,
+      name: p.styles && !p.bundle ? `${p.name} (${modalState.style})` : p.name,
       price: currentPrice(p, modalState.style, modalState.color, modalState.size),
       image: productImageForColor(p, modalState.color, modalState.size, modalState.style),
       color: modalState.color,
@@ -858,7 +875,7 @@ function renderCheckoutSummary() {
 
   let rows = cart
     .map((item) => {
-      const meta = [item.color, item.size].filter(Boolean).join(" / ");
+      const meta = (typeof bundleCartMeta === "function" && bundleCartMeta(item)) || [item.color, item.size].filter(Boolean).join(" / ");
       return `<div class="checkout-summary-row"><span>${item.name}${meta ? " (" + meta + ")" : ""} &times;${item.qty}</span><span>$${(item.price * item.qty).toFixed(2)}</span></div>`;
     })
     .join("");
