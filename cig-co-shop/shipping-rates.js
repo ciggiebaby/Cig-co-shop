@@ -50,6 +50,9 @@ const INTERNATIONAL_SHIPPING_PER_ITEM_USD = {
   // laptop sleeves
   //   Printful per-unit: CA 9.79  GB 7.29  DE 7.29  AU 12.49 | JP 7.89  KR 17.69
   sleeve: { CA: 10, GB: 8, DE: 8, AU: 13, JP: 8, KR: 18 },
+  // Crossbody + MagSafe bundle (products.js FW26-BUNDLE): bag + case per bundle.
+  //   Like the case, it can't go to JP/KR.
+  bundle: { CA: 18, GB: 8, DE: 13, AU: 17 },
   // pillow: US only (Printful: CA 12.69, GB 11.49, DE 13.79, AU 37.59, JP 55.99, KR 51.99)
 };
 

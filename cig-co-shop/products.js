@@ -1160,6 +1160,80 @@ const PRODUCTS = [
 // Made-to-order (`pod`) items can only be paid by card while this is true.
 // One switch for the checkout page and the server. See the note at the top.
 // CIG 10/22 4:34 PM ET: "Turn on PayPal for the FW26 collection".
+// ---------- Crossbody + MagSafe bundle (FW26-BUNDLE) ----------
+// One product that sells a Crossbody Bag and a MagSafe Case together. The buyer
+// picks the Crossbody color (`color`), the MagSafe color (`style`) and the phone
+// model (`size`); a paid bundle becomes TWO Printful line items (one bag + one
+// case, mapped through the FW26-BAG and FW26-CASE sync variants) in the same
+// draft order. Deep link: /?product=FW26-BUNDLE&color=Navy&style=Burgundy&size=iPhone%2016%20Pro
+//
+// BUNDLE_PRICE: the one number to change. CIG still has to pick it:
+//   105 = full price (Crossbody $65 + MagSafe $40, no discount; the default)
+//    99 = $6 off (BG's version, about $51 profit)
+// The Multi Crossbody ($75) is left out so the bundle has one price.
+// US shipping is free like the rest of FW26; abroad it pays the bag + case
+// rates (shipping-rates.js "bundle"), and like the case it can't ship to JP/KR.
+const BUNDLE_PRICE = 105.00;
+
+function buildBundleProduct(products) {
+  const bag = products.find((p) => p.id === "FW26-BAG");
+  const pcCase = products.find((p) => p.id === "FW26-CASE");
+  if (!bag || !pcCase) return null;
+  const bagColors = bag.colors.filter((c) => !(bag.colorPrices && bag.colorPrices[c] != null));
+  const pick = (map, keys) => Object.fromEntries(keys.filter((k) => map && map[k] != null).map((k) => [k, map[k]]));
+  const separate = bag.price + pcCase.price;
+  return {
+    id: "FW26-BUNDLE",
+    sku: "FW26-BUNDLE",
+    dropAt: bag.dropAt,
+    name: "Crossbody + MagSafe Bundle",
+    shipping: "bundle",
+    price: BUNDLE_PRICE,
+    salePrice: null,
+    // Shown struck through next to the bundle price only when the bundle is cheaper.
+    compareAtPrice: separate,
+    description: `Crossbody Bag + MagSafe Case, made to order. ${BUNDLE_PRICE < separate ? `$${(separate - BUNDLE_PRICE).toFixed(0)} off buying them separately. ` : ""}Can't ship to Japan or South Korea.`,
+    shipTime: bag.shipTime,
+    details: ["Crossbody Bag: " + bag.material].concat(bag.details.slice(0, 3), ["MagSafe Case: dual-layer, MagSafe® compatible"]),
+    // color = Crossbody color, style = MagSafe color, size = phone model.
+    colorLabel: "Crossbody color",
+    styleLabel: "MagSafe color",
+    sizeLabel: "Phone model",
+    defaultColor: bagColors.includes(bag.defaultColor) ? bag.defaultColor : bagColors[0],
+    image: bag.image,
+    colors: bagColors,
+    styles: pcCase.colors.map((c) => ({ name: c, price: BUNDLE_PRICE })),
+    sizes: pcCase.sizes.slice(),
+    colorImages: pick(bag.colorImages, bagColors),
+    colorSwatches: pick(bag.colorSwatches, bagColors),
+    styleSwatches: pick(pcCase.colorSwatches, pcCase.colors),
+    // Bag photo first (by Crossbody color), then the picked case on the picked phone.
+    gallery: pick(bag.gallery, bagColors),
+    bundleImages: (style, size) => {
+      const entry = pcCase.colorImages && pcCase.colorImages[style];
+      const img = entry && (typeof entry === "string" ? entry : entry[size]);
+      return img ? [img] : [];
+    },
+    bundle: true,
+    pod: {
+      // How printful.js splits one paid bundle line into Printful items:
+      // which bundle field feeds each part's color/size, and the list price
+      // used to split the paid amount into each item's retail_price.
+      bundle: [
+        { productId: "FW26-BAG", color: "color", listPrice: bag.price },
+        { productId: "FW26-CASE", color: "style", size: "size", listPrice: pcCase.price },
+      ],
+    },
+  };
+}
+
+(function addBundle() {
+  const bundle = buildBundleProduct(PRODUCTS);
+  if (!bundle) return;
+  const at = PRODUCTS.findIndex((p) => p.id === "FW26-CASE");
+  PRODUCTS.splice(at + 1, 0, bundle);
+})();
+
 const POD_CARD_ONLY = false;
 
 // Crypto checkout (Coinbase Commerce) is off: CIG decided 2026-10-21 to set
@@ -1197,5 +1271,5 @@ function saleBlocksPromo(p, now = Date.now()) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { CRYPTO_ENABLED, DROP_AT, POD_CARD_ONLY, PRODUCTS, activeSalePrice, saleActive, saleBlocksPromo };
+  module.exports = { BUNDLE_PRICE, CRYPTO_ENABLED, DROP_AT, POD_CARD_ONLY, PRODUCTS, activeSalePrice, saleActive, saleBlocksPromo };
 }

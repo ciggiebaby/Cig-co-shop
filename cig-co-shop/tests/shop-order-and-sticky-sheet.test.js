@@ -33,7 +33,7 @@ const clone = (p) => JSON.parse(JSON.stringify(p));
 test("the shop grid lists in-stock products first and sold-out products last", () => {
   const order = ids(ctx.shopGridProducts(PRODUCTS));
   assert.deepEqual(order, [
-    "FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE",
+    "FW26-BAG", "FW26-CASE", "FW26-BUNDLE", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE",
     "0005", "0008", "0013",
     "0004", "0011",
   ]);
@@ -61,7 +61,7 @@ test("anything marked sold out later moves to the end on its own", () => {
     else for (const size of Object.keys(node)) node[size] = 0;
   }
   assert.deepEqual(ids(ctx.shopGridProducts(catalog)), [
-    "FW26-BAG", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE", "0005", "0013",
+    "FW26-BAG", "FW26-BUNDLE", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE", "0005", "0013",
     "FW26-CASE", "0004", "0008", "0011",
   ]);
   // Back in stock -> back in its original spot.
