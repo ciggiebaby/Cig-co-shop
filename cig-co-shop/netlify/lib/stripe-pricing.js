@@ -192,7 +192,10 @@ function resolveRequestedItem(rawItem, now = Date.now()) {
     ? product.componentStock[color]
     : null;
   const productName = selectedStyle ? `${product.name} (${selectedStyle.name})` : product.name;
-  const stripeName = [productName, color, size].filter(Boolean).join(" — ");
+  // Bundle (products.js FW26-BUNDLE): color = Crossbody, style = MagSafe, size = model.
+  const stripeName = product.bundle
+    ? `${product.name} — Crossbody ${color} + MagSafe ${style} (${size})`
+    : [productName, color, size].filter(Boolean).join(" — ");
 
   return {
     key: JSON.stringify([productId, style, color, size]),

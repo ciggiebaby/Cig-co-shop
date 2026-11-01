@@ -47,7 +47,7 @@ const PRINTFUL_PER_UNIT = {
 
 test("international rates are Printful's per-unit cost rounded up to the next dollar", () => {
   assert.deepEqual(Object.keys(SHIP_TO_COUNTRIES), ["US", "CA", "GB", "DE", "AU", "JP", "KR"]);
-  assert.deepEqual(Object.keys(INTERNATIONAL_SHIPPING_PER_ITEM_USD).sort(), ["bag", "case", "sleeve"]);
+  assert.deepEqual(Object.keys(INTERNATIONAL_SHIPPING_PER_ITEM_USD).sort(), ["bag", "bundle", "case", "sleeve"]);
   for (const [shippingClass, costs] of Object.entries(PRINTFUL_PER_UNIT)) {
     for (const [country, cost] of Object.entries(costs)) {
       assert.equal(INTERNATIONAL_SHIPPING_PER_ITEM_USD[shippingClass][country], Math.ceil(cost), `${shippingClass} ${country}`);

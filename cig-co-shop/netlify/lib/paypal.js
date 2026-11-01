@@ -3,7 +3,7 @@
 // Optional: PAYPAL_API_BASE (defaults to live), PAYPAL_WEBHOOK_ID (for paypal-webhook)
 const { commitOrderStock, payPalStockLines, payPalStockSku } = require("./live-stock.js");
 const { recordPaidOrder } = require("./order-recording.js");
-const { autoConfirmEnabled, createPrintfulClient, printfulItemForLine } = require("./printful.js");
+const { autoConfirmEnabled, createPrintfulClient, printfulItemsForLine } = require("./printful.js");
 const { normalizePccc } = require("../../shipping-rates.js");
 
 // Made-to-order (Printful) lines carry their catalog selection in the PayPal
@@ -323,7 +323,7 @@ async function sendPayPalPodOrder(order, { environment = process.env, printfulFa
   const result = await printfulFactory({ environment }).createOrder({
     paymentId: `paypal:${capture.id}`,
     recipient: payPalPrintfulRecipient(order),
-    items: lines.map(printfulItemForLine),
+    items: lines.flatMap(printfulItemsForLine),
     confirm: autoConfirmEnabled(environment),
   });
   logger.log("Printful order ready (PayPal).", {

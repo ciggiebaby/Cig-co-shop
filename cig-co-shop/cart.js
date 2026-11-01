@@ -26,7 +26,7 @@ function getCart() {
   const kept = cart.filter((item) => item && byId.has(item.productId)).map((item) => {
     const product = byId.get(item.productId);
     const style = product.styles && product.styles.length ? itemStyleKey(item) : "";
-    const name = style ? `${product.name} (${style})` : product.name;
+    const name = style && !product.bundle ? `${product.name} (${style})` : product.name;
     // Products with a (timed) sale price: refresh the saved price from the
     // catalog, so a bag filled during the sale shows full price once it ends
     // (and vice versa), matching what the server charges.
@@ -51,6 +51,14 @@ function itemStyleKey(item) {
   // Legacy carts embedded the selected style in "Product Name (Style)".
   const legacyStyle = typeof item.name === "string" ? item.name.match(/\s\(([^()]*)\)$/) : null;
   return legacyStyle ? legacyStyle[1] : "";
+}
+
+// Crossbody + MagSafe bundle line: "Crossbody Navy · MagSafe Burgundy / iPhone 16 Pro".
+function bundleCartMeta(item) {
+  const product = typeof PRODUCTS !== "undefined" && Array.isArray(PRODUCTS)
+    ? PRODUCTS.find((p) => p.id === item.productId) : null;
+  if (!product || !product.bundle) return "";
+  return `Crossbody ${item.color || ""} \u00b7 MagSafe ${itemStyleKey(item)} / ${item.size || ""}`;
 }
 
 function lineKey(item) {
@@ -103,7 +111,7 @@ function renderCart() {
     itemsEl.innerHTML = cart
       .map((item) => {
         const key = lineKey(item);
-        const meta = [item.color, item.size].filter(Boolean).join(" / ");
+        const meta = bundleCartMeta(item) || [item.color, item.size].filter(Boolean).join(" / ");
         return `
         <div class="cart-item">
           <img src="${item.image}" alt="${item.name}" />
