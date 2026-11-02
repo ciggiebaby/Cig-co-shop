@@ -15,3 +15,10 @@
 # sends and retries. Does nothing unless THANKYOU_EMAIL_ENABLED=true.
 [functions."thankyou-email-sweep"]
   schedule = "@hourly"
+
+# Google Merchant Center fetches this feed on a schedule (scripts/build-product-pages.js).
+[[headers]]
+  for = "/google-feed.tsv"
+  [headers.values]
+    Content-Type = "text/tab-separated-values; charset=utf-8"
+    Cache-Control = "public, max-age=0, must-revalidate"

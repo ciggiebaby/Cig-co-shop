@@ -16,7 +16,7 @@
 
 const PRODUCT_LINK_PARAMS = ["product", "color", "size", "style"];
 const SITE_URL = "https://cigcompany.com/";
-const SCHEMA_BRAND = "Cig & Co.";
+const SCHEMA_BRAND = "CIG & CO.";
 
 // Case-insensitive match against a product's own option list; returns the
 // option exactly as products.js spells it, or null.
@@ -87,11 +87,18 @@ function absoluteAsset(src, base = SITE_URL) {
   return /^https?:/i.test(src) ? src : `${base}${String(src).replace(/^\//, "")}`;
 }
 
+// Google-facing name (product-seo.js: never "CIG ..." — Merchant Center read
+// "CIG Ski Mask" as a tobacco product). Shop grid/pop-up keep products.js names.
+function googleName(p) {
+  const seo = typeof globalThis !== "undefined" && globalThis.CIGProductSeo;
+  return seo && typeof seo.seoName === "function" ? seo.seoName(p) : p.name;
+}
+
 function plainDescription(p) {
   const bits = [];
   if (p.description) bits.push(p.description);
   if (p.material) bits.push(`Material: ${p.material}.`);
-  return bits.join(" ") || `${p.name} from ${SCHEMA_BRAND}`;
+  return bits.join(" ") || googleName(p);
 }
 
 // helpers: { priceFor(p, style, color, size), stockFor(p, style, color, size),
@@ -116,7 +123,7 @@ function productJsonLd(p, sel, helpers, base = SITE_URL) {
   const out = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: variantBits ? `${p.name} (${variantBits})` : p.name,
+    name: variantBits ? `${googleName(p)} (${variantBits})` : googleName(p),
     image: absoluteAsset(helpers.imageFor(p, pick.color, pick.size, pick.style), base),
     description: plainDescription(p),
     sku: p.sku || p.id,
@@ -149,7 +156,7 @@ function catalogJsonLd(products, helpers, base = SITE_URL) {
     if (p.sizes && p.sizes.length) varies.push("https://schema.org/size");
     return {
       "@type": "ProductGroup",
-      name: p.name,
+      name: googleName(p),
       productGroupID: p.id,
       description: plainDescription(p),
       brand: { "@type": "Brand", name: SCHEMA_BRAND },
