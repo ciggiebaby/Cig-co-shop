@@ -81,6 +81,7 @@ test("each page: unique title/description, canonical, og/twitter image, visible 
     }
     assert.ok(html.includes("mailto:info@cigcompany.com"));
     assert.ok(!html.includes("orders@cigcompany.com"));
+    assert.ok(!/8\.95|over \$75/.test(html), `${p.id}: no old mask shipping fee`);
     // Every referenced local image exists (no new artwork, reuse what's there).
     for (const m of html.matchAll(/(?:src|content)="(?:https:\/\/cigcompany\.com)?\/(assets\/[^"?]+)"/g)) {
       assert.ok(fs.existsSync(path.join(root, m[1])), `${p.id}: ${m[1]} exists`);
@@ -145,7 +146,12 @@ test("product JSON-LD: ProductGroup with variants, offers, shipping and returns 
       assert.equal(ship["@type"], "OfferShippingDetails");
       assert.equal(ship.shippingDestination.addressCountry, "US");
       assert.equal(ship.shippingRate.currency, "USD");
-      assert.equal(ship.shippingRate.value, p.liveStock ? 8.95 : 0);
+      assert.equal(ship.shippingRate.value, 0, "free US shipping on everything (masks since 2026-11-01)");
+      if (p.liveStock) {
+        const dt = ship.deliveryTime;
+        assert.equal(dt.handlingTime.minValue + dt.transitTime.minValue, 5);
+        assert.equal(dt.handlingTime.maxValue + dt.transitTime.maxValue, 14);
+      }
       assert.ok(ship.deliveryTime.handlingTime.maxValue >= 1 && ship.deliveryTime.transitTime.maxValue >= 1);
       const ret = o.hasMerchantReturnPolicy;
       assert.equal(ret["@type"], "MerchantReturnPolicy");
@@ -193,7 +199,7 @@ test("Google feed: same item ids as the Oct 30 upload, clean titles, brand, live
     assert.equal(r.identifier_exists, "no");
     assert.match(r.availability, /^(in_stock|out_of_stock)$/);
     assert.match(r.price, /^\d+\.\d\d USD$/);
-    assert.match(r.shipping, /^US:::(0\.00|8\.95) USD$/);
+    assert.equal(r.shipping, "US:::0.00 USD", r.id);
     assert.match(r.google_product_category, /^\d+$/);
     const u = new URL(r.link);
     assert.equal(u.origin, "https://cigcompany.com");

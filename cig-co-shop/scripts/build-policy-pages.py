@@ -9,7 +9,7 @@ Needs: pip install markdown
 import re, pathlib, markdown, html
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-LAST_UPDATED = "October 22, 2026"
+LAST_UPDATED = "November 1, 2026"
 EMAIL = "orders@cigcompany.com"
 
 index = (ROOT / "index.html").read_text()

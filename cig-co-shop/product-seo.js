@@ -195,7 +195,7 @@
 
   // ---------- Copy ----------
   function isInHand(p) { return !p.pod; }   // masks etc. ship from CIG's own stock
-  function shippingUsd(p) { return p.liveStock ? 8.95 : 0; } // shipping-rates.js: US mask orders $8.95 (free over $75); FW26 free
+  function shippingUsd(p) { return 0; } // shipping-rates.js: free US shipping on everything (masks since 2026-11-01)
   function cleanText(s) { return String(s == null ? "" : s).replace(/[\t\r\n]+/g, " ").replace(/\s+/g, " ").trim(); }
   function descriptionFor(p) {
     var info = seoInfo(p);
@@ -214,7 +214,7 @@
       if (p.colors && p.colors.length > 1) parts.push("Colors: " + p.colors.join(", ") + ".");
       if (p.sizes && p.sizes.length > 1) parts.push("Sizes: " + p.sizes.join(", ") + ".");
       if (p.soldOut) parts.push("Currently sold out.");
-      if (p.liveStock) parts.push("In stock and ships from the US in 1–2 business days. US mask orders ship for $8.95, free over $75.");
+      if (p.liveStock) parts.push("In stock and ships from the US in 1–2 business days. Free US shipping, delivered in about 5–14 business days.");
     }
     return cleanText(parts.join(" ").replace(BLOCKED_WORDS, "").replace(/\s+([.,])/g, "$1"));
   }
@@ -222,7 +222,7 @@
     var prices = variants(p).map(function (v) { return priceNow(p, v, now); });
     var lo = Math.min.apply(null, prices), hi = Math.max.apply(null, prices);
     var price = lo === hi ? "$" + lo.toFixed(2) : "From $" + lo.toFixed(2);
-    var ship = p.pod ? "Free US shipping." : p.liveStock ? "Ships from the US in 1–2 business days." : "";
+    var ship = p.pod ? "Free US shipping." : p.liveStock ? "Free US shipping." : "";
     var colors = p.colors && p.colors.length > 1 ? " " + p.colors.length + " colorways." : "";
     return cleanText(seoName(p) + ". " + price + "." + colors + " " + ship);
   }
@@ -239,7 +239,8 @@
         // Policy: masks ship in 1–2 business days; FW26 goes into production in
         // 2–5 business days and arrives about 5–9 business days from the order.
         handlingTime: { "@type": "QuantitativeValue", minValue: mask ? 1 : 2, maxValue: mask ? 2 : 5, unitCode: "DAY" },
-        transitTime: { "@type": "QuantitativeValue", minValue: mask ? 2 : 3, maxValue: mask ? 5 : 4, unitCode: "DAY" },
+        // Masks: 5–14 business days door to door (same as Etsy / Merchant Center).
+        transitTime: { "@type": "QuantitativeValue", minValue: mask ? 4 : 3, maxValue: mask ? 12 : 4, unitCode: "DAY" },
       },
     };
   }
@@ -406,7 +407,7 @@
           gender: info.apparel ? (info.gender || "unisex") : "",
           age_group: info.apparel ? "adult" : "",
           shipping: "US:::" + money(shippingUsd(p)),
-          shipping_label: p.liveStock ? "mask_us_8_95" : "fw26_free_us",
+          shipping_label: p.liveStock ? "mask_free_us" : "fw26_free_us",
           custom_label_0: p.pod ? "FW26 made to order" : "Mask in hand",
         });
       });

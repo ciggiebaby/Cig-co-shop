@@ -18,14 +18,14 @@ function mainText(file) {
 
 for (const [page, md] of [["shipping-returns.html", "docs/policies/shipping-returns.md"], ["faq.html", "docs/policies/faq.md"]]) {
   test(`${page} carries the approved copy word for word`, () => {
-    const expected = mdText(read(md).replace("[publish date]", "October 22, 2026")).split(" ").filter((w) => !/^-+$/.test(w)).join(" ");
+    const expected = mdText(read(md).replace("[publish date]", "November 1, 2026")).split(" ").filter((w) => !/^-+$/.test(w)).join(" ");
     const actual = mainText(page).split(" ").filter((w) => !/^-+$/.test(w)).join(" ");
     assert.equal(actual, expected);
   });
 }
 
 test("policy page shows the Last updated date", () => {
-  assert.match(read("shipping-returns.html"), /Last updated: October 22, 2026/);
+  assert.match(read("shipping-returns.html"), /Last updated: November 1, 2026/);
   assert.doesNotMatch(read("shipping-returns.html"), /\[publish date\]/);
 });
 
@@ -75,5 +75,17 @@ test("sitemap lists the new pages", () => {
 test("the Masks shipping line links to the mask terms section", () => {
   const html = read("shipping-returns.html");
   assert.match(html, /<h2 id="mask-terms">Masks: Shipping, Returns &amp; Exchanges<\/h2>/);
-  assert.match(html, /over \$75\. <a href="#mask-terms">See the mask terms for details<\/a>\./);
+  assert.match(html, /about 5 to 14 business days\. <a href="#mask-terms">See the mask terms for details<\/a>\./);
+});
+
+test("policy pages: masks ship free in the US; no $8.95 or free-over-$75 left; intl mask rates unchanged", () => {
+  for (const f of ["shipping-returns.html", "faq.html", "index.html", "docs/policies/shipping-returns.md", "docs/policies/faq.md"]) {
+    const text = read(f);
+    assert.doesNotMatch(text, /8\.95/, f);
+    assert.doesNotMatch(text, /over \$75/, f);
+  }
+  const html = read("shipping-returns.html");
+  assert.match(html, /<strong>Cost:<\/strong> US shipping on masks is free, with no minimum order\./);
+  assert.match(html, /1 to 4 masks cost \$25 to Canada, \$31 to the UK, \$28 to Germany, \$40 to Australia, \$33 to Japan, and \$30 to South Korea/);
+  assert.match(read("faq.html"), /Masks also ship free in the US, with no minimum/);
 });

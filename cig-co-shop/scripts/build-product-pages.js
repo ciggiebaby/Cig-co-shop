@@ -74,7 +74,7 @@ function optionsHtml(p, pick) {
 }
 
 function shippingLine(p) {
-  if (p.liveStock) return `In-stock mask: ships from the US in 1–2 business days. US orders with a mask ship for $8.95, free over $75. Exchanges on unworn masks within 14 days (<a href="/shipping-returns#mask-terms">mask terms</a>).`;
+  if (p.liveStock) return `In-stock mask: ships from the US in 1–2 business days. Free US shipping, delivered in about 5–14 business days. Exchanges on unworn masks within 14 days (<a href="/shipping-returns#mask-terms">mask terms</a>).`;
   const usOnly = /US only/i.test(p.description || "") ? " Ships to the US only." : "";
   return `Made to order, ships in ${esc(p.shipTime || "7–9 business days")}. Free US shipping.${usOnly} Damaged, defective or wrong items are replaced or refunded (<a href="/shipping-returns">shipping &amp; returns</a>).`;
 }

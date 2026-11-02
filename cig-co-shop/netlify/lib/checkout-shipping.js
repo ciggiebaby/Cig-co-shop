@@ -2,8 +2,8 @@
 // the Stripe, PayPal, and crypto checkouts. The rates live in shipping-rates.js
 // (site root) so the checkout page shows exactly what the server charges.
 //
-// US: free shipping, except orders with a mask: $8.95 per order unless the
-// items total after promo is over $75 (shipping-rates.js). International (CA, GB, DE, AU, JP, KR only):
+// US: free shipping on everything, masks included (CIG 2026-11-01; was $8.95
+// per mask order under $75). International (CA, GB, DE, AU, JP, KR only):
 // in-hand items (masks and other non-Printful stock) ship to all of them for one
 // per-order charge by weight; Printful pieces need an international shipping
 // class (pillows are US only; MagSafe cases can't go to JP/KR).
