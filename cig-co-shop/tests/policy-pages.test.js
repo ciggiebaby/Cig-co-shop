@@ -31,7 +31,7 @@ test("policy page shows the Last updated date", () => {
 
 test("support email is a mailto link on both pages", () => {
   for (const page of ["shipping-returns.html", "faq.html"]) {
-    assert.match(read(page), /<a href="mailto:orders@cigcompany\.com">orders@cigcompany\.com<\/a>/, page);
+    assert.match(read(page), /<a href="mailto:info@cigcompany\.com">info@cigcompany\.com<\/a>/, page);
   }
 });
 
@@ -43,7 +43,7 @@ test("footer links to Shipping & Returns and FAQ on every page", () => {
     const footer = html.match(/<footer class="site-footer">[\s\S]*?<\/footer>/)[0];
     assert.match(footer, /href="shipping-returns\.html"/, page);
     assert.match(footer, /href="faq\.html"/, page);
-    assert.match(footer, /mailto:orders@cigcompany\.com/, page);
+    assert.match(footer, /mailto:info@cigcompany\.com/, page);
   }
 });
 
