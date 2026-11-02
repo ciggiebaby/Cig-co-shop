@@ -42,7 +42,7 @@ Not always. If you order several items, they may arrive in separate packages.
 ## Tracking
 
 **How do I track my order?**
-After you order, you'll get a receipt from orders@cigcompany.com. Once your order ships, we'll email you a tracking link, which usually starts updating within 24 hours.
+After you order, you'll get an email receipt. Once your order ships, we'll email you a tracking link, which usually starts updating within 24 hours.
 
 **My tracking hasn't moved. What do I do?**
 Tracking can pause while a package moves between carriers or goes through customs. If it's more than 5 business days past the estimated delivery date, email us with your order number and we'll look into it.
@@ -71,4 +71,4 @@ If a package comes back to us, we'll email you. Once you confirm the right addre
 Approved refunds go back to your card or PayPal account, and your bank usually takes 5 to 10 business days to show them. We process approved refunds within 3 business days.
 
 **How do I reach you?**
-Email orders@cigcompany.com and include your order number. We reply within 1 to 2 business days.
+Email info@cigcompany.com and include your order number. We reply within 1 to 2 business days.

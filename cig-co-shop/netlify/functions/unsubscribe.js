@@ -49,7 +49,7 @@ function createHandler({
     const secret = environment.UNSUBSCRIBE_SECRET;
     if (!email || !verifyUnsubscribeToken(email, params.t, secret)) {
       return page(400, "Link not valid",
-        `<p>This unsubscribe link isn't valid or has been cut off. Reply "unsubscribe" to any CIG &amp; CO. email, or write to <a style="color:#D4AF37;" href="mailto:orders@cigcompany.com">orders@cigcompany.com</a>, and we'll take you off the list.</p>`);
+        `<p>This unsubscribe link isn't valid or has been cut off. Reply "unsubscribe" to any CIG &amp; CO. email, or write to <a style="color:#D4AF37;" href="mailto:info@cigcompany.com">info@cigcompany.com</a>, and we'll take you off the list.</p>`);
     }
 
     if (method === "GET") {
