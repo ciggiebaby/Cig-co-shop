@@ -105,7 +105,7 @@ test("the open product's JSON-LD has name, image, brand, sku and an offer with t
   assert.equal(ld.name, "CIG Ski Mask (Red / 1-Hole)");
   assert.equal(ld.image, "https://cigcompany.com/assets/products/skimask-red-1hole.jpg");
   assert.equal(ld.sku, "0008");
-  assert.deepEqual(ld.brand, { "@type": "Brand", name: "Cig & Co." });
+  assert.deepEqual(ld.brand, { "@type": "Brand", name: "CIG & CO." });
   assert.ok(ld.description);
   assert.deepEqual(ld.offers, {
     "@type": "Offer",

@@ -182,8 +182,9 @@ function createHandler({
       // Flag CIG's pre-launch test order so it's easy to spot in Stripe.
       if (dropTestCodeValid(body.dropTestCode, environment)) sessionRequest.metadata.drop_test = "true";
       if (shipping.country === "US" && shipping.shippingCents > 0) {
-        // US orders with a mask: flat per-order fee (free over $75, shipping-rates.js).
-        // FW26-only US carts stay free (no shipping option, same as before).
+        // A US shipping charge from shipping-rates.js. US shipping is free for
+        // everything now (masks too, CIG 2026-11-01), so this doesn't run; kept
+        // in case a US fee ever comes back.
         sessionRequest.metadata.shipping_cents = String(shipping.shippingCents);
         sessionRequest.shipping_options = [{
           shipping_rate_data: {

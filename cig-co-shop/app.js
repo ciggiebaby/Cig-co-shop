@@ -65,19 +65,32 @@ function renderProductGrid() {
         </div>
       </div>
       <div class="product-card-body">
-        <div class="product-card-name">${p.name}</div>
+        <div class="product-card-name">${productPageHref(p) ? `<a class="product-card-link" href="${productPageHref(p)}">${p.name}</a>` : p.name}</div>
         <div class="product-card-price">${price}</div>
       </div>
     </div>`;
   }).join("");
 
   grid.querySelectorAll(".product-card").forEach((card) => {
-    card.addEventListener("click", () => openProductModal(card.dataset.id));
+    card.addEventListener("click", (e) => {
+      // The name is a real link to the product's own page (for search engines
+      // and new-tab clicks); a plain click still opens the pop-up as before.
+      const link = e && e.target && e.target.closest ? e.target.closest("a.product-card-link") : null;
+      if (link && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1)) return;
+      if (link && e.preventDefault) e.preventDefault();
+      openProductModal(card.dataset.id);
+    });
   });
 
   renderCatalogJsonLd();
   if (openProductId) syncProductView();
   if (window.initScrollEffects) window.initScrollEffects();
+}
+
+// The product's own page (/products/<slug>/, product-seo.js), or null.
+function productPageHref(p) {
+  const seo = typeof window !== "undefined" && window.CIGProductSeo;
+  return seo && typeof seo.productPagePath === "function" ? seo.productPagePath(p) : null;
 }
 
 // ---------- Product modal ----------
@@ -554,8 +567,13 @@ function syncProductView() {
   if (typeof productJsonLd === "function") setJsonLd("product-jsonld", p ? productJsonLd(p, sel, structuredDataHelpers()) : null);
 }
 
+// Homepage: a list of the product pages (each page carries its own Product
+// data, so Google reads one product per URL). Falls back to the old catalog
+// block if product-seo.js isn't loaded.
 function renderCatalogJsonLd() {
-  if (typeof catalogJsonLd === "function") setJsonLd("catalog-jsonld", catalogJsonLd(PRODUCTS, structuredDataHelpers()));
+  const seo = typeof window !== "undefined" && window.CIGProductSeo;
+  if (seo && typeof seo.catalogItemListJsonLd === "function") setJsonLd("catalog-jsonld", seo.catalogItemListJsonLd(PRODUCTS));
+  else if (typeof catalogJsonLd === "function") setJsonLd("catalog-jsonld", catalogJsonLd(PRODUCTS, structuredDataHelpers()));
 }
 
 // On page load: ?product=<id>&color=..&size=.. opens that pop-up. A link to an

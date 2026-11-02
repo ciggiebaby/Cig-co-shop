@@ -72,11 +72,11 @@ test("FW26 PayPal is on (POD_CARD_ONLY false) and the create endpoint accepts a 
 
 test("FW26 PayPal uses the card prices, promo, international and mask shipping rules", async () => {
   const { handler, sent } = payPalHandler();
-  // Tote + balaclava = $60 → $8.95 mask shipping, shown in the breakdown.
+  // Tote + balaclava = $60 → masks ship free in the US (CIG 2026-11-01), no shipping line.
   assert.equal((await handler(post({ items: [tote(1), balaclava(1)] }))).statusCode, 200);
   let unit = sent.at(-1).purchase_units[0];
-  assert.deepEqual(unit.amount.breakdown, { item_total: { currency_code: "USD", value: "60.00" }, shipping: { currency_code: "USD", value: "8.95" } });
-  assert.equal(unit.amount.value, "68.95");
+  assert.deepEqual(unit.amount.breakdown, { item_total: { currency_code: "USD", value: "60.00" } });
+  assert.equal(unit.amount.value, "60.00");
   assert.deepEqual(unit.items.map((i) => i.sku), ["pod:FW26-TOTE||Hunter|", "stock:0005|Red|"]);
   // Two totes + balaclava = $95 → free. The promo is masks only (promo.js):
   // totes stay $35, balaclava 20% off = $20.00 → $90.00, still free.

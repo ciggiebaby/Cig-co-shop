@@ -1299,32 +1299,36 @@ test("the drop test code is only sent in ?droptest mode", async () => {
   assert.equal(requests[1].dropTestCode, "abc12345");
 });
 
-// Masks (liveStock backstock): $8.95 per US order unless the items total after
-// promo is over $75 — the same shipping-rates.js rule the server charges.
+// Masks (liveStock backstock) ship free in the US (CIG 2026-11-01) — the same
+// shipping-rates.js rule the server charges.
 const maskItem = (qty) => ({ productId: "0005", name: "CIG Balaclava", price: 25, image: "", color: "Red", size: null, style: null, qty });
 
-test("checkout summary shows mask shipping: $8.95 at or under $75, free over $75, back after a promo", () => {
+test("checkout summary: US mask orders ship free at any total, with or without a promo", () => {
   const under = loadFrontend({ storedCart: [maskItem(3)] });
   under.context.renderCheckoutSummary();
   const maskNote = under.context.document.getElementById("checkout-mask-shipping-note");
-  assert.match(under.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>\$8\.95/);
-  assert.match(under.summaryElement.innerHTML, /Total<\/span><span>\$83\.95/);
+  assert.match(under.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>Free/);
+  assert.match(under.summaryElement.innerHTML, /Total<\/span><span>\$75\.00/);
   assert.equal(maskNote.hidden, false);
-  assert.match(maskNote.textContent, /\$8\.95.*free over \$75/);
+  assert.match(maskNote.textContent, /^Masks ship free in the US/);
+  const one = loadFrontend({ storedCart: [maskItem(1)] });
+  one.context.renderCheckoutSummary();
+  assert.match(one.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>Free/);
+  assert.match(one.summaryElement.innerHTML, /Total<\/span><span>\$25\.00/);
 
   const over = loadFrontend({ storedCart: [maskItem(4)] });
   over.context.renderCheckoutSummary();
   assert.match(over.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>Free/);
   assert.match(over.summaryElement.innerHTML, /Total<\/span><span>\$100\.00/);
 
-  // $100 with CIG10 = $90 → still free; $80 with CIG10 = $72 → $8.95.
+  // $100 with CIG10 = $90 → free; $80 with CIG10 = $72 → still free.
   const promoOver = loadFrontend({ storedCart: [maskItem(4)], promoCode: "CIG10" });
   promoOver.context.renderCheckoutSummary();
   assert.match(promoOver.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>Free/);
   const promoUnder = loadFrontend({ storedCart: [maskItem(2), { ...maskItem(1), productId: "0008", name: "CIG Ski Mask", price: 30, size: "3-Hole" }], promoCode: "CIG10" });
   promoUnder.context.renderCheckoutSummary();
-  assert.match(promoUnder.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>\$8\.95/);
-  assert.match(promoUnder.summaryElement.innerHTML, /Total<\/span><span>\$80\.95/);
+  assert.match(promoUnder.summaryElement.innerHTML, /Shipping \(United States\)<\/span><span>Free/);
+  assert.match(promoUnder.summaryElement.innerHTML, /Total<\/span><span>\$72\.00/);
 });
 
 test("a mask in the bag keeps every country open; FW26-only US stays free with no mask note", () => {
