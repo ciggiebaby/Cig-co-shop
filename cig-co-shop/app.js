@@ -741,6 +741,9 @@ if (checkoutBtn) {
     if (typeof trackSiteEvent === "function") trackSiteEvent("checkout_start");
     if (promoInputEl && promoState) promoInputEl.value = promoState;
     renderCheckoutSummary();
+    // Close the bag first: on phones the drawer is full width and sat on top of
+    // the checkout form, so tapping Checkout looked like it did nothing.
+    closeCart();
     const checkoutModal = document.getElementById("checkout-modal");
     if (checkoutModal) checkoutModal.setAttribute("aria-hidden", "false");
   });
