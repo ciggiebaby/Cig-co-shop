@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Arcade — CIG &amp; CO.</title>
 <meta name="description" content="Play the CIG &amp; CO. Arcade — spin, scratch, and unbox. Your first play wins 10% off masks." />
 <link rel="canonical" href="https://cigcompany.com/arcade" />
@@ -141,10 +141,20 @@
   </div>
   <div id="cart-items" class="cart-items"></div>
   <div class="cart-footer">
+    <div id="cart-bundle-offer" class="cart-bundle-offer" hidden></div>
     <div class="cart-subtotal">
       <span>Subtotal</span>
       <span id="cart-subtotal-amount">$0.00</span>
     </div>
+    <div id="cart-shipping-row" class="cart-line" hidden>
+      <span>Shipping</span>
+      <span id="cart-shipping-amount">Free (US)</span>
+    </div>
+    <div id="cart-total-row" class="cart-line cart-total" hidden>
+      <span>Total</span>
+      <span id="cart-total-amount">$0.00</span>
+    </div>
+    <p id="cart-ship-note" class="cart-ship-note" hidden>US total. International shipping is shown at checkout.</p>
     <button id="checkout-btn" class="btn btn-gold btn-full">Checkout</button>
   </div>
 </div>

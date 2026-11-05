@@ -131,6 +131,148 @@ function renderCart() {
   }
 
   subtotalEl.textContent = `$${cartSubtotal(cart).toFixed(2)}`;
+  renderCartTotals(cart);
+  renderBundleOffer(cart);
+}
+
+// ---------- Shipping + total in the bag ----------
+// US shipping comes from shipping-rates.js (quoteShipping), the same table the
+// checkout and the server use. The bag only shows the US figure, labelled US;
+// international shipping is quoted in the checkout form once a country is picked.
+// Pages that don't load shipping-rates.js just show the subtotal.
+function cartUsShippingCents(cart) {
+  if (typeof quoteShipping !== "function" || typeof PRODUCTS === "undefined") return null;
+  const lines = cart.map((item) => {
+    const product = PRODUCTS.find((p) => p.id === item.productId);
+    return {
+      name: product ? product.name : item.name,
+      shipping: product && typeof product.shipping === "string" ? product.shipping : null,
+      quantity: item.qty,
+      mask: !!(product && product.liveStock),
+      inHand: !!(product && (product.liveStock || (!product.pod && typeof product.shipping !== "string"))),
+      weightOz: product && typeof product.shipWeightOz === "number" ? product.shipWeightOz : null,
+    };
+  });
+  const merchandiseCents = cart.reduce((sum, item) => sum + Math.round(Number(item.price) * 100) * item.qty, 0);
+  const quote = quoteShipping(lines, "US", { merchandiseCents });
+  return quote && Number.isInteger(quote.shippingCents) ? quote.shippingCents : null;
+}
+
+function setHidden(el, hidden) {
+  if (!el) return;
+  el.hidden = hidden;
+}
+
+function renderCartTotals(cart) {
+  const shipRow = document.getElementById("cart-shipping-row");
+  const shipAmount = document.getElementById("cart-shipping-amount");
+  const totalRow = document.getElementById("cart-total-row");
+  const totalAmount = document.getElementById("cart-total-amount");
+  const note = document.getElementById("cart-ship-note");
+  const shippingCents = cart.length ? cartUsShippingCents(cart) : null;
+  const show = shippingCents !== null;
+  if (show) {
+    const subtotalCents = Math.round(cartSubtotal(cart) * 100);
+    if (shipAmount) shipAmount.textContent = shippingCents === 0 ? "Free (US)" : `$${(shippingCents / 100).toFixed(2)} (US)`;
+    if (totalAmount) totalAmount.textContent = `$${((subtotalCents + shippingCents) / 100).toFixed(2)}`;
+  }
+  setHidden(shipRow, !show);
+  setHidden(totalRow, !show);
+  setHidden(note, !show);
+}
+
+// ---------- Crossbody + MagSafe bundle offer ----------
+// A MagSafe Case (FW26-CASE) in the bag without a Crossbody: offer to swap one
+// case for the existing FW26-BUNDLE product (products.js, PR #33), keeping the
+// case color + phone model. Only solid Crossbody colors: the bundle never
+// includes the Multi colorway (sales rule), so Multi is never offered here.
+// Savings and the extra cost come from the catalog prices, not fixed numbers.
+const BUNDLE_OFFER_EXCLUDED_COLORS = ["Multi"];
+
+function bundleOffer(cart) {
+  if (typeof PRODUCTS === "undefined" || !Array.isArray(PRODUCTS)) return null;
+  const bundle = PRODUCTS.find((p) => p.id === "FW26-BUNDLE" && p.bundle && !p.hidden && !p.soldOut);
+  const bag = PRODUCTS.find((p) => p.id === "FW26-BAG");
+  if (!bundle || !bag) return null;
+  if (typeof addBlockedByDrop === "function" && addBlockedByDrop(bundle)) return null;
+  if (cart.some((item) => item.productId === "FW26-BAG" || item.productId === "FW26-BUNDLE")) return null;
+  const sizes = bundle.sizes || [];
+  const styles = (bundle.styles || []).map((s) => s.name);
+  const caseItem = cart.find((item) => item.productId === "FW26-CASE" && styles.includes(item.color) && sizes.includes(item.size));
+  if (!caseItem) return null;
+  const colors = (bundle.colors || []).filter((c) => !BUNDLE_OFFER_EXCLUDED_COLORS.includes(c)
+    && !(bag.colorPrices && bag.colorPrices[c] != null));
+  if (!colors.length) return null;
+  const crossbodyColor = colors.includes(bundle.defaultColor) ? bundle.defaultColor : colors[0];
+  const extra = Math.round((bundle.price - caseItem.price) * 100) / 100;
+  const savings = Math.round((bag.price + caseItem.price - bundle.price) * 100) / 100;
+  if (!(extra > 0) || !(savings > 0)) return null;
+  return { bundle, caseItem, caseKey: lineKey(caseItem), colors, crossbodyColor, extra, savings };
+}
+
+function bundleLineFromCase(caseItem, bundle, crossbodyColor) {
+  const image = typeof productImageForColor === "function"
+    ? productImageForColor(bundle, crossbodyColor, caseItem.size, caseItem.color)
+    : (bundle.colorImages && bundle.colorImages[crossbodyColor]) || bundle.image;
+  return {
+    productId: bundle.id,
+    sku: bundle.sku,
+    name: bundle.name,
+    price: bundle.price,
+    image: typeof image === "string" && image ? image : bundle.image,
+    color: crossbodyColor,
+    size: caseItem.size,
+    style: caseItem.color,
+    qty: 1,
+  };
+}
+
+// Swap one MagSafe Case for the bundle. Returns true when the bag changed.
+function switchCaseToBundle(caseKey, crossbodyColor) {
+  const cart = getCart();
+  const offer = bundleOffer(cart);
+  if (!offer || offer.caseKey !== caseKey || !offer.colors.includes(crossbodyColor)) return false;
+  const caseItem = cart.find((item) => lineKey(item) === caseKey);
+  const line = bundleLineFromCase(caseItem, offer.bundle, crossbodyColor);
+  const next = caseItem.qty > 1
+    ? cart.map((item) => (item === caseItem ? { ...item, qty: item.qty - 1 } : item))
+    : cart.filter((item) => item !== caseItem);
+  next.push(line);
+  saveCart(next);
+  trackSiteEvent("add_to_bag", line.productId);
+  return true;
+}
+
+function escapeCartText(value) {
+  return String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function renderBundleOffer(cart) {
+  const el = document.getElementById("cart-bundle-offer");
+  if (!el) return;
+  const offer = cart.length ? bundleOffer(cart) : null;
+  if (!offer) {
+    el.hidden = true;
+    el.innerHTML = "";
+    return;
+  }
+  const money = (n) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
+  const options = offer.colors
+    .map((c) => `<option value="${escapeCartText(c)}"${c === offer.crossbodyColor ? " selected" : ""}>${escapeCartText(c)}</option>`)
+    .join("");
+  el.innerHTML = `
+    <p class="cart-bundle-title">Add the Crossbody for ${money(offer.extra)} more</p>
+    <p class="cart-bundle-copy">Switch to the ${escapeCartText(offer.bundle.name)} for ${money(offer.bundle.price)} and save ${money(offer.savings)}. Keeps your ${escapeCartText(offer.caseItem.color)} case for ${escapeCartText(offer.caseItem.size)}.</p>
+    <div class="cart-bundle-actions">
+      <label class="cart-bundle-color">Crossbody
+        <select id="cart-bundle-color" aria-label="Crossbody color">${options}</select>
+      </label>
+      <button type="button" id="cart-bundle-switch" class="btn btn-full cart-bundle-btn">Switch to bundle &middot; ${money(offer.bundle.price)}</button>
+    </div>`;
+  el.hidden = false;
+  const btn = el.querySelector("#cart-bundle-switch");
+  const select = el.querySelector("#cart-bundle-color");
+  if (btn) btn.addEventListener("click", () => switchCaseToBundle(offer.caseKey, select ? select.value : offer.crossbodyColor));
 }
 
 function openCart() {

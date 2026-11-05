@@ -260,7 +260,8 @@ a { color: inherit; text-decoration: none; }
 .modal {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  /* Above the cart drawer (101) so checkout is never hidden behind the bag. */
+  z-index: 102;
   display: none;
   align-items: center;
   justify-content: center;
@@ -359,6 +360,9 @@ a { color: inherit; text-decoration: none; }
   width: 380px;
   max-width: 92vw;
   height: 100vh;
+  /* iOS Safari: 100vh is taller than the visible area when the toolbar shows,
+     which pushed Checkout under it. dvh tracks the visible height. */
+  height: 100dvh;
   background: #111;
   border-left: 1px solid var(--border);
   z-index: 101;
@@ -383,8 +387,20 @@ a { color: inherit; text-decoration: none; }
 .cart-item-name { font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
 .cart-item-meta { color: var(--gray); font-size: 12px; }
 .cart-item-remove { color: var(--gray); font-size: 11px; text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; margin-top: 4px; }
-.cart-footer { padding: 20px; border-top: 1px solid var(--border); }
-.cart-subtotal { display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 15px; }
+.cart-footer { padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); }
+.cart-subtotal { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 15px; }
+.cart-line { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: #bbb; }
+.cart-line[hidden], .cart-ship-note[hidden], .cart-bundle-offer[hidden] { display: none; }
+.cart-total { color: #fff; font-weight: 700; font-size: 15px; }
+.cart-ship-note { color: #999; font-size: 11px; margin: 0 0 6px; }
+#checkout-btn { margin-top: 8px; }
+.cart-bundle-offer { border: 1px solid var(--gold, #c9a227); padding: 12px; margin-bottom: 14px; font-size: 13px; }
+.cart-bundle-title { font-weight: 700; text-transform: uppercase; margin: 0 0 4px; }
+.cart-bundle-copy { color: #bbb; margin: 0 0 10px; font-size: 12px; }
+.cart-bundle-actions { display: flex; gap: 8px; align-items: stretch; }
+.cart-bundle-color { display: flex; flex-direction: column; font-size: 10px; color: var(--gray); text-transform: uppercase; gap: 2px; }
+.cart-bundle-color select { background: #000; color: #fff; border: 1px solid var(--border); padding: 6px; font-size: 13px; min-height: 36px; }
+.cart-bundle-btn { flex: 1; background: transparent; color: #fff; border: 1px solid #fff; font-size: 12px; min-height: 44px; }
 .cart-empty { color: var(--gray); text-align: center; margin-top: 40px; font-size: 13px; }
 
 .backdrop {
