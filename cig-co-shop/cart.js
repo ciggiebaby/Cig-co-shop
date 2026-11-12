@@ -189,7 +189,10 @@ function renderCartTotals(cart) {
 //   bag:  a Crossbody with no MagSafe Case and no bundle — pick case color + phone.
 const BUNDLE_OFFER_EXCLUDED_COLORS = ["Multi"];
 const BUNDLE_OFFER_DEFAULT_PHONE = "iPhone 16 Pro";
+// Session-only. A new tab (a new sessionStorage) can show the offer again.
+const BAG_UPSELL_DISMISS_KEY = "cig_bag_upsell_dismissed";
 let shownUpsellKey = "";
+let bagUpsellDismissedMem = false;
 
 function bundleCatalog() {
   if (typeof PRODUCTS === "undefined" || !Array.isArray(PRODUCTS)) return null;
@@ -334,12 +337,91 @@ function noteUpsellShown(offer) {
   trackSiteEvent("bag_upsell_shown", offer.bundle.id, offer.kind);
 }
 
+function bagUpsellDismissed() {
+  if (bagUpsellDismissedMem) return true;
+  try {
+    return sessionStorage.getItem(BAG_UPSELL_DISMISS_KEY) === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+function rememberBagUpsellDismissed() {
+  bagUpsellDismissedMem = true;
+  try {
+    sessionStorage.setItem(BAG_UPSELL_DISMISS_KEY, "1");
+  } catch (e) {}
+}
+
+function prefersReducedMotion() {
+  try {
+    return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Hide the Crossbody → MagSafe offer for the rest of this tab. No funnel event:
+// site_visits only allows the event names in the funnel migration's check
+// constraint, so `bundle_offer_dismissed` would need a new migration to be stored.
+function dismissBagUpsell() {
+  rememberBagUpsellDismissed();
+  const el = document.getElementById("cart-bundle-offer");
+  if (!el || el.hidden || el.classList.contains("is-dismissing")) return;
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    el.hidden = true;
+    el.innerHTML = "";
+    el.classList.remove("is-dismissing");
+    if (el.style) {
+      el.style.maxHeight = "";
+      el.style.overflow = "";
+    }
+  };
+  if (prefersReducedMotion()) {
+    finish();
+    return;
+  }
+  const height = el.scrollHeight || el.offsetHeight || 0;
+  if (el.style) {
+    el.style.overflow = "hidden";
+    el.style.maxHeight = height + "px";
+  }
+  if (typeof el.offsetHeight === "number") void el.offsetHeight;
+  el.classList.add("is-dismissing");
+  if (el.style) el.style.maxHeight = "0px";
+  const onEnd = (ev) => {
+    if (ev && ev.target && ev.target !== el) return;
+    if (ev && ev.propertyName && ev.propertyName !== "max-height") return;
+    el.removeEventListener("transitionend", onEnd);
+    finish();
+  };
+  el.addEventListener("transitionend", onEnd);
+  try {
+    setTimeout(finish, 400);
+  } catch (e) {
+    finish();
+  }
+}
+
+function bindBagUpsellDismiss(el) {
+  const hide = () => dismissBagUpsell();
+  const decline = el.querySelector("#cart-bundle-decline");
+  const close = el.querySelector("#cart-bundle-dismiss");
+  if (decline) decline.addEventListener("click", hide);
+  if (close) close.addEventListener("click", hide);
+}
+
 function renderBundleOffer(cart) {
   const el = document.getElementById("cart-bundle-offer");
   if (!el) return;
   const offer = cart.length ? (bundleOffer(cart) || bagBundleOffer(cart)) : null;
-  if (!offer) {
+  if (!offer || (offer.kind === "bag" && bagUpsellDismissed())) {
     shownUpsellKey = "";
+    el.classList.remove("is-dismissing");
+    if (el.style) el.style.maxHeight = "";
     el.hidden = true;
     el.innerHTML = "";
     return;
@@ -347,8 +429,9 @@ function renderBundleOffer(cart) {
   const money = (n) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
   if (offer.kind === "bag") {
     el.innerHTML = `
-      <p class="cart-bundle-title">Add the MagSafe Case for ${money(offer.extra)} more</p>
-      <p class="cart-bundle-copy">Switch to the ${escapeCartText(offer.bundle.name)} for ${money(offer.bundle.price)} and save ${money(offer.savings)}. Keeps your ${escapeCartText(offer.bagItem.color)} Crossbody.</p>
+      <button type="button" id="cart-bundle-dismiss" class="cart-bundle-dismiss" aria-label="Dismiss offer">&times;</button>
+      <p class="cart-bundle-title is-soft">Want the MagSafe case too?</p>
+      <p class="cart-bundle-copy">Add it for ${money(offer.extra)} more — the ${escapeCartText(offer.bundle.name)} is ${money(offer.bundle.price)} (save ${money(offer.savings)}). Keeps your ${escapeCartText(offer.bagItem.color)} Crossbody.</p>
       <div class="cart-bundle-actions is-stacked">
         <label class="cart-bundle-color">Case
           <select id="cart-bundle-case-color" aria-label="MagSafe case color">${optionList(offer.caseColors, offer.caseColor)}</select>
@@ -357,9 +440,11 @@ function renderBundleOffer(cart) {
           <select id="cart-bundle-phone" aria-label="Phone model">${optionList(offer.phones, offer.phone)}</select>
         </label>
         <button type="button" id="cart-bundle-switch" class="btn btn-full cart-bundle-btn">Switch to bundle &middot; ${money(offer.bundle.price)}</button>
+        <button type="button" id="cart-bundle-decline" class="cart-bundle-decline">No thanks</button>
       </div>`;
     el.hidden = false;
     noteUpsellShown(offer);
+    bindBagUpsellDismiss(el);
     const btn = el.querySelector("#cart-bundle-switch");
     const colorSelect = el.querySelector("#cart-bundle-case-color");
     const phoneSelect = el.querySelector("#cart-bundle-phone");
