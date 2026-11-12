@@ -92,6 +92,10 @@ function pageHtml(p, ctx) {
   const buyHref = "/" + links.productLinkSearch({ id: p.id, ...pick });
   const details = seo.detailLines(p);
   const more = all.filter((x) => x.id !== p.id && !x.soldOut).map((x) => `<a href="${seo.productPagePath(x)}">${esc(seo.seoName(x))}</a>`).join("\n      ");
+  // Masks only (liveStock). Same 10% first-play offer, no new discount.
+  const arcadeStrip = p.liveStock
+    ? `\n<a class="arcade-strip" href="/arcade?src=pdp">Unlock the Arcade — first play wins 10% off masks</a>`
+    : "";
   const jsonLd = seo.jsonLdText(seo.productJsonLd(p, { now }));
   const crumbs = seo.jsonLdText(seo.breadcrumbJsonLd(p));
   return `<!DOCTYPE html>
@@ -142,6 +146,7 @@ function pageHtml(p, ctx) {
     <a class="cart-toggle" href="/#shop">SHOP</a>
   </div>
 </header>
+${arcadeStrip}
 
 <main class="product-page" id="product-page" data-product-id="${esc(p.id)}">
   <nav class="pp-breadcrumb" aria-label="Breadcrumb"><a href="/#shop">Shop</a> <span aria-hidden="true">/</span> <span>${esc(info.name)}</span></nav>
