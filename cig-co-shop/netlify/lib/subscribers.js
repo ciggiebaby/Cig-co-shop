@@ -13,6 +13,10 @@ const ARCADE_SRC_LIST = Object.freeze({
   shop: "Cards in wholesale boxes that stores hand out",
   fani: "Fani's store (Closette) cards",
   thankyou: "Thank-you email for Printful orders (no card in the box)",
+  home: "Homepage Arcade banner",
+  pdp: "Mask product page Arcade banner",
+  bag: "Bag drawer Arcade link",
+  footer: "Site footer Arcade link",
 });
 // Fallback: a src that is not on the list yet but looks like a slug is still
 // saved as-is, so a new store's cards are not lumped into "arcade" before
@@ -142,10 +146,24 @@ async function recordSubscriber(store, {
 
 const CONSENT_TEXT = Object.freeze({
   arcade: "Arcade: email me about future CIG & CO. drops and promotions (optional checkbox).",
+  arcadeResult: "Arcade result: email me if I win the monthly free-mask giveaway and when drops land.",
   checkout: "Checkout: Keep me posted on drops & discounts (optional checkbox).",
   notify_me: "Notify me when this item is back in stock.",
   early_access: "Early access: email me early access to the next drop and the Black Friday code.",
 });
+
+// Gate checkbox vs the one-tap prompt on the result screen. Anything else
+// (or a missing value) is the gate, so a browser can't invent a consent source.
+function arcadeConsentSource(value) {
+  return value === "arcade_result" ? "arcade_result" : "arcade_gate";
+}
+
+function arcadeConsentCopy(consentSource, granted) {
+  if (granted !== true) return null;
+  return arcadeConsentSource(consentSource) === "arcade_result"
+    ? CONSENT_TEXT.arcadeResult
+    : CONSENT_TEXT.arcade;
+}
 
 module.exports = {
   ALL_SOURCES,
@@ -155,6 +173,8 @@ module.exports = {
   CONSENT_TEXT,
   DISPOSABLE_DOMAINS,
   SOURCES,
+  arcadeConsentCopy,
+  arcadeConsentSource,
   arcadeSource,
   isKnownArcadeSrc,
   isValidSource,

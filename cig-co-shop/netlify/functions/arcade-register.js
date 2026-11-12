@@ -9,8 +9,9 @@ const {
 const { createCustomerStore } = require("../lib/customer-store.js");
 const { syncContactToKit } = require("../lib/integrations.js");
 const {
-  CONSENT_TEXT,
   SOURCES,
+  arcadeConsentCopy,
+  arcadeConsentSource,
   arcadeSource,
   isKnownArcadeSrc,
   assertNotDisposable,
@@ -53,6 +54,9 @@ function createHandler({
         throw new RequestValidationError("Marketing preference is invalid.");
       }
       const marketingConsent = consentProvided ? body.marketingConsent : null;
+      // "arcade_gate" is the optional checkbox. "arcade_result" is the one-tap
+      // prompt after a play. Neither one is required to play or to keep a prize.
+      const consentSource = consentProvided ? arcadeConsentSource(body.consentSource) : null;
       const store = storeFactory();
       const allowed = await store.checkArcadeRateLimit(
         rateLimitKey(event, "arcade-register", environment.SUPABASE_SECRET_KEY),
@@ -81,18 +85,20 @@ function createHandler({
         email,
         emailOriginal: body.email.trim(),
         marketingConsent,
-        consentSource: consentProvided ? "arcade_gate" : null,
+        consentSource: marketingConsent === true ? consentSource : null,
       });
 
       // Email list: every typed-in Arcade email, plus a returning player who
       // just scanned a printed card (so BG can count card traffic per src).
-      if (consentProvided || source !== SOURCES.ARCADE) {
+      // A yes on the gate checkbox or the result prompt always writes a
+      // subscribers row with marketing_consent true (same table, Kit follows).
+      if (consentProvided || source !== SOURCES.ARCADE || marketingConsent === true) {
         await recordSubscriber(store, {
           email,
           emailOriginal: body.email.trim(),
           source,
           marketingConsent: marketingConsent === true,
-          consentText: marketingConsent === true ? CONSENT_TEXT.arcade : null,
+          consentText: arcadeConsentCopy(consentSource, marketingConsent === true),
         }, { logger });
       }
 
@@ -122,6 +128,7 @@ function createHandler({
         email,
         eligible: registration.eligible,
         serverNow: registration.serverNow,
+        marketingConsent: registration.marketingConsent === true,
         lastPlay: publicLastPlay(registration.lastPlay, environment),
       });
     } catch (error) {
