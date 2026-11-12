@@ -20,19 +20,56 @@ const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
 const PAGES = ["index.html", "gallery.html", "arcade.html", "faq.html", "shipping-returns.html"];
 const plain = (v) => JSON.parse(JSON.stringify(v));
 
-function fakeEl() {
+function fakeControl() {
   return {
-    hidden: true, textContent: "", innerHTML: "", listeners: {},
-    addEventListener(type, fn) { this.listeners[type] = fn; },
-    querySelectorAll() { return []; },
-    querySelector() { return null; },
-    classList: { add() {}, remove() {} },
+    value: "",
+    dataset: {},
+    listeners: {},
+    addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); },
+    removeEventListener(type, fn) {
+      this.listeners[type] = (this.listeners[type] || []).filter((f) => f !== fn);
+    },
+    click() { (this.listeners.click || []).forEach((fn) => fn()); },
   };
 }
 
+function fakeEl() {
+  const found = {};
+  let html = "";
+  const el = {
+    hidden: true, textContent: "", listeners: {}, style: {}, scrollHeight: 240, offsetHeight: 240,
+    classList: {
+      _c: new Set(),
+      add(c) { this._c.add(c); },
+      remove(c) { this._c.delete(c); },
+      contains(c) { return this._c.has(c); },
+    },
+    addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); },
+    removeEventListener(type, fn) {
+      this.listeners[type] = (this.listeners[type] || []).filter((f) => f !== fn);
+    },
+    querySelectorAll() { return []; },
+    querySelector(sel) {
+      const id = String(sel).replace(/^#/, "");
+      if (!html.includes(`id="${id}"`)) return null;
+      if (!found[id]) found[id] = fakeControl();
+      return found[id];
+    },
+  };
+  Object.defineProperty(el, "innerHTML", {
+    get() { return html; },
+    set(v) {
+      html = String(v);
+      for (const key of Object.keys(found)) delete found[key];
+    },
+  });
+  return el;
+}
+
 // cart.js in a sandbox with a tiny DOM. withShipping: load shipping-rates.js.
-function loadCart({ items = [], products = catalog.PRODUCTS, withShipping = true, quoteShipping } = {}) {
+function loadCart({ items = [], products = catalog.PRODUCTS, withShipping = true, quoteShipping, session = null } = {}) {
   const store = new Map([["cig_co_cart_v1", JSON.stringify(items)]]);
+  const sessionStore = session || new Map();
   const els = {};
   const ids = ["cart-count", "cart-items", "cart-subtotal-amount", "cart-shipping-row", "cart-shipping-amount",
     "cart-total-row", "cart-total-amount", "cart-ship-note", "cart-bundle-offer", "cart-drawer", "cart-backdrop"];
@@ -41,6 +78,10 @@ function loadCart({ items = [], products = catalog.PRODUCTS, withShipping = true
   const ctx = {
     PRODUCTS: products,
     localStorage: { getItem: (k) => store.get(k) || null, setItem: (k, v) => store.set(k, v) },
+    sessionStorage: {
+      getItem: (k) => (sessionStore.has(k) ? sessionStore.get(k) : null),
+      setItem: (k, v) => sessionStore.set(k, String(v)),
+    },
     document: { getElementById: (id) => els[id] || null },
     cigTrack: (event, productId) => tracked.push([event, productId]),
   };
@@ -48,7 +89,7 @@ function loadCart({ items = [], products = catalog.PRODUCTS, withShipping = true
   vm.createContext(ctx);
   vm.runInContext(read("cart.js"), ctx);
   return {
-    els, tracked,
+    els, tracked, sessionStore,
     run: (code) => vm.runInContext(code, ctx),
     cart: () => JSON.parse(store.get("cig_co_cart_v1")),
   };
@@ -215,9 +256,15 @@ test("Crossbody without a MagSafe case: one-tap switch to the $99 bundle", () =>
   c.run("renderCart()");
   const html = c.els["cart-bundle-offer"].innerHTML;
   assert.equal(c.els["cart-bundle-offer"].hidden, false);
-  assert.match(html, /Add the MagSafe Case for \$34 more/);
-  assert.match(html, /save \$6/);
-  assert.match(html, /Keeps your Navy Crossbody/);
+  const extra = bundle.price - bag.price;
+  const savings = bag.price + pcCase.price - bundle.price;
+  assert.match(html, /Want the MagSafe case too\?/);
+  assert.match(html, new RegExp(`Add it for \\$${extra} more — the ${bundle.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} is \\$${bundle.price} \\(save \\$${savings}\\)\\. Keeps your Navy Crossbody\\.`));
+  assert.doesNotMatch(html, /Add the MagSafe Case for/);
+  assert.match(html, /aria-label="Dismiss offer"/);
+  assert.match(html, /id="cart-bundle-decline"[^>]*>No thanks</);
+  assert.match(html, /aria-label="MagSafe case color"/);
+  assert.match(html, /aria-label="Phone model"/);
   assert.match(html, /Switch to bundle/);
   assert.doesNotMatch(html, /Multi/);
   assert.deepEqual(c.tracked[0], ["bag_upsell_shown", "FW26-BUNDLE"]);
@@ -235,6 +282,78 @@ test("Crossbody without a MagSafe case: one-tap switch to the $99 bundle", () =>
   assert.equal(priced.lineItems[0].price_data.unit_amount, bundle.price * 100);
   c.run("renderCart()");
   assert.equal(c.els["cart-bundle-offer"].hidden, true);
+});
+
+function clickOffer(c, id) {
+  const btn = c.els["cart-bundle-offer"].querySelector("#" + id);
+  assert.ok(btn, id);
+  btn.click();
+}
+
+test("No thanks and the × hide the MagSafe offer for the rest of the session", () => {
+  for (const control of ["cart-bundle-decline", "cart-bundle-dismiss"]) {
+    const session = new Map();
+    const c = loadCart({ items: [bagLine({ qty: 3 })], session });
+    c.run("renderCart()");
+    assert.equal(c.els["cart-bundle-offer"].hidden, false);
+    assert.deepEqual(c.tracked, [["bag_upsell_shown", "FW26-BUNDLE"]]);
+    clickOffer(c, control);
+    assert.equal(session.get("cig_bag_upsell_dismissed"), "1");
+    assert.equal(c.els["cart-bundle-offer"].hidden, true);
+    assert.equal(c.els["cart-bundle-offer"].innerHTML, "");
+    // Dismiss is not a new funnel event (that name needs a site_visits migration).
+    assert.deepEqual(c.tracked, [["bag_upsell_shown", "FW26-BUNDLE"]]);
+
+    // Quantity change and reopening the bag stay dismissed.
+    c.run("const cart = getCart(); cart[0].qty = 1; saveCart(cart);");
+    assert.equal(c.cart()[0].qty, 1);
+    assert.equal(c.els["cart-bundle-offer"].hidden, true);
+    c.run("closeCart(); openCart();");
+    assert.equal(c.els["cart-bundle-offer"].hidden, true);
+    assert.equal(c.tracked.length, 1);
+
+    // Another page in the same tab shares sessionStorage and does not show it.
+    const next = loadCart({ items: [bagLine({ qty: 2 })], session });
+    next.run("renderCart(); openCart();");
+    assert.equal(next.els["cart-bundle-offer"].hidden, true);
+    assert.deepEqual(next.tracked, []);
+
+    // A new session (empty sessionStorage) shows the offer again.
+    const fresh = loadCart({ items: [bagLine()] });
+    fresh.run("renderCart()");
+    assert.equal(fresh.els["cart-bundle-offer"].hidden, false);
+    assert.match(fresh.els["cart-bundle-offer"].innerHTML, /Want the MagSafe case too\?/);
+  }
+});
+
+test("dismiss collapses unless the visitor prefers reduced motion", () => {
+  const c = loadCart({ items: [bagLine()] });
+  c.run("renderCart()");
+  c.run("setTimeout = (fn) => { timers = fn; return 1; }; timers = null;");
+  clickOffer(c, "cart-bundle-decline");
+  const el = c.els["cart-bundle-offer"];
+  assert.equal(el.hidden, false);
+  assert.equal(el.classList.contains("is-dismissing"), true);
+  assert.equal(el.style.maxHeight, "0px");
+  c.run("timers()");
+  assert.equal(el.hidden, true);
+  assert.equal(el.classList.contains("is-dismissing"), false);
+
+  const reduced = loadCart({ items: [bagLine()] });
+  reduced.run("renderCart()");
+  reduced.run("matchMedia = () => ({ matches: true });");
+  clickOffer(reduced, "cart-bundle-dismiss");
+  assert.equal(reduced.els["cart-bundle-offer"].hidden, true);
+  assert.equal(reduced.els["cart-bundle-offer"].classList.contains("is-dismissing"), false);
+});
+
+test("dismissing the MagSafe offer leaves the Crossbody-from-case offer alone", () => {
+  const session = new Map([["cig_bag_upsell_dismissed", "1"]]);
+  const c = loadCart({ items: [caseLine()], session });
+  c.run("renderCart()");
+  assert.equal(c.els["cart-bundle-offer"].hidden, false);
+  assert.match(c.els["cart-bundle-offer"].innerHTML, /Add the Crossbody for/);
+  assert.doesNotMatch(c.els["cart-bundle-offer"].innerHTML, /No thanks|Dismiss offer/);
 });
 
 test("two Crossbodies: the upsell takes one; Multi and a case already in the bag get no offer", () => {
