@@ -175,10 +175,17 @@
       <p id="promo-message" class="promo-message"></p>
 
       <div class="checkout-fields">
-        <input type="email" id="checkout-email" placeholder="Email" required />
-        <input type="text" id="checkout-name" placeholder="Full name" required />
-        <input type="text" id="checkout-address" placeholder="Shipping address" required />
-        <input type="text" id="checkout-city" placeholder="City, State, ZIP" required />
+        <input type="email" id="checkout-email" placeholder="Email" autocomplete="email" inputmode="email" required />
+        <p class="checkout-note">Card and PayPal collect your shipping address on the next page. US shipping is shown in your bag.</p>
+        <div class="checkout-crypto-fields" data-crypto-only hidden>
+          <input type="text" id="checkout-name" placeholder="Full name" autocomplete="name" />
+          <input type="text" id="checkout-address" placeholder="Shipping address" autocomplete="street-address" />
+          <input type="text" id="checkout-city" placeholder="City" autocomplete="address-level2" />
+          <div class="checkout-row">
+            <input type="text" id="checkout-state" placeholder="State (e.g. GA)" maxlength="60" autocomplete="address-level1" />
+            <input type="text" id="checkout-zip" placeholder="ZIP" maxlength="10" autocomplete="postal-code" />
+          </div>
+        </div>
         <label class="checkbox-row">
           <input type="checkbox" id="checkout-optin" />
           <span>Keep me posted on drops &amp; discounts (optional)</span>

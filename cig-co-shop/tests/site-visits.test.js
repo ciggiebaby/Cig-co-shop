@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const beacon = require("../site-visits.js");
-const { createHandler, validatePayload, isBot, countryFrom, MAX_BODY_BYTES } = require("../netlify/functions/track-visit.js");
+const { EVENTS, createHandler, validatePayload, isBot, countryFrom, MAX_BODY_BYTES } = require("../netlify/functions/track-visit.js");
 const { formatSummary } = require("../scripts/weekly-visits.js");
 
 const root = path.join(__dirname, "..");
@@ -83,6 +83,36 @@ test("add-to-bag, product view and checkout start fire the tracking hook", () =>
   assert.match(read("cart.js"), /function trackSiteEvent[\s\S]*?try \{[\s\S]*?catch/);
 });
 
+test("a ?product= landing pageview keeps the product id, referrer and src", () => {
+  assert.equal(beacon.landingProductId("https://cigcompany.com/?product=FW26-BUNDLE&src=ig"), "FW26-BUNDLE");
+  assert.equal(beacon.landingProductId("https://cigcompany.com/?product=%3Cbad%3E&src=ig"), null);
+  assert.equal(beacon.landingProductId("https://cigcompany.com/"), null);
+  const store = {};
+  const storage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
+  const p = beacon.buildPayload("pageview", beacon.landingProductId("https://cigcompany.com/?product=FW26-BUNDLE&src=tiktok"), {
+    location: { href: "https://cigcompany.com/?product=FW26-BUNDLE&src=tiktok", pathname: "/", hostname: "cigcompany.com" },
+    referrer: "https://www.tiktok.com/t/abc", width: 390, storage,
+  });
+  assert.equal(p.event, "pageview");
+  assert.equal(p.path, "/");
+  assert.equal(p.product_id, "FW26-BUNDLE");
+  assert.equal(p.referrer_host, "www.tiktok.com");
+  assert.equal(p.src, "tiktok");
+  assert.equal(p.detail, undefined);
+  assert.equal(beacon.buildPayload("checkout_pay_click", null, {
+    location: { href: "https://cigcompany.com/", pathname: "/", hostname: "cigcompany.com" },
+    referrer: "", width: 390, storage,
+  }, "card").detail, "card");
+  assert.equal(beacon.buildPayload("checkout_validation_error", null, {
+    location: { href: "https://cigcompany.com/", pathname: "/", hostname: "cigcompany.com" },
+    referrer: "", width: 390, storage,
+  }, "a@b.co").detail, undefined);
+});
+
+test("client and server accept the same funnel events", () => {
+  assert.deepEqual(beacon.EVENTS, [...EVENTS]);
+});
+
 test("payload validation keeps known fields only and rejects bad input", () => {
   const row = validatePayload({ ...good, ip: "1.2.3.4", email: "a@b.co", referrer_host: "T.CO" });
   assert.deepEqual(row, {
@@ -91,12 +121,33 @@ test("payload validation keeps known fields only and rejects bad input", () => {
   });
   for (const bad of [
     null, [], "x", { ...good, event: "purchase" }, { ...good, path: "gallery" }, { ...good, path: "/<script>" },
-    { ...good, event: "product_view" }, { ...good, src: "<b>" }, { ...good, utm_source: 5 }, { ...good, session_id: "BAD!" },
+    { ...good, event: "product_view" }, { ...good, path: "/?product=FW26-BUNDLE" },
   ]) {
     assert.throws(() => validatePayload(bad), JSON.stringify(bad));
   }
+  // A bad optional tag is dropped. The visit itself is kept, so a weird
+  // referrer can't erase the pageview (and the src/utm that came with it).
+  const messy = validatePayload({
+    ...good, email: "a@b.co", src: "<b>", utm_source: 5, session_id: "BAD!",
+    referrer_host: "not a host!", detail: "buyer@example.com",
+  });
+  assert.equal(messy.event, "pageview");
+  assert.equal(messy.src, null);
+  assert.equal(messy.utm_source, null);
+  assert.equal(messy.session_id, null);
+  assert.equal(messy.referrer_host, null);
+  assert.equal(messy.detail, undefined);
+  assert.equal(messy.email, undefined);
   assert.equal(validatePayload({ ...good, device: "fridge" }).device, null);
   assert.equal(validatePayload({ ...good, event: "product_view", product_id: "0013" }).product_id, "0013");
+  assert.equal(validatePayload({ ...good, event: "pageview", product_id: "FW26-BUNDLE" }).product_id, "FW26-BUNDLE");
+  const click = validatePayload({ ...good, event: "checkout_pay_click", detail: "card", email: "a@b.co", address: "1 Main" });
+  assert.equal(click.event, "checkout_pay_click");
+  assert.equal(click.detail, "card");
+  assert.equal(click.email, undefined);
+  assert.equal(click.address, undefined);
+  assert.equal(validatePayload({ ...good, event: "checkout_validation_error", detail: "email" }).detail, "email");
+  assert.equal(validatePayload({ ...good, event: "bag_upsell_shown", product_id: "FW26-BUNDLE", detail: "bag" }).detail, "bag");
 });
 
 test("stores a valid visit with country from Netlify geo and no IP or user agent", async () => {
@@ -141,6 +192,17 @@ test("a Supabase failure still answers 204", async () => {
   assert.equal((await handler(post(good))).statusCode, 204);
 });
 
+test("funnel migration allows the new events and a detail token, not personal data", () => {
+  const sql = read("supabase/migrations/202611120001_site_visit_funnel.sql");
+  for (const event of ["checkout_form_view", "checkout_pay_click", "checkout_validation_error", "checkout_session_error", "checkout_redirect", "bag_upsell_shown", "bag_upsell_accepted"]) {
+    assert.match(sql, new RegExp(`'${event}'`), event);
+  }
+  assert.match(sql, /add column if not exists detail text/);
+  assert.match(sql, /char_length\(detail\) <= 40/);
+  assert.doesNotMatch(sql, /user_agent|\bemail text\b|\baddress text\b/);
+  assert.match(sql, /revoke execute on function public\.cigco_site_visits_summary/);
+});
+
 test("migration: RLS on, no public policies, summary function locked to service role", () => {
   const sql = read("supabase/migrations/202610300002_site_visits.sql");
   assert.match(sql, /create table if not exists public\.site_visits/);
@@ -159,12 +221,16 @@ test("weekly report is read-only and formats a summary", () => {
   assert.doesNotMatch(script, /\.insert\(|method: "(POST|PATCH|DELETE)"/);
   const text = formatSummary({
     days: 7,
-    totals: { visits: 12, unique_sessions: 5, product_views: 8, add_to_bag: 2, checkout_start: 1 },
+    totals: {
+      visits: 12, unique_sessions: 5, product_views: 8, add_to_bag: 2, checkout_start: 1,
+      checkout_form_view: 1, checkout_pay_click: 1, checkout_validation_error: 1,
+      checkout_session_error: 0, checkout_redirect: 0, bag_upsell_shown: 1, bag_upsell_accepted: 0,
+    },
     by_day: [{ day: "2026-10-30", visits: 12, unique_sessions: 5, product_views: 8, add_to_bag: 2, checkout_start: 1 }],
     top_pages: [{ path: "/", visits: 10 }], top_products: [{ product_id: "0013", views: 4, add_to_bag: 1 }],
     referrers: [{ referrer: "t.co", visits: 3 }], src: [{ src: "qr", visits: 2 }], utm: [], countries: [{ country: "US", visits: 12 }], devices: [{ device: "mobile", visits: 9 }],
   });
-  for (const s of ["Visits (page views): 12", "Unique sessions: 5", "Add to Bag: 2", "Checkout starts: 1", "2026-10-30  12 / 5 / 8 / 2 / 1", "0013  4 / 1", "qr  2", "US  12"]) {
+  for (const s of ["Visits (page views): 12", "Unique sessions: 5", "Add to Bag: 2", "Checkout starts: 1", "Checkout form views: 1", "Pay clicks: 1", "Validation errors: 1", "Bag upsell shown / accepted: 1 / 0", "2026-10-30  12 / 5 / 8 / 2 / 1", "0013  4 / 1", "qr  2", "US  12"]) {
     assert.ok(text.includes(s), s);
   }
 });

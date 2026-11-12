@@ -672,6 +672,11 @@ function applyCryptoSwitch() {
   if (typeof document === "undefined" || typeof document.querySelectorAll !== "function") return;
   Array.from(document.querySelectorAll("[data-crypto-only]")).forEach((el) => { el.hidden = !cryptoEnabled; });
   Array.from(document.querySelectorAll("[data-crypto-off]")).forEach((el) => { el.hidden = cryptoEnabled; });
+  // Crypto has no hosted address page, so the ship-to country stays visible.
+  if (cryptoEnabled) {
+    const intl = document.getElementById("checkout-intl");
+    if (intl) intl.hidden = false;
+  }
 }
 applyCryptoSwitch();
 
@@ -738,7 +743,10 @@ if (checkoutBtn) {
   checkoutBtn.addEventListener("click", () => {
     const cart = getCart();
     if (cart.length === 0) return;
-    if (typeof trackSiteEvent === "function") trackSiteEvent("checkout_start");
+    if (typeof trackSiteEvent === "function") {
+      trackSiteEvent("checkout_start");
+      trackSiteEvent("checkout_form_view");
+    }
     if (promoInputEl && promoState) promoInputEl.value = promoState;
     renderCheckoutSummary();
     // Close the bag first: on phones the drawer is full width and sat on top of
@@ -879,6 +887,18 @@ if (shipCountryEl && typeof shipCountryEl.addEventListener === "function") {
   shipCountryEl.addEventListener("change", () => renderCheckoutSummary());
 }
 
+const intlToggle = document.getElementById("checkout-intl-toggle");
+if (intlToggle && typeof intlToggle.addEventListener === "function") {
+  intlToggle.addEventListener("click", () => {
+    const intl = document.getElementById("checkout-intl");
+    if (intl) intl.hidden = false;
+    intlToggle.hidden = true;
+    const select = document.getElementById("checkout-country");
+    if (select && typeof select.focus === "function") select.focus();
+    renderCheckoutSummary();
+  });
+}
+
 function renderCheckoutSummary() {
   const summary = document.getElementById("checkout-summary");
   if (!summary) return;
@@ -949,8 +969,38 @@ function validateKoreaCustomsCode(fields) {
     : "South Korea orders need your Personal Customs Clearance Code (PCCC): P followed by 12 digits.";
 }
 
-function validateCheckoutFields(fields) {
-  return fields.email && fields.name && fields.address && fields.city;
+const CHECKOUT_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function payMethodToken(method) {
+  if (method === "stripe") return "card";
+  if (method === "paypal") return "paypal";
+  if (method === "crypto") return "crypto";
+  return "other";
+}
+
+function trackCheckout(event, detail) {
+  if (typeof trackSiteEvent === "function") trackSiteEvent(event, null, detail);
+}
+
+// Card and PayPal collect the street address on their own pages. Crypto does
+// not, so it still needs the address here. Returns { field, message } or null.
+// `field` is a short token (email, pccc, state...) with no shopper data in it.
+function checkoutProblem(fields, method) {
+  if (!fields.email || !CHECKOUT_EMAIL_PATTERN.test(fields.email)) {
+    return { field: "email", message: "Enter your email to continue." };
+  }
+  if (method === "crypto") {
+    if (!fields.name) return { field: "name", message: "Crypto orders need the name on the shipping address." };
+    if (!fields.address) return { field: "address", message: "Crypto orders need a shipping address." };
+    if (!fields.city) return { field: "city", message: "Crypto orders need a city." };
+    const shippingError = validateCryptoShipping(fields);
+    if (shippingError) {
+      return { field: /state/i.test(shippingError) ? "state" : "zip", message: shippingError };
+    }
+  }
+  const pcccError = validateKoreaCustomsCode(fields);
+  if (pcccError) return { field: "pccc", message: pcccError };
+  return null;
 }
 
 // Crypto has no hosted address form, so it needs the full address from us:
@@ -1126,25 +1176,15 @@ paymentButtons.forEach((btn) => {
     }
     const fields = getCheckoutFields();
     const loadingEl = document.getElementById("checkout-loading");
+    const methodToken = payMethodToken(method);
     errorEl.textContent = "";
+    trackCheckout("checkout_pay_click", methodToken);
 
-    if (!validateCheckoutFields(fields)) {
-      errorEl.textContent = "Please fill in all fields before checking out.";
+    const problem = checkoutProblem(fields, method);
+    if (problem) {
+      trackCheckout("checkout_validation_error", problem.field);
+      errorEl.textContent = problem.message;
       return;
-    }
-
-    const pcccError = validateKoreaCustomsCode(fields);
-    if (pcccError) {
-      errorEl.textContent = pcccError;
-      return;
-    }
-
-    if (method === "crypto") {
-      const shippingError = validateCryptoShipping(fields);
-      if (shippingError) {
-        errorEl.textContent = shippingError;
-        return;
-      }
     }
 
     const cart = getCart();
@@ -1172,6 +1212,7 @@ paymentButtons.forEach((btn) => {
 
     const shipQuote = cartShippingQuote(cart, fields.country);
     if (shipQuote.shippingCents === null) {
+      trackCheckout("checkout_validation_error", "country");
       const notHereNames = shipQuote.blocked.filter((name) => !shipQuote.usOnly.includes(name));
       errorEl.textContent = shipQuote.usOnly.length
         ? usOnlyMessage(shipQuote.usOnly)
@@ -1213,13 +1254,24 @@ paymentButtons.forEach((btn) => {
       // enforces this too); prices themselves are always computed server-side.
       const checkoutPromo = method === "crypto" ? null : promoState;
 
-      // Only crypto needs state/ZIP/country from us; card and PayPal collect the
-      // shipping address on their own hosted pages (locked to the chosen country).
-      // The PCCC is only sent for South Korea (customs needs it on the parcel).
-      const { state, zip, country, pccc, ...baseFields } = fields;
-      if (country === "KR") baseFields.pccc = pccc;
-      const customerFields =
-        method === "crypto" ? { ...baseFields, state, zip, country } : baseFields;
+      // Card and PayPal collect the street address on their hosted pages (Stripe
+      // shipping_address_collection, PayPal shipping on capture). Email stays
+      // here so Stripe checkout recovery still gets customer_email. Crypto has
+      // no hosted address form, so it still sends the full address. The PCCC
+      // is only sent for South Korea (customs needs it on the parcel).
+      const country = fields.country;
+      const customerFields = method === "crypto"
+        ? {
+          email: fields.email,
+          name: fields.name,
+          address: fields.address,
+          city: fields.city,
+          state: fields.state,
+          zip: fields.zip,
+          country,
+        }
+        : { email: fields.email };
+      if (country === "KR") customerFields.pccc = fields.pccc;
 
       let requestBody = buildCheckoutRequestBody(
         method,
@@ -1267,10 +1319,17 @@ paymentButtons.forEach((btn) => {
       if (!res.ok || !data.url) {
         throw new Error(data.error || "Checkout could not be started.");
       }
+      trackCheckout("checkout_redirect", methodToken);
       // Save the cart+order id locally in case you want to show an order history later.
       window.location.href = data.url;
     } catch (err) {
       loadingEl.hidden = true;
+      const reason = err instanceof CheckoutFingerprintError
+        ? "fingerprint"
+        : err instanceof CheckoutRequestError
+          ? "rejected"
+          : "failed";
+      trackCheckout("checkout_session_error", `${methodToken}_${reason}`);
       if (err instanceof CheckoutFingerprintError) {
         console.error(
           "Checkout fingerprint generation failed.",

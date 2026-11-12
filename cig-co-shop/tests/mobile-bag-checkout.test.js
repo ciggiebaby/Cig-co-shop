@@ -198,3 +198,78 @@ test("the bundle offer never shows or uses the Multi Crossbody", () => {
   t.run('switchCaseToBundle(bundleOffer(getCart()).caseKey, bundleOffer(getCart()).crossbodyColor)');
   assert.ok(t.cart().every((i) => i.color !== "Multi"));
 });
+
+const bagLine = (extra = {}) => ({ productId: "FW26-BAG", sku: "FW26-BAG", name: "Crossbody Bag", price: 65, image: "x.jpg", color: "Navy", size: null, style: null, qty: 1, ...extra });
+
+test("Crossbody without a MagSafe case: one-tap switch to the $99 bundle", () => {
+  const c = loadCart({ items: [bagLine()] });
+  const offer = plain(c.run("bagBundleOffer(getCart())"));
+  assert.equal(c.run("bundleOffer(getCart())"), null);
+  assert.equal(offer.kind, "bag");
+  assert.equal(offer.bundle.id, "FW26-BUNDLE");
+  assert.equal(offer.extra, bundle.price - bag.price);
+  assert.equal(offer.savings, bag.price + pcCase.price - bundle.price);
+  assert.equal(offer.caseColor, "Burgundy");
+  assert.equal(offer.phone, "iPhone 16 Pro");
+  assert.ok(!offer.caseColors.includes("Multi"));
+  c.run("renderCart()");
+  const html = c.els["cart-bundle-offer"].innerHTML;
+  assert.equal(c.els["cart-bundle-offer"].hidden, false);
+  assert.match(html, /Add the MagSafe Case for \$34 more/);
+  assert.match(html, /save \$6/);
+  assert.match(html, /Keeps your Navy Crossbody/);
+  assert.match(html, /Switch to bundle/);
+  assert.doesNotMatch(html, /Multi/);
+  assert.deepEqual(c.tracked[0], ["bag_upsell_shown", "FW26-BUNDLE"]);
+
+  assert.equal(c.run('switchBagToBundle(bagBundleOffer(getCart()).lineKey, "Gold", "iPhone 15")'), true);
+  const cart = c.cart();
+  assert.equal(cart.length, 1);
+  assert.deepEqual(
+    { productId: cart[0].productId, color: cart[0].color, style: cart[0].style, size: cart[0].size, price: cart[0].price, qty: cart[0].qty },
+    { productId: "FW26-BUNDLE", color: "Navy", style: "Gold", size: "iPhone 15", price: bundle.price, qty: 1 },
+  );
+  assert.deepEqual(c.tracked.at(-2), ["bag_upsell_accepted", "FW26-BUNDLE"]);
+  assert.deepEqual(c.tracked.at(-1), ["add_to_bag", "FW26-BUNDLE"]);
+  const priced = priceCartForStripe([{ productId: "FW26-BUNDLE", color: "Navy", style: "Gold", size: "iPhone 15", quantity: 1 }]);
+  assert.equal(priced.lineItems[0].price_data.unit_amount, bundle.price * 100);
+  c.run("renderCart()");
+  assert.equal(c.els["cart-bundle-offer"].hidden, true);
+});
+
+test("two Crossbodies: the upsell takes one; Multi and a case already in the bag get no offer", () => {
+  const two = loadCart({ items: [bagLine({ qty: 2 })] });
+  two.run('switchBagToBundle(bagBundleOffer(getCart()).lineKey, "Burgundy", "iPhone 16 Pro")');
+  assert.deepEqual(two.cart().map((i) => [i.productId, i.qty]), [["FW26-BAG", 1], ["FW26-BUNDLE", 1]]);
+
+  const multi = loadCart({ items: [bagLine({ color: "Multi", price: 75 })] });
+  assert.equal(multi.run("bagBundleOffer(getCart())"), null);
+  multi.run("renderCart()");
+  assert.equal(multi.els["cart-bundle-offer"].hidden, true);
+
+  const withCase = loadCart({ items: [bagLine(), caseLine()] });
+  assert.equal(withCase.run("bagBundleOffer(getCart())"), null);
+  assert.equal(withCase.run("bundleOffer(getCart())"), null);
+  withCase.run("renderCart()");
+  assert.equal(withCase.els["cart-bundle-offer"].hidden, true);
+
+  assert.equal(loadCart({ items: [bagLine()] }).run('switchBagToBundle(bagBundleOffer(getCart()).lineKey, "Multi", "iPhone 16 Pro")'), false);
+  assert.equal(loadCart({ items: [bagLine()] }).run('switchBagToBundle(bagBundleOffer(getCart()).lineKey, "Burgundy", "Galaxy")'), false);
+});
+
+test("card and PayPal checkout asks for an email, and the street address is crypto-only", () => {
+  for (const page of ["index.html", "faq.html", "shipping-returns.html"]) {
+    const html = read(page);
+    const fieldsStart = html.indexOf('class="checkout-fields"');
+    const pay = html.indexOf("Choose payment method", fieldsStart);
+    const fields = html.slice(fieldsStart, pay);
+    assert.match(fields, /id="checkout-email"/, page);
+    assert.match(fields, /id="checkout-intl-toggle"/, page);
+    assert.match(fields, /Shipping outside the US\?/, page);
+    assert.match(fields, /collect your shipping address on the next page/, page);
+    const addressAt = fields.indexOf('id="checkout-address"');
+    const cryptoAt = fields.lastIndexOf("data-crypto-only", addressAt);
+    assert.ok(cryptoAt > 0 && cryptoAt < addressAt, `${page} address stays in the crypto block`);
+    assert.doesNotMatch(fields.slice(0, cryptoAt), /id="checkout-name"|id="checkout-address"|id="checkout-city"/, page);
+  }
+});
