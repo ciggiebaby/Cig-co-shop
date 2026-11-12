@@ -577,7 +577,7 @@ test("the Stripe click flow sends the fingerprinted existing payload", async () 
     ],
     promoCode: "CIG10",
     customer: {
-      ...customer,
+      email: "customer@example.com",
       marketingConsent: false,
     },
     checkoutFingerprint:
@@ -589,6 +589,26 @@ test("the Stripe click flow sends the fingerprinted existing payload", async () 
   );
   assert.equal(frontend.loadingElement.hidden, false);
   assert.equal(frontend.paymentButtons[0].disabled, false);
+  assert.equal(JSON.parse(requests[0].options.body).customer.name, undefined);
+  assert.equal(JSON.parse(requests[0].options.body).customer.address, undefined);
+  assert.equal(JSON.parse(requests[0].options.body).customer.city, undefined);
+});
+
+test("card checkout stops on a missing email and does not send an address", async () => {
+  const requests = [];
+  const frontend = loadFrontend({
+    fetchImpl: async (endpoint, options) => {
+      requests.push(JSON.parse(options.body));
+      return { ok: true, async json() { return { url: "https://checkout.stripe.test/session" }; } };
+    },
+    fingerprintApi: { async createCheckoutFingerprint() { return "v1:" + "d".repeat(64); } },
+    paymentMethods: ["stripe"],
+    fieldOverrides: { "checkout-email": "" },
+    storedCart: [{ productId: "TEST-PILLOW", name: "Test Pillow Case", price: 10, image: "", color: "Red", size: null, style: null, qty: 1 }],
+  });
+  await frontend.paymentButtons[0].click();
+  assert.equal(requests.length, 0);
+  assert.match(frontend.errorElement.textContent, /email/i);
 });
 
 test("does not send checkout when fingerprint generation fails", async () => {
