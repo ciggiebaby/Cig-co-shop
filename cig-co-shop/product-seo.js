@@ -27,21 +27,21 @@
   // Google-facing name, page slug and Merchant Center category per product.
   // gpc = Google product category id (taxonomy-with-ids.en-US.txt).
   var SEO = {
-    "FW26-BAG": { slug: "paisley-crossbody-bag", name: "Paisley Bandana Print Crossbody Bag", gpc: "3032", type: "FW26/27 Collection > Bags > Crossbody Bag", apparel: true },
-    "FW26-CASE": { slug: "paisley-magsafe-phone-case", name: "Paisley Bandana Print MagSafe Phone Case", gpc: "2353", type: "FW26/27 Collection > Tech > MagSafe Phone Case" },
-    "FW26-BUNDLE": { slug: "paisley-crossbody-magsafe-bundle", name: "Paisley Bandana Print Crossbody Bag + MagSafe Case Bundle", gpc: "3032", type: "FW26/27 Collection > Bundles > Crossbody + MagSafe", apparel: true, bundle: true },
-    "FW26-SLEEVE": { slug: "paisley-laptop-sleeve", name: "Paisley Bandana Print Laptop Sleeve", gpc: "279", type: "FW26/27 Collection > Tech > Laptop Sleeve" },
-    "FW26-PILLOW": { slug: "paisley-throw-pillow", name: "Paisley Bandana Print Throw Pillow", gpc: "4454", type: "FW26/27 Collection > Home > Throw Pillow" },
-    "FW26-TOTE": { slug: "paisley-tote-bag", name: "Paisley Bandana Print Tote Bag", gpc: "5608", type: "FW26/27 Collection > Bags > Tote Bag" },
-    "0005": { slug: "paisley-balaclava", name: "Paisley Bandana Print Balaclava", gpc: "1786", type: "Masks > Balaclava", apparel: true,
+    "FW26-BAG": { slug: "paisley-crossbody-bag", name: "Bandana Paisley Crossbody Bag", gpc: "3032", type: "FW26/27 Collection > Bags > Crossbody Bag", apparel: true },
+    "FW26-CASE": { slug: "paisley-magsafe-phone-case", name: "Bandana Paisley Phone Case, MagSafe iPhone", gpc: "2353", type: "FW26/27 Collection > Tech > MagSafe Phone Case" },
+    "FW26-BUNDLE": { slug: "paisley-crossbody-magsafe-bundle", name: "Bandana Paisley Crossbody Bag + MagSafe Phone Case Bundle", gpc: "3032", type: "FW26/27 Collection > Bundles > Crossbody + MagSafe", apparel: true, bundle: true },
+    "FW26-SLEEVE": { slug: "paisley-laptop-sleeve", name: "Bandana Paisley Laptop Sleeve", gpc: "279", type: "FW26/27 Collection > Tech > Laptop Sleeve" },
+    "FW26-PILLOW": { slug: "paisley-throw-pillow", name: "Bandana Paisley Throw Pillow", gpc: "4454", type: "FW26/27 Collection > Home > Throw Pillow" },
+    "FW26-TOTE": { slug: "paisley-tote-bag", name: "Bandana Paisley Tote Bag", gpc: "5608", type: "FW26/27 Collection > Bags > Tote Bag" },
+    "0005": { slug: "paisley-balaclava", name: "Bandana Paisley Balaclava", gpc: "1786", type: "Masks > Balaclava", apparel: true,
       blurb: "Full-face balaclava in an all-over paisley bandana print." },
-    "0008": { slug: "paisley-ski-mask", name: "Paisley Bandana Print Ski Mask", gpc: "1786", type: "Masks > Ski Mask", apparel: true,
+    "0008": { slug: "paisley-ski-mask", name: "Bandana Paisley Ski Mask", gpc: "1786", type: "Masks > Ski Mask", apparel: true,
       blurb: "Ski mask in an all-over paisley bandana print, in 1-Hole, 3-Hole and Skully styles." },
-    "0013": { slug: "paisley-moto-mask", name: "Paisley Bandana Print Moto Mask", gpc: "167", type: "Masks > Moto Mask", apparel: true,
+    "0013": { slug: "paisley-moto-mask", name: "Bandana Paisley Moto Mask", gpc: "167", type: "Masks > Moto Mask", apparel: true,
       blurb: "Moto face mask in a paisley bandana print." },
     "0004": { slug: "silky-bonnet-durag", name: "Silky Bonnet & Durag", gpc: "2020", type: "Headwear > Bonnet & Durag", apparel: true,
       blurb: "Silky bonnet and durag, sold as a set or on their own." },
-    "0011": { slug: "paisley-bikini", name: "Paisley Bikini", gpc: "211", type: "Swimwear > Bikini", apparel: true, gender: "female",
+    "0011": { slug: "paisley-bikini", name: "Bandana Paisley Bikini", gpc: "211", type: "Swimwear > Bikini", apparel: true, gender: "female",
       blurb: "Bikini in a paisley bandana print, sold as a set or as a separate top or bottom." },
   };
 
@@ -55,6 +55,23 @@
     return { slug: slugify(name || p.id), name: name || p.id, gpc: "", type: "" };
   }
   function seoName(p) { return seoInfo(p).name; }
+  // Printed items (all-over paisley bandana print). Solid items (e.g. the silky bonnet & durag) stay worded as-is.
+  function isBandanaPrint(p) { return /^Bandana Paisley /.test(seoInfo(p).name); }
+  var PRINT_LINE = "All-over paisley bandana print: a classic bandana pattern for anyone shopping bandana style.";
+  // What shoppers actually type for each printed product (CIG, 11/5). Honest matches only.
+  var SEARCH_LINES = {
+    "FW26-BAG": "A bandana bag: paisley bandana crossbody bag.",
+    "FW26-BUNDLE": "Bandana bag + bandana phone case set: paisley bandana crossbody bag with a matching MagSafe phone case.",
+    "FW26-CASE": "A bandana phone case: paisley bandana iPhone case with MagSafe.",
+    "FW26-TOTE": "A bandana tote: paisley bandana tote bag.",
+    "FW26-PILLOW": "Bandana pillow: paisley bandana throw pillow and cushion.",
+    "FW26-SLEEVE": "Bandana laptop sleeve in a paisley bandana print.",
+    "0008": "Bandana ski mask and bandana mask, also called a shiesty (sheisty).",
+    "0005": "Bandana balaclava, bandana ski mask and bandana mask, also called a shiesty (sheisty).",
+    "0013": "Bandana mask: paisley bandana moto face mask.",
+    "0011": "Bandana bikini in a paisley bandana print."
+  };
+  function printLines(p) { return [PRINT_LINE, SEARCH_LINES[p.id]].filter(Boolean).join(" "); }
   function productSlug(p) { return seoInfo(p).slug; }
   function productPagePath(p) { return "/products/" + productSlug(p) + "/"; }
   function productPageUrl(p, base) { return (base || SITE_URL) + "products/" + productSlug(p) + "/"; }
@@ -180,7 +197,8 @@
   }
   function variantTitle(p, sel) {
     var name = seoName(p);
-    if (p.id === "FW26-CASE" && sel.size) return name + " for " + sel.size + " - " + sel.color;
+    // Print leads, then the search term, then MagSafe + model (shoppers search the look, not the tech).
+    if (p.id === "FW26-CASE" && sel.size) return name.replace(/ iPhone$/, "") + " " + sel.size + " - " + sel.color;
     if ((p.id === "FW26-SLEEVE" || p.id === "FW26-PILLOW" || p.id === "0008") && sel.size) return name + " " + sizeText(p, sel.size) + " - " + sel.color;
     var bits = [sel.style, sel.color, sel.size].filter(Boolean);
     return bits.length ? name + " - " + bits.join(", ") : name;
@@ -216,6 +234,7 @@
       if (p.soldOut) parts.push("Currently sold out.");
       if (p.liveStock) parts.push("In stock and ships from the US in 1–2 business days. Free US shipping, delivered in about 5–14 business days.");
     }
+    if (isBandanaPrint(p)) parts.splice(1, 0, printLines(p));
     return cleanText(parts.join(" ").replace(BLOCKED_WORDS, "").replace(/\s+([.,])/g, "$1"));
   }
   function metaDescription(p, now) {
@@ -224,7 +243,7 @@
     var price = lo === hi ? "$" + lo.toFixed(2) : "From $" + lo.toFixed(2);
     var ship = p.pod ? "Free US shipping." : p.liveStock ? "Free US shipping." : "";
     var colors = p.colors && p.colors.length > 1 ? " " + p.colors.length + " colorways." : "";
-    return cleanText(seoName(p) + ". " + price + "." + colors + " " + ship);
+    return cleanText(seoName(p) + ". " + (isBandanaPrint(p) ? (SEARCH_LINES[p.id] || "Paisley bandana print.") + " " : "") + price + "." + colors + " " + ship);
   }
 
   // ---------- schema.org ----------
@@ -358,7 +377,7 @@
   function jsonLdText(data) { return JSON.stringify(data).replace(/</g, "\\u003c"); }
 
   // ---------- Google Merchant Center feed (TSV) ----------
-  var FEED_COLUMNS = ["id", "item_group_id", "title", "description", "link", "image_link", "additional_image_link", "availability", "price", "sale_price", "sale_price_effective_date", "condition", "brand", "identifier_exists", "is_bundle", "google_product_category", "product_type", "color", "size", "pattern", "material", "gender", "age_group", "shipping", "shipping_label", "custom_label_0"];
+  var FEED_COLUMNS = ["id", "item_group_id", "title", "description", "link", "image_link", "additional_image_link", "availability", "price", "sale_price", "sale_price_effective_date", "condition", "brand", "identifier_exists", "is_bundle", "google_product_category", "product_type", "color", "size", "pattern", "material", "gender", "age_group", "shipping", "shipping_label", "custom_label_0", "custom_label_1"];
   function money(n) { return Number(n).toFixed(2) + " USD"; }
   function isoMinute(ms) {
     // ISO 8601 with an explicit UTC offset, as Merchant Center wants.
@@ -409,6 +428,7 @@
           shipping: "US:::" + money(shippingUsd(p)),
           shipping_label: p.liveStock ? "mask_free_us" : "fw26_free_us",
           custom_label_0: p.pod ? "FW26 made to order" : "Mask in hand",
+          custom_label_1: isBandanaPrint(p) ? "Bandana Print" : "",
         });
       });
     });
