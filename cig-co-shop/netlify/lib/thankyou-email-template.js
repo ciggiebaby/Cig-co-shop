@@ -25,11 +25,11 @@ const LINKS = Object.freeze({
 
 const THANKYOU_COPY = Object.freeze({
   subject: "Thank you from Cig & Co. (order {orderRef})",
-  preheader: "Your order made it. One more thing: the Arcade is open.",
+  preheader: "Your order should be with you soon. One more thing: the Arcade is open.",
   heading: "Thank you.",
   greeting: "Hey {firstName},",
   greetingNoName: "Hey,",
-  intro: "Your Cig & Co. order {orderRef} should be with you now. Every piece is printed to order in our paisley, so it's one of a kind in your hands. We hope it looks as good on you (or your couch) as it did in our heads.",
+  intro: "Your Cig & Co. order {orderRef} should be with you soon, if it isn't already. Every piece is printed to order in our paisley, so it's one of a kind in your hands. We hope it looks as good on you (or your couch) as it did in our heads.",
   arcadeLine: "Our boxes usually come with a card to the Cig & Co. Arcade. Yours shipped straight from the print shop, so here's your pass. Play free for a shot at mask prizes.",
   arcadeButton: "Play the Arcade",
   fitLead: "Complete the fit:",

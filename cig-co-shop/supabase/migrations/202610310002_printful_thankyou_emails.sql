@@ -1,6 +1,11 @@
 -- Thank-you email for Printful-fulfilled orders (those boxes get no QR card).
 -- (CIG asked for it on the email-list branch, Oct 29, 2026.)
 --
+-- The shipped fallback below is the original 5-day wait for every country.
+-- 202611160001_thankyou_intl_delay.sql replaces cigco_thankyou_record_event
+-- so orders outside the US wait longer. Re-running this file after that
+-- migration recreates the old 5-argument function; don't.
+--
 -- POST-MERGE STEP. Same rules as 202610310001: don't run before the Fri Oct 30
 -- noon drop, only after CIG OKs the merge, in CIG-CO-PRODUCTION, right before
 -- the deploy that includes it. Additive and idempotent. Nothing is sent unless

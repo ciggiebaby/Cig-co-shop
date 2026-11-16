@@ -172,12 +172,19 @@ link + one-click headers. Sent from `RESEND_FROM_EMAIL` via Resend.
   (no QR image is stored in the repo); unset = no QR.
 - **Trigger:** Printful v2 webhooks, signed (HMAC-SHA256,
   `x-pf-webhook-signature`), at `/.netlify/functions/printful-webhook`.
-  `shipment_delivered` sends right away. `shipment_sent` schedules it for
-  shipped + `THANKYOU_DELAY_DAYS` (default 5); the hourly
-  `thankyou-email-sweep` sends it if "delivered" never arrives (some carriers
-  never report delivery) and retries failed sends (up to 5 tries).
+  `shipment_delivered` sends right away. `shipment_sent` schedules a fallback
+  for carriers that never report delivery. The hourly `thankyou-email-sweep`
+  sends it and retries failed sends (up to 5 tries). The wait is
+  `THANKYOU_DELAY_DAYS` (default 5) when
+  `orders.shipping_destination.country` is `US` or missing, and
+  `THANKYOU_INTL_DELAY_DAYS` (default 14) for every other country (Korea,
+  Canada, the UK, and the rest). The code is the ISO alpha-2 value stored at
+  checkout (`"KR"`, `"CA"`, …), compared case-insensitively.
 - **Once per order:** one `thankyou_emails` row per Printful order with an
-  atomic claim and a sent flag (`status = 'sent'`, `sent_at`).
+  atomic claim and a sent flag (`status = 'sent'`, `sent_at`). A later
+  shipment event does not send again, and the international-delay migration
+  does not touch rows already marked sent. Resend also dedupes on
+  `thankyou/<printful order id>`.
 - **Skipped:** orders with anything CIG ships himself (masks, or any other
   non-Printful item: that box has his QR card), people who unsubscribed, and
   orders that can't be matched to a paid store order (retried, then left
@@ -198,7 +205,13 @@ Setup (after merge + CIG's OK):
    `PRINTFUL_WEBHOOK_SECRET`.
 3. Netlify env: `PRINTFUL_WEBHOOK_SECRET`, `THANKYOU_EMAIL_ENABLED=true` (when
    CIG says go), optional `THANKYOU_DELAY_DAYS`, optional
+   `THANKYOU_INTL_DELAY_DAYS` (default 14 when unset), optional
    `THANKYOU_QR_IMAGE_URL`; `UNSUBSCRIBE_SECRET` for the unsubscribe link.
+4. Run `supabase/migrations/202611160001_thankyou_intl_delay.sql` before the
+   deploy that includes the longer international fallback. It replaces
+   `cigco_thankyou_record_event`. Safe to re-run. It only pushes `due_at`
+   later for waiting, failed, or stuck-sending rows that have not been
+   delivered; sent rows stay sent.
 
 ## PayPal and crypto payment confirmation
 
