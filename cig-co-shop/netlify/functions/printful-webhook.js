@@ -5,7 +5,9 @@
 //   shipment_sent + shipment_delivered; put the returned secret_key in
 //   PRINTFUL_WEBHOOK_SECRET.
 // Env: PRINTFUL_WEBHOOK_SECRET, THANKYOU_EMAIL_ENABLED (default off),
-//      THANKYOU_DELAY_DAYS (default 5), RESEND_*, SUPABASE_*.
+//      THANKYOU_DELAY_DAYS (default 5, US / unknown country),
+//      THANKYOU_INTL_DELAY_DAYS (default 14, every other country),
+//      RESEND_*, SUPABASE_*.
 const { createCustomerStore } = require("../lib/customer-store.js");
 const { safeIdentifier } = require("../lib/customer-utils.js");
 const { createResendClient } = require("../lib/resend.js");
@@ -13,6 +15,7 @@ const {
   processThankYou,
   thankyouDelayDays,
   thankyouEnabled,
+  thankyouIntlDelayDays,
   verifyPrintfulSignature,
 } = require("../lib/thankyou.js");
 
@@ -89,7 +92,11 @@ function createHandler({
         externalId: typeof order.external_id === "string" ? order.external_id.slice(0, 64) : null,
         event: kind,
         occurredAt,
+        // Both windows are recorded. SQL picks from the store order's
+        // shipping_destination.country: US or blank uses delayDays, anything
+        // else uses intlDelayDays. Delivered is due immediately either way.
         delayDays: thankyouDelayDays(environment),
+        intlDelayDays: thankyouIntlDelayDays(environment),
       });
       // Delivered (or a zero delay) is due now; otherwise the hourly sweep sends it.
       const result = await processThankYou({ store, printfulOrderId, resend: resendFactory, logger });
