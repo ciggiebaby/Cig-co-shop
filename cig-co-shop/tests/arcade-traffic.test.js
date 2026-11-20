@@ -21,7 +21,7 @@ const root = path.join(__dirname, "..");
 const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
 const OFFER = "Unlock the Arcade — first play wins 10% off masks";
 const PROMPT = "Get emailed if you win the monthly free-mask giveaway and when drops land.";
-const BAG_PAGES = ["index.html", "gallery.html", "arcade.html", "faq.html", "shipping-returns.html"];
+const BAG_PAGES = ["index.html", "gallery.html", "arcade.html", "faq.html", "shipping-returns.html", "privacy.html"];
 
 function between(html, start, end) {
   const i = html.indexOf(start);
@@ -38,7 +38,7 @@ test("site banners and links use the existing 10% masks offer and a src slug", (
   const homeModal = home.slice(home.indexOf('id="checkout-modal"'));
   assert.doesNotMatch(homeModal, /arcade-strip|cart-arcade-link|src=home|src=bag|Unlock the Arcade/);
 
-  for (const page of ["gallery.html", "faq.html", "shipping-returns.html", "arcade.html"]) {
+  for (const page of ["gallery.html", "faq.html", "shipping-returns.html", "arcade.html", "privacy.html"]) {
     assert.doesNotMatch(read(page), /class="arcade-strip"/, page);
   }
 
