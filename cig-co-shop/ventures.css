@@ -1,0 +1,175 @@
+/* ---------- CIG Ventures (/ventures) ---------- */
+.ventures-hero {
+  position: relative;
+  text-align: center;
+  padding: 120px 24px 104px;
+  border-bottom: 1px solid var(--border);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(212, 175, 55, 0.14), transparent 58%),
+    var(--black);
+}
+.ventures-kicker {
+  font-family: "Jost", Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 8px;
+}
+.ventures-division {
+  font-family: "Bodoni Moda", Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 17px;
+  color: #bbb;
+  margin: 0 0 32px;
+}
+.ventures-headline {
+  font-family: "Bodoni Moda", Georgia, serif;
+  font-weight: 500;
+  font-size: clamp(36px, 7.2vw, 76px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: #fff;
+  max-width: 11.5em;
+  margin: 0 auto 28px;
+}
+.ventures-rule {
+  display: block;
+  width: 48px;
+  height: 1px;
+  background: var(--gold);
+  border: 0;
+  margin: 0 auto 32px;
+}
+.ventures-lede {
+  font-family: "Jost", Helvetica, Arial, sans-serif;
+  font-weight: 300;
+  font-size: clamp(16px, 2vw, 18px);
+  line-height: 1.75;
+  color: #cfcfcf;
+  max-width: 640px;
+  margin: 0 auto 40px;
+}
+.ventures-hero .btn-gold {
+  width: auto;
+}
+.ventures-hero-note {
+  margin: 18px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+
+.ventures-main {
+  max-width: none;
+  padding: 0;
+  color: #ccc;
+}
+.ventures-section {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 8px 24px 0;
+}
+.ventures-section .section-title {
+  margin: 80px 0 16px;
+}
+.ventures-section-intro {
+  text-align: center;
+  color: #ccc;
+  font-size: 15px;
+  line-height: 1.7;
+  max-width: 640px;
+  margin: 0 auto 48px;
+}
+
+.ventures-services {
+  display: grid;
+  gap: 22px;
+  margin: 0 0 12px;
+}
+.ventures-service {
+  border: 1px solid var(--border);
+  padding: 36px 34px 32px;
+  background: rgba(255, 255, 255, 0.015);
+}
+.ventures-service-index {
+  font-family: "Jost", Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 14px;
+}
+.ventures-service h2 {
+  font-family: "Bodoni Moda", Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(26px, 4vw, 34px);
+  color: #fff;
+  margin: 0 0 8px;
+  line-height: 1.15;
+}
+.ventures-service-price {
+  font-family: "Jost", Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 20px;
+}
+.ventures-service p {
+  color: #ccc;
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0 0 14px;
+}
+.ventures-service p:last-child { margin-bottom: 0; }
+
+.ventures-notes {
+  max-width: 640px;
+  margin: 36px auto 0;
+  color: #999;
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+}
+.ventures-notes p { margin: 0 0 12px; }
+.ventures-notes p:last-child { margin-bottom: 0; }
+
+.ventures-contact {
+  text-align: center;
+  padding: 72px 24px 108px;
+}
+.ventures-contact .section-title { margin: 0 0 16px; }
+.ventures-contact-copy {
+  max-width: 520px;
+  margin: 0 auto 28px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #ccc;
+}
+.ventures-email {
+  font-family: "Bodoni Moda", Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(22px, 4vw, 34px);
+  color: var(--gold);
+  text-decoration: none;
+}
+.ventures-email:hover,
+.ventures-email:focus {
+  color: var(--gold-bright);
+}
+
+@media (max-width: 640px) {
+  .ventures-hero { padding: 92px 20px 76px; }
+  .ventures-section { padding: 0 18px; }
+  .ventures-section .section-title { margin-top: 64px; }
+  .ventures-service { padding: 28px 20px 24px; }
+  .ventures-contact { padding: 56px 20px 88px; }
+}
+

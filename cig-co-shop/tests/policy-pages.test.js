@@ -70,6 +70,7 @@ test("sitemap lists the new pages", () => {
   const sitemap = read("sitemap.xml");
   assert.match(sitemap, /cigcompany\.com\/shipping-returns</);
   assert.match(sitemap, /cigcompany\.com\/faq</);
+  assert.match(sitemap, /cigcompany\.com\/ventures</);
 });
 
 test("the Masks shipping line links to the mask terms section", () => {
