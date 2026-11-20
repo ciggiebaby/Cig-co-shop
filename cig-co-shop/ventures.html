@@ -108,7 +108,7 @@
     <ol class="ventures-steps">
       <li>
         <p class="ventures-step-label">1. Intake</p>
-        <p>Email ventures@cigcompany.com with the service you want and what you need.</p>
+        <p>Tell us what you need on the order form below.</p>
       </li>
       <li>
         <p class="ventures-step-label">2. Quote</p>
@@ -127,8 +127,33 @@
 
   <section class="ventures-contact" id="order" aria-labelledby="ventures-contact-title">
     <h2 class="section-title" id="ventures-contact-title">Order</h2>
-    <p class="ventures-contact-copy">The on-site order form is off. Email us about the research you need. We’ll reply within 1 business day with scope and a payment link.</p>
-    <a class="ventures-email" href="mailto:ventures@cigcompany.com">ventures@cigcompany.com</a>
+    <p class="ventures-contact-copy">Tell us about the research you need. We’ll reply within 1 business day with scope and a payment link.</p>
+    <form class="ventures-intake" id="ventures-intake" novalidate>
+      <label for="intake-service">Service</label>
+      <select id="intake-service" name="service" required>
+        <option value="">Select a service</option>
+        <option value="lead-research">B2B lead research</option>
+        <option value="competitor-intelligence">Competitor &amp; market intelligence</option>
+        <option value="signal-federal">SIGNAL Federal</option>
+      </select>
+      <label for="intake-name">Name</label>
+      <input type="text" id="intake-name" name="name" autocomplete="name" required />
+      <label for="intake-business">Business</label>
+      <input type="text" id="intake-business" name="business" autocomplete="organization" required />
+      <label for="intake-email">Email</label>
+      <input type="email" id="intake-email" name="email" autocomplete="email" inputmode="email" required />
+      <label for="intake-need">What you need / target market or NAICS codes</label>
+      <textarea id="intake-need" name="need" rows="5" required></textarea>
+      <label for="intake-budget">Budget / timeline</label>
+      <input type="text" id="intake-budget" name="budgetTimeline" autocomplete="off" />
+      <div class="hp-field" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>
+      <button type="submit" class="btn btn-gold" id="intake-submit">Submit order request</button>
+      <p class="ventures-intake-message" id="intake-message" role="status" aria-live="polite"></p>
+    </form>
+    <noscript>
+      <p class="ventures-contact-copy">JavaScript is off, so email <a href="mailto:ventures@cigcompany.com">ventures@cigcompany.com</a> with the service, your name, business, and what you need.</p>
+    </noscript>
+    <p class="ventures-intake-alt">Or email <a class="ventures-email" href="mailto:ventures@cigcompany.com">ventures@cigcompany.com</a></p>
   </section>
 </main>
 
