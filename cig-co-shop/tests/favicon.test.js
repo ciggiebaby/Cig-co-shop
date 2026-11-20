@@ -24,7 +24,7 @@ const TAGS = [
 ];
 
 test("every page links the favicon set in its <head>", () => {
-  assert.deepEqual(pages.sort(), ["arcade.html", "faq.html", "gallery.html", "index.html", "privacy.html", "shipping-returns.html"]);
+  assert.deepEqual(pages.sort(), ["arcade.html", "faq.html", "gallery.html", "index.html", "privacy.html", "shipping-returns.html", "ventures.html"]);
   for (const f of pages) {
     const html = read(f).toString("utf8");
     const head = html.slice(0, html.indexOf("</head>"));

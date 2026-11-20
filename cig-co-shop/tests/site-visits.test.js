@@ -26,7 +26,9 @@ test("every HTML page loads site-visits.js once, before the other scripts", () =
   for (const f of pages) {
     const html = read(f);
     assert.equal(html.split('<script src="site-visits.js"></script>').length - 1, 1, f);
-    assert.ok(html.indexOf("site-visits.js") < html.indexOf('<script src="products.js">'), f);
+    const visits = html.indexOf("site-visits.js");
+    const products = html.indexOf('<script src="products.js">');
+    if (products >= 0) assert.ok(visits < products, f);
   }
   assert.ok(read("scripts/build-policy-pages.py").includes('<script src="site-visits.js"></script>'));
 });

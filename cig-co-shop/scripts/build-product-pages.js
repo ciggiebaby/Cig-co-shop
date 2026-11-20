@@ -31,6 +31,7 @@ const STATIC_SITEMAP = [
   ["https://cigcompany.com/shipping-returns", "monthly", "0.5"],
   ["https://cigcompany.com/faq", "monthly", "0.5"],
   ["https://cigcompany.com/privacy", "monthly", "0.5"],
+  ["https://cigcompany.com/ventures", "monthly", "0.6"],
 ];
 
 function optionLabel(p, dim) {
