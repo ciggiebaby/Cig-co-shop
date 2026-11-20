@@ -29,10 +29,12 @@ test("policy page shows the Last updated date", () => {
   assert.doesNotMatch(read("shipping-returns.html"), /\[publish date\]/);
 });
 
-test("privacy policy shows the November 2026 effective date and address placeholder", () => {
+test("privacy policy shows the November 2026 effective date and postal address", () => {
   const html = read("privacy.html");
   assert.match(html, /Effective date:<\/strong> November 2026/);
-  assert.match(html, /\[POSTAL ADDRESS — G fills from vault\]/);
+  assert.match(html, /323 Walker St\. Ste A, Atlanta, GA 30313/);
+  assert.doesNotMatch(html, /POSTAL ADDRESS — G fills from vault/);
+  assert.doesNotMatch(html, /Mayland/i);
   assert.doesNotMatch(html, /CONFIRM/);
   assert.doesNotMatch(html, /not legal advice/i);
   assert.match(html, /mailto:info@cigcompany\.com/);

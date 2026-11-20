@@ -155,6 +155,6 @@ We may update this Privacy Policy from time to time. The "Effective date" at the
 Questions about this policy, or requests to access, correct, or delete information, can be sent to:
 
 Cig & Co.  
-[POSTAL ADDRESS — G fills from vault]  
+323 Walker St. Ste A, Atlanta, GA 30313  
 Store and this website: info@cigcompany.com  
 CIG Ventures Advisory (research and advisory services): ventures@cigcompany.com

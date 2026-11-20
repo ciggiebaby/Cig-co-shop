@@ -4,7 +4,7 @@
 Copy source of truth:
   docs/policies/shipping-returns.md, docs/policies/faq.md
   (approved by CIG via SERVI, 2026-10-22)
-  docs/policies/privacy.md (CIG answers 2026-11-19; postal address still a placeholder)
+  docs/policies/privacy.md (CIG answers 2026-11-19; postal address filled 2026-11-19)
 Re-run after editing the copy:  python3 scripts/build-policy-pages.py
 Needs: pip install markdown
 """
