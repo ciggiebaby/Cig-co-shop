@@ -173,3 +173,187 @@
   .ventures-contact { padding: 56px 20px 88px; }
 }
 
+
+/* Ventures-only chrome: no store banner, cart, or merch nav. */
+body.ventures-page .arcade-strip,
+body.ventures-page .cart-toggle,
+body.ventures-page .footer-products,
+body.ventures-page .shipping-policy { display: none !important; }
+.ventures-header .header-inner { gap: 16px; }
+.ventures-nav { flex-wrap: wrap; justify-content: flex-end; gap: 18px 28px; }
+.ventures-nav a[href="/ventures#order"] { color: var(--gold); }
+.ventures-hero-note a { color: var(--gold); text-decoration: none; }
+.ventures-hero-note a:hover { color: var(--gold-bright); }
+
+.ventures-service-benefit {
+  color: #fff !important;
+  font-size: 16px !important;
+  line-height: 1.65;
+  margin: 0 0 18px !important;
+}
+.ventures-order-btn {
+  width: auto;
+  margin-top: 18px;
+  display: inline-block;
+}
+
+.ventures-samples { display: grid; gap: 16px; margin: 0 0 12px; }
+.ventures-sample {
+  border: 1px solid var(--border);
+  padding: 8px 22px 8px;
+  background: rgba(255, 255, 255, 0.015);
+}
+.ventures-sample summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 16px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: baseline;
+}
+.ventures-sample summary::-webkit-details-marker { display: none; }
+.ventures-sample-name {
+  font-family: "Bodoni Moda", Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 22px;
+  color: #fff;
+}
+.ventures-sample-label {
+  font-family: "Jost", Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.ventures-sample-caption,
+.ventures-sample p {
+  color: #ccc;
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0 0 12px;
+}
+.ventures-sample-disclaimer {
+  color: var(--gold) !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 12px !important;
+}
+.ventures-sample-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: #ccc;
+}
+.ventures-sample-table th,
+.ventures-sample-table td {
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  padding: 10px 12px 10px 0;
+  vertical-align: top;
+}
+.ventures-sample-table th { color: var(--gold); font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; }
+
+.ventures-steps {
+  list-style: none;
+  margin: 0 auto 24px;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(4, 1fr);
+  max-width: 880px;
+}
+.ventures-steps li {
+  border: 1px solid var(--border);
+  padding: 22px 18px 18px;
+  background: rgba(255, 255, 255, 0.015);
+}
+.ventures-step-label {
+  font-family: "Jost", Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 10px;
+}
+.ventures-steps p { color: #ccc; font-size: 14px; line-height: 1.65; margin: 0; }
+
+.ventures-intake {
+  max-width: 520px;
+  margin: 0 auto 28px;
+  text-align: left;
+  display: grid;
+  gap: 8px;
+}
+.ventures-intake label {
+  font-family: "Jost", Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-top: 8px;
+}
+.ventures-intake input,
+.ventures-intake select,
+.ventures-intake textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #0c0c0c;
+  color: #fff;
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  font-family: "Jost", Helvetica, Arial, sans-serif;
+  font-size: 15px;
+}
+.ventures-intake input:focus,
+.ventures-intake select:focus,
+.ventures-intake textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+.ventures-intake .btn { width: auto; margin-top: 16px; justify-self: start; }
+.ventures-intake-message { min-height: 1.4em; color: var(--gold); font-size: 14px; margin: 8px 0 0; }
+.ventures-intake-alt { margin: 8px 0 0; }
+.ventures-intake-alt .ventures-email { font-size: clamp(18px, 3vw, 26px); }
+
+.ventures-footer {
+  border-top: 1px solid var(--border);
+  padding: 36px 24px 56px;
+  text-align: center;
+  color: #888;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.ventures-footer-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 0 0 12px;
+}
+.ventures-footer-links a {
+  color: var(--gold);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.ventures-footer-links a:hover { color: var(--gold-bright); }
+.ventures-footer-address { margin: 0 0 8px; color: #aaa; }
+.ventures-footer p { margin: 0; }
+
+@media (max-width: 800px) {
+  .ventures-steps { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .ventures-header .header-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 14px 16px 16px;
+  }
+  .ventures-nav { gap: 10px 16px; justify-content: flex-start; }
+  .ventures-nav a { letter-spacing: 1.6px; }
+  .ventures-steps { grid-template-columns: 1fr; }
+}
