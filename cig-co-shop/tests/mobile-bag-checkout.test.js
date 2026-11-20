@@ -17,7 +17,7 @@ const { priceCartForStripe } = require("../netlify/lib/stripe-pricing.js");
 
 const root = path.join(__dirname, "..");
 const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
-const PAGES = ["index.html", "gallery.html", "arcade.html", "faq.html", "shipping-returns.html"];
+const PAGES = ["index.html", "gallery.html", "arcade.html", "faq.html", "shipping-returns.html", "privacy.html"];
 const plain = (v) => JSON.parse(JSON.stringify(v));
 
 function fakeControl() {
