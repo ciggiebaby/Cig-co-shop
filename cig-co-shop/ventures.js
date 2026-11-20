@@ -214,10 +214,13 @@ function initVenturesPage(doc, location, fetchImpl) {
   renderVenturesServices(documentRef.getElementById("ventures-services"));
   renderVenturesSamples(documentRef.getElementById("ventures-samples"));
   stampVenturesYear(documentRef.getElementById("year"));
+  // Intake form is off (CIG, 11/19/2026). Helpers stay for when it is turned on.
   const form = documentRef.getElementById("ventures-intake");
-  applyServiceSelection(selectedServiceFromLocation(location || (typeof window !== "undefined" ? window.location : { href: "", search: "" })), form);
-  wireVenturesOrderButtons(documentRef, form);
-  wireVenturesIntake(form, fetchImpl);
+  if (form) {
+    applyServiceSelection(selectedServiceFromLocation(location || (typeof window !== "undefined" ? window.location : { href: "", search: "" })), form);
+    wireVenturesOrderButtons(documentRef, form);
+    wireVenturesIntake(form, fetchImpl);
+  }
 }
 
 if (typeof document !== "undefined") {

@@ -70,15 +70,13 @@ test("each service has an Order button and an empty paymentUrl slot", () => {
   assert.doesNotMatch(js, /buy\.stripe|checkout\.stripe|stripe\.com\/pay/i);
 });
 
-test("intake form posts to the ventures-intake function", () => {
-  assert.match(html, /<form class="ventures-intake" id="ventures-intake"/);
-  assert.match(html, /id="intake-name"/);
-  assert.match(html, /id="intake-business"/);
-  assert.match(html, /id="intake-email"/);
-  assert.match(html, /id="intake-need"/);
-  assert.match(html, /id="intake-budget"/);
-  assert.match(js, /\/\.netlify\/functions\/ventures-intake/);
-  assert.match(js, /We'll reply within 1 business day with scope and a payment link\./);
+test("the on-site intake form is off; orders go to ventures@", () => {
+  const visible = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<noscript>[\s\S]*?<\/noscript>/g, "");
+  assert.doesNotMatch(visible, /<form\b/i);
+  assert.doesNotMatch(visible, /id="ventures-intake"|id="intake-submit"/);
+  assert.match(html, /The on-site order form is off/);
+  assert.match(html, /<a class="ventures-email" href="mailto:ventures@cigcompany\.com">ventures@cigcompany\.com<\/a>/);
+  assert.match(js, /Intake form is off/);
   assert.equal(VENTURES_INTAKE_CONFIRMATION, "We'll reply within 1 business day with scope and a payment link.");
   assert.doesNotMatch(html, /\bEIN\b|\bUEI\b|Mayland|tel:|\(\d{3}\)\s*\d{3}/);
   assert.doesNotMatch(html + js, /CIG Holdings/);
