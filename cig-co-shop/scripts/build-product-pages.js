@@ -30,6 +30,7 @@ const STATIC_SITEMAP = [
   ["https://cigcompany.com/arcade", "monthly", "0.6"],
   ["https://cigcompany.com/shipping-returns", "monthly", "0.5"],
   ["https://cigcompany.com/faq", "monthly", "0.5"],
+  ["https://cigcompany.com/privacy", "monthly", "0.5"],
 ];
 
 function optionLabel(p, dim) {
@@ -208,7 +209,7 @@ function siteFooter(indexHtml) {
   if (i < 0 || j < i) throw new Error("index.html footer not found");
   return indexHtml.slice(i, j)
     .replace(/orders@cigcompany\.com/g, seo.CONTACT_EMAIL)
-    .replace(/href="(shipping-returns|faq)\.html"/g, 'href="/$1.html"');
+    .replace(/href="(shipping-returns|faq|privacy)\.html"/g, 'href="/$1.html"');
 }
 
 async function liveStockItems() {

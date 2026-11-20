@@ -16,7 +16,7 @@ function mainText(file) {
   return htmlText(m[1]);
 }
 
-for (const [page, md] of [["shipping-returns.html", "docs/policies/shipping-returns.md"], ["faq.html", "docs/policies/faq.md"]]) {
+for (const [page, md] of [["shipping-returns.html", "docs/policies/shipping-returns.md"], ["faq.html", "docs/policies/faq.md"], ["privacy.html", "docs/policies/privacy.md"]]) {
   test(`${page} carries the approved copy word for word`, () => {
     const expected = mdText(read(md).replace("[publish date]", "November 1, 2026")).split(" ").filter((w) => !/^-+$/.test(w)).join(" ");
     const actual = mainText(page).split(" ").filter((w) => !/^-+$/.test(w)).join(" ");
@@ -29,20 +29,36 @@ test("policy page shows the Last updated date", () => {
   assert.doesNotMatch(read("shipping-returns.html"), /\[publish date\]/);
 });
 
-test("support email is a mailto link on both pages", () => {
+test("privacy policy shows the November 2026 effective date and postal address", () => {
+  const html = read("privacy.html");
+  assert.match(html, /Effective date:<\/strong> November 2026/);
+  assert.match(html, /323 Walker St\. Ste A, Atlanta, GA 30313/);
+  assert.doesNotMatch(html, /POSTAL ADDRESS — G fills from vault/);
+  assert.doesNotMatch(html, /Mayland/i);
+  assert.doesNotMatch(html, /CONFIRM/);
+  assert.doesNotMatch(html, /not legal advice/i);
+  assert.match(html, /mailto:info@cigcompany\.com/);
+  assert.match(html, /mailto:ventures@cigcompany\.com/);
+});
+
+test("support email is a mailto link on policy pages", () => {
   for (const page of ["shipping-returns.html", "faq.html"]) {
     assert.match(read(page), /<a href="mailto:orders@cigcompany\.com">orders@cigcompany\.com<\/a>/, page);
   }
+  const privacy = read("privacy.html");
+  assert.match(privacy, /<a href="mailto:info@cigcompany\.com">info@cigcompany\.com<\/a>/);
+  assert.match(privacy, /<a href="mailto:ventures@cigcompany\.com">ventures@cigcompany\.com<\/a>/);
 });
 
-const allPages = ["index.html", "gallery.html", "arcade.html", "shipping-returns.html", "faq.html"];
+const allPages = ["index.html", "gallery.html", "arcade.html", "shipping-returns.html", "faq.html", "privacy.html"];
 
-test("footer links to Shipping & Returns and FAQ on every page", () => {
+test("footer links to Shipping & Returns, FAQ, and Privacy on every page", () => {
   for (const page of allPages) {
     const html = read(page);
     const footer = html.match(/<footer class="site-footer">[\s\S]*?<\/footer>/)[0];
     assert.match(footer, /href="shipping-returns\.html"/, page);
     assert.match(footer, /href="faq\.html"/, page);
+    assert.match(footer, /href="privacy\.html"/, page);
     assert.match(footer, /mailto:orders@cigcompany\.com/, page);
   }
 });
@@ -70,6 +86,7 @@ test("sitemap lists the new pages", () => {
   const sitemap = read("sitemap.xml");
   assert.match(sitemap, /cigcompany\.com\/shipping-returns</);
   assert.match(sitemap, /cigcompany\.com\/faq</);
+  assert.match(sitemap, /cigcompany\.com\/privacy</);
 });
 
 test("the Masks shipping line links to the mask terms section", () => {
