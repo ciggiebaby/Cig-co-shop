@@ -172,14 +172,23 @@ function createCustomerStore(client = createSupabaseClient()) {
     },
 
     // Printful thank-you email
-    // (supabase/migrations/202610310002_printful_thankyou_emails.sql)
-    thankyouRecordEvent({ printfulOrderId, externalId = null, event, occurredAt = null, delayDays = 5 }) {
+    // (supabase/migrations/202610310002_printful_thankyou_emails.sql,
+    //  intl delay: 202611160001_thankyou_intl_delay.sql)
+    thankyouRecordEvent({
+      printfulOrderId,
+      externalId = null,
+      event,
+      occurredAt = null,
+      delayDays = 5,
+      intlDelayDays = 14,
+    }) {
       return client.rpc("cigco_thankyou_record_event", {
         p_printful_order_id: printfulOrderId,
         p_external_id: externalId,
         p_event: event,
         p_occurred_at: occurredAt,
         p_delay_days: delayDays,
+        p_intl_delay_days: intlDelayDays,
       });
     },
 

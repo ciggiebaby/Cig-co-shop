@@ -7,7 +7,12 @@
 const { createSupabaseClient } = require("../lib/supabase.js");
 
 const MAX_BODY_BYTES = 2048;
-const EVENTS = new Set(["pageview", "product_view", "add_to_bag", "checkout_start"]);
+const EVENTS = new Set([
+  "pageview", "product_view", "add_to_bag", "checkout_start",
+  "checkout_form_view", "checkout_pay_click", "checkout_validation_error",
+  "checkout_session_error", "checkout_redirect",
+  "bag_upsell_shown", "bag_upsell_accepted",
+]);
 const DEVICES = new Set(["mobile", "desktop"]);
 const BOT_UA = /bot|crawl|spider|slurp|preview|facebookexternalhit|embedly|quora link|whatsapp|telegram|discord|skypeuri|vkshare|pinterest|bitly|headless|phantom|puppeteer|playwright|selenium|lighthouse|pagespeed|gtmetrix|pingdom|uptime|monitor|curl|wget|python|httpclient|go-http|java\/|okhttp|axios|node-fetch|undici|postman|insomnia|scrapy|ahrefs|semrush|mj12|dotbot|petal|bytespider|gptbot|claude|perplexity|ccbot|applebot|bingpreview|yandex|baidu/i;
 
@@ -48,29 +53,44 @@ function tag(value, pattern, max) {
 
 const SLUG = /^[A-Za-z0-9._~+\- ]+$/;
 
+// Optional tags that don't match are dropped. A weird referrer or src must not
+// throw away the whole visit (that was losing pageviews, and with them the
+// referrer and campaign tags, on direct ?product= landings).
+function optionalTag(value, pattern, max) {
+  try {
+    return tag(value, pattern, max);
+  } catch {
+    return null;
+  }
+}
+
 function validatePayload(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new PayloadError("not_object");
   if (!EVENTS.has(input.event)) throw new PayloadError("bad_event");
   const path = typeof input.path === "string" ? input.path.trim() : "";
   if (!/^\/[A-Za-z0-9._~\-\/%]*$/.test(path) || path.length > 200) throw new PayloadError("bad_path");
-  const productId = tag(input.product_id, /^[A-Za-z0-9_\-]+$/, 40);
+  const productId = optionalTag(input.product_id, /^[A-Za-z0-9_\-]+$/, 40);
   if ((input.event === "product_view" || input.event === "add_to_bag") && !productId) {
     throw new PayloadError("missing_product");
   }
-  const referrer = tag(input.referrer_host, /^[a-z0-9.\-]+$/i, 120);
+  const referrer = optionalTag(input.referrer_host, /^[a-z0-9.\-_]+$/i, 120);
   const device = DEVICES.has(input.device) ? input.device : null;
-  return {
-    session_id: tag(input.session_id, /^[a-z0-9]{8,40}$/, 40),
+  const detail = optionalTag(input.detail, /^[A-Za-z0-9_-]+$/, 40);
+  const row = {
+    session_id: optionalTag(input.session_id, /^[a-z0-9]{8,40}$/, 40),
     path,
     event: input.event,
     product_id: productId,
     referrer_host: referrer ? referrer.toLowerCase() : null,
-    utm_source: tag(input.utm_source, SLUG, 80),
-    utm_medium: tag(input.utm_medium, SLUG, 80),
-    utm_campaign: tag(input.utm_campaign, SLUG, 80),
-    src: tag(input.src, SLUG, 80),
+    utm_source: optionalTag(input.utm_source, SLUG, 80),
+    utm_medium: optionalTag(input.utm_medium, SLUG, 80),
+    utm_campaign: optionalTag(input.utm_campaign, SLUG, 80),
+    src: optionalTag(input.src, SLUG, 80),
     device,
   };
+  // Omit detail when empty so inserts keep working until the column exists.
+  if (detail) row.detail = detail;
+  return row;
 }
 
 function countryFrom(event, context) {
@@ -114,4 +134,4 @@ function createHandler({ clientFactory = () => createSupabaseClient(), logger = 
 
 const handler = createHandler();
 
-module.exports = { createHandler, handler, validatePayload, isBot, countryFrom, PayloadError, MAX_BODY_BYTES };
+module.exports = { EVENTS, createHandler, handler, validatePayload, isBot, countryFrom, PayloadError, MAX_BODY_BYTES };

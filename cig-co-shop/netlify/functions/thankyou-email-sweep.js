@@ -1,6 +1,9 @@
 // Hourly sweep for the Printful thank-you email (schedule in netlify.toml).
-// Sends what's due: shipped + THANKYOU_DELAY_DAYS when Printful never reported
-// "delivered", plus retries of failed sends. Off unless THANKYOU_EMAIL_ENABLED=true.
+// Sends what's due: shipped + the fallback delay when Printful never reported
+// "delivered" (THANKYOU_DELAY_DAYS in the US, THANKYOU_INTL_DELAY_DAYS
+// elsewhere), plus retries of failed sends. The delay was chosen when the
+// shipment was recorded. Rows already sent are not due. Off unless
+// THANKYOU_EMAIL_ENABLED=true.
 const { createCustomerStore } = require("../lib/customer-store.js");
 const { createResendClient } = require("../lib/resend.js");
 const { processThankYou, thankyouEnabled } = require("../lib/thankyou.js");

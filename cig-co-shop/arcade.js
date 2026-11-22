@@ -19,7 +19,13 @@ let activeClaimPromise = null;
 // the browser only checks the slug shape and the server decides. Any other
 // or missing src is a plain "arcade" sign-up.
 const ARCADE_SOURCE_KEY = "cig_co_arcade_src";
+// Kept after the scan key is cleared, so the result-screen opt-in updates the
+// same subscribers row (home, pdp, bag, footer, qr, ...) instead of a second one.
+const ARCADE_LIST_SOURCE_KEY = "cig_co_arcade_list_src";
 const ARCADE_SRC_PATTERN = /^[a-z0-9_-]{2,24}$/;
+let arcadeListSource = "arcade";
+let arcadeHasMarketingConsent = false;
+let arcadeOptInThanks = false;
 function arcadeSignupSource(search = (typeof location !== "undefined" ? location.search : "")) {
   let src = null;
   try {
@@ -39,6 +45,55 @@ function arcadeSignupSource(search = (typeof location !== "undefined" ? location
 }
 function clearArcadeSignupSource() {
   try { sessionStorage.removeItem(ARCADE_SOURCE_KEY); } catch { /* private mode */ }
+}
+
+function rememberArcadeListSource(source) {
+  if (!source || source === "arcade" || !ARCADE_SRC_PATTERN.test(source)) return;
+  arcadeListSource = source;
+  try { sessionStorage.setItem(ARCADE_LIST_SOURCE_KEY, source); } catch { /* private mode */ }
+}
+
+function currentArcadeListSource() {
+  if (arcadeListSource && arcadeListSource !== "arcade") return arcadeListSource;
+  try {
+    const stored = sessionStorage.getItem(ARCADE_LIST_SOURCE_KEY);
+    if (stored && ARCADE_SRC_PATTERN.test(stored)) return stored;
+  } catch { /* private mode */ }
+  return "arcade";
+}
+
+// The result prompt is only for players who have not opted in. Playing and
+// the prize never depend on it, and it is never pre-checked.
+function shouldShowArcadeOptIn(marketingConsent) {
+  return marketingConsent !== true;
+}
+
+function arcadeOptInRequest(email, source, website = "") {
+  return {
+    email,
+    marketingConsent: true,
+    consentProvided: true,
+    consentSource: "arcade_result",
+    source: source || "arcade",
+    website: website || "",
+  };
+}
+
+function syncOptInPrompt() {
+  const box = document.getElementById("arcade-optin");
+  if (!box) return;
+  const btn = document.getElementById("arcade-optin-btn");
+  const copy = box.querySelector(".arcade-optin-copy");
+  const status = document.getElementById("arcade-optin-status");
+  if (arcadeHasMarketingConsent && arcadeOptInThanks) {
+    box.hidden = false;
+    if (btn) btn.hidden = true;
+    if (copy) copy.textContent = "You're on the list. Unsubscribe anytime.";
+    if (status) status.textContent = "";
+    return;
+  }
+  if (btn) btn.hidden = false;
+  box.hidden = !shouldShowArcadeOptIn(arcadeHasMarketingConsent);
 }
 
 function renderPrizeBanner(prize) {
@@ -115,6 +170,7 @@ function startCooldownUI(lastPlay) {
   const timerEl = document.getElementById("cooldown-timer");
   const prize = lastPlay.prize || prizeById(lastPlay.prizeId);
   if (prizeEl) prizeEl.innerHTML = renderPrizeBanner(prize);
+  syncOptInPrompt();
 
   if (cooldownInterval) clearInterval(cooldownInterval);
   const tick = () => {
@@ -190,6 +246,7 @@ async function registerArcadeIdentity(
   consentProvided,
 ) {
   const source = arcadeSignupSource();
+  if (source !== "arcade") rememberArcadeListSource(source);
   const honeypot = document.getElementById("arcade-website");
   const registration = await arcadeRequest("arcade-register", {
     email,
@@ -200,6 +257,7 @@ async function registerArcadeIdentity(
   });
   // The card scan has been counted once; later refreshes are plain Arcade visits.
   if (source !== "arcade") clearArcadeSignupSource();
+  arcadeHasMarketingConsent = registration.marketingConsent === true;
   arcadeEmail = registration.email;
   localStorage.setItem(ARCADE_UNLOCK_KEY, registration.email);
   const lastPlay = registrationPlayRecord(registration);
@@ -255,6 +313,38 @@ function handleConfirmedClaim(claim, game) {
   const record = cacheConfirmedPlay(claim, game);
   startCooldownUI(record);
   return true;
+}
+
+function setupOptIn() {
+  const btn = document.getElementById("arcade-optin-btn");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    const status = document.getElementById("arcade-optin-status");
+    if (!arcadeEmail) {
+      if (status) status.textContent = "Enter your email on the Arcade first.";
+      return;
+    }
+    btn.disabled = true;
+    if (status) status.textContent = "";
+    try {
+      const honeypot = document.getElementById("arcade-website");
+      const registration = await arcadeRequest("arcade-register", arcadeOptInRequest(
+        arcadeEmail,
+        currentArcadeListSource(),
+        honeypot ? honeypot.value : "",
+      ));
+      arcadeHasMarketingConsent = registration.marketingConsent === true;
+      arcadeOptInThanks = arcadeHasMarketingConsent;
+      if (!arcadeHasMarketingConsent && status) {
+        status.textContent = "Could not save that. Please try again.";
+        btn.disabled = false;
+      }
+      syncOptInPrompt();
+    } catch (error) {
+      if (status) status.textContent = error.message || "Could not save that. Please try again.";
+      btn.disabled = false;
+    }
+  });
 }
 
 // ---------- Email gate ----------
@@ -520,6 +610,7 @@ function initBoxes() {
 
 if (typeof document !== "undefined") {
   setupGate();
+  setupOptIn();
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -529,6 +620,10 @@ if (typeof module !== "undefined" && module.exports) {
     msRemaining,
     registrationPlayRecord,
     arcadeSignupSource,
+    rememberArcadeListSource,
+    currentArcadeListSource,
+    shouldShowArcadeOptIn,
+    arcadeOptInRequest,
     renderPrizeBanner,
     wheelLabelLayout,
   };

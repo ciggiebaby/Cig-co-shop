@@ -4,26 +4,55 @@
 //
 // Trigger: Printful v2 webhooks (netlify/functions/printful-webhook.js).
 //   shipment_delivered -> send now (what the team wants).
-//   shipment_sent      -> send at shipped + THANKYOU_DELAY_DAYS (default 5)
-//                         via the hourly sweep, for carriers whose tracking
-//                         never reports "delivered".
-// Once per Printful order (thankyou_emails row + atomic claim). Off unless
-// THANKYOU_EMAIL_ENABLED=true.
+//   shipment_sent      -> hourly sweep fallback, for carriers whose tracking
+//                         never reports "delivered":
+//                           US (or no country on the order): shipped +
+//                           THANKYOU_DELAY_DAYS (default 5)
+//                           any other country: shipped +
+//                           THANKYOU_INTL_DELAY_DAYS (default 14)
+// Country is orders.shipping_destination.country (ISO alpha-2). The choice is
+// made in cigco_thankyou_record_event, which can see that column. Keep
+// isInternationalShipCountry in step with that function.
+// Once per Printful order (thankyou_emails row + atomic claim). A row already
+// marked sent is never claimed again. Off unless THANKYOU_EMAIL_ENABLED=true.
 const crypto = require("node:crypto");
 const { PRODUCTS } = require("../../products.js");
 const { safeIdentifier } = require("./customer-utils.js");
 
 const DEFAULT_DELAY_DAYS = 5;
+const DEFAULT_INTL_DELAY_DAYS = 14;
 const MAX_DELAY_DAYS = 60;
 
 function thankyouEnabled(environment = process.env) {
   return String(environment.THANKYOU_EMAIL_ENABLED || "").trim().toLowerCase() === "true";
 }
 
+function clampDelayDays(raw, fallback) {
+  const text = String(raw ?? "").trim();
+  if (!/^\d+$/.test(text)) return fallback;
+  return Math.min(Number(text), MAX_DELAY_DAYS);
+}
+
 function thankyouDelayDays(environment = process.env) {
-  const raw = String(environment.THANKYOU_DELAY_DAYS ?? "").trim();
-  if (!/^\d+$/.test(raw)) return DEFAULT_DELAY_DAYS;
-  return Math.min(Number(raw), MAX_DELAY_DAYS);
+  return clampDelayDays(environment.THANKYOU_DELAY_DAYS, DEFAULT_DELAY_DAYS);
+}
+
+function thankyouIntlDelayDays(environment = process.env) {
+  return clampDelayDays(environment.THANKYOU_INTL_DELAY_DAYS, DEFAULT_INTL_DELAY_DAYS);
+}
+
+// True when the ship-to country is present and is not the US. Blank means the
+// order has no country on file, so the short US fallback stays in place.
+function isInternationalShipCountry(country) {
+  if (typeof country !== "string") return false;
+  const code = country.trim().toUpperCase();
+  return code !== "" && code !== "US";
+}
+
+function thankyouDelayForCountry(country, environment = process.env) {
+  return isInternationalShipCountry(country)
+    ? thankyouIntlDelayDays(environment)
+    : thankyouDelayDays(environment);
 }
 
 // Printful v2 signs each event: x-pf-webhook-signature = hex HMAC-SHA256 of the
@@ -98,9 +127,13 @@ async function processThankYou({ store, printfulOrderId, resend, logger = consol
 
 module.exports = {
   DEFAULT_DELAY_DAYS,
+  DEFAULT_INTL_DELAY_DAYS,
   cigShippedItems,
+  isInternationalShipCountry,
   processThankYou,
   thankyouDelayDays,
+  thankyouDelayForCountry,
   thankyouEnabled,
+  thankyouIntlDelayDays,
   verifyPrintfulSignature,
 };

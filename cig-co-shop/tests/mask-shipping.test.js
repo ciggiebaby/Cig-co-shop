@@ -1,7 +1,9 @@
-// US shipping for in-hand backstock masks (CIG, 2026-10-22): any US order with
-// a mask pays $8.95 per ORDER, free when the items total after promo is over
-// $75 (exactly $75 still pays). FW26-only carts stay free. Abroad (CIG
-// 2026-10-30), masks ship to every store country for a per-order USPS charge.
+// US shipping for in-hand backstock masks: FREE in the US since CIG approved it
+// on 2026-11-01 ("yup thats a go"), matching Etsy and Google Merchant Center
+// (free US shipping, about 5–14 business days). Before that it was $8.95 per
+// order, free over $75 (2026-10-22). FW26 pieces were always free in the US.
+// Abroad (CIG 2026-10-30, unchanged), masks ship to every store country for a
+// per-order USPS charge by weight.
 require("./full-price-clock-fixture.js");
 const assert = require("node:assert/strict");
 const test = require("node:test");
@@ -19,54 +21,39 @@ const skiMask = (quantity = 1) => ({ productId: "0008", color: "Red", size: "3-H
 const bag = (quantity = 1) => ({ productId: "FW26-BAG", color: "Navy", quantity });
 const usShipping = (items, promo = null) => resolveCheckoutShipping(priceCartForStripe(items, null, promo), "US").shippingCents;
 
-test("shared rule: constants, flag on mask lines only", () => {
-  assert.equal(rates.MASK_US_SHIPPING_CENTS, 895);
-  assert.equal(rates.MASK_FREE_SHIPPING_OVER_CENTS, 7500);
-  assert.match(rates.MASK_SHIPPING_NOTE, /\$8\.95.*free over \$75/);
+test("shared rule: US mask shipping is $0, flag still on mask lines only", () => {
+  assert.equal(rates.MASK_US_SHIPPING_CENTS, 0);
+  assert.equal(rates.MASK_FREE_SHIPPING_OVER_CENTS, undefined, "no more free-over-$75 threshold");
+  assert.equal(rates.MASK_US_DELIVERY_DAYS, "5\u201314 business days");
+  assert.match(rates.MASK_SHIPPING_NOTE, /^Masks ship free in the US/);
+  assert.doesNotMatch(rates.MASK_SHIPPING_NOTE, /8\.95|\$75/);
   const lines = priceCartForStripe([balaclava(), bag()], null).shippingLines;
   assert.deepEqual(lines.map((l) => l.mask), [true, false]);
 });
 
-test("mask-only under $75 pays $8.95 once per order (not per item)", () => {
-  assert.equal(usShipping([balaclava()]), 895);            // $25
-  assert.equal(usShipping([balaclava(2)]), 895);           // $50, two items, still one fee
-  assert.equal(usShipping([balaclava(1), skiMask(1)]), 895); // $55, two mask products
-});
-
-test("mask-only over $75 ships free", () => {
-  assert.equal(usShipping([balaclava(2), skiMask(1)]), 0); // $80
-});
-
-test("exactly $75.00 still pays $8.95 (free is strictly over $75)", () => {
-  assert.equal(usShipping([balaclava(3)]), 895);           // $75.00
-  assert.equal(rates.usShippingCents([{ mask: true }], 7500), 895);
-  assert.equal(rates.usShippingCents([{ mask: true }], 7501), 0);
-});
-
-test("mixed mask + FW26: over $75 free, under $75 (after promo) pays", () => {
-  assert.equal(usShipping([balaclava(1), bag(1)]), 0);     // $90
-  // Promos are masks only (promo.js): 20% off the balaclava ($20.00); the $65
-  // bag stays full price → $85.00 → free.
-  assert.equal(usShipping([balaclava(1), bag(1)], { code: "T20", discountBasisPoints: 2000 }), 0);
-  const priced = priceCartForStripe([balaclava(1), bag(1)], null, { code: "T20", discountBasisPoints: 2000 });
-  assert.deepEqual(priced.lineItems.map((l) => l.price_data.unit_amount), [2000, 6500]);
-  // $25 + $35 tote = $60, promo on the mask only → $56.25 → $8.95.
-  assert.equal(usShipping([balaclava(1), { productId: "FW26-TOTE", color: "Hunter", quantity: 1 }], TEN_OFF), 895);
-});
-
-test("a promo that pushes the items total to $75 or under brings the $8.95 back", () => {
-  assert.equal(usShipping([balaclava(2), skiMask(1)]), 0);          // $80
-  assert.equal(usShipping([balaclava(2), skiMask(1)], TEN_OFF), 895); // $72
-  // $85 with 10% off = $76.50, still over $75 → free.
-  assert.equal(usShipping([balaclava(1), skiMask(2)], TEN_OFF), 0);
-});
-
-test("FW26-only carts stay free in the US; no merchandise total never undercharges a mask", () => {
-  assert.equal(usShipping([bag(1)]), 0);
-  // A promo code on an FW26-only cart is refused (promos are masks only).
-  assert.throws(() => usShipping([bag(1)], TEN_OFF), /only work on masks/);
+test("every US cart ships free: masks alone, any total, with or without a promo, mixed with FW26", () => {
+  const tote = (quantity = 1) => ({ productId: "FW26-TOTE", color: "Hunter", quantity });
+  for (const [items, promo] of [
+    [[balaclava()], null],                      // $25 (was $8.95)
+    [[balaclava(2)], null],                     // $50
+    [[balaclava(3)], null],                     // exactly $75 (was $8.95)
+    [[balaclava(2), skiMask(1)], null],         // $80
+    [[balaclava(2), skiMask(1)], TEN_OFF],      // $72 after promo (was $8.95)
+    [[balaclava(1), bag(1)], null],
+    [[tote(), balaclava()], null],              // $60 (was $8.95)
+    [[tote(), balaclava(2)], { code: "T20", discountBasisPoints: 2000 }], // $75 (was $8.95)
+    [[{ productId: "0013", color: "Purple", quantity: 1 }], null], // $15 moto mask
+    [[bag(1)], null],
+    [[tote(3)], null],
+  ]) {
+    assert.equal(usShipping(items, promo), 0, JSON.stringify(items));
+  }
+  assert.equal(rates.usShippingCents([{ mask: true }], 100), 0);
+  assert.equal(rates.usShippingCents([{ mask: true }]), 0, "a missing total can't bring a fee back");
+  assert.equal(rates.quoteShipping([{ name: "Mask", shipping: null, quantity: 1, mask: true }], "US").shippingCents, 0);
   assert.equal(rates.quoteShipping([{ name: "Bag", shipping: "bag", quantity: 1 }], "US").shippingCents, 0);
-  assert.equal(rates.quoteShipping([{ name: "Mask", shipping: null, quantity: 1, mask: true }], "US").shippingCents, 895);
+  // A promo code on an FW26-only cart is still refused (promos are masks only).
+  assert.throws(() => usShipping([bag(1)], TEN_OFF), /only work on masks/);
 });
 
 test("international: FW26 rates unchanged; masks ship to every country for the in-hand order charge", () => {
@@ -112,26 +99,28 @@ test("in-hand weight bands: 1-4 masks, 5 masks (18 oz), parcels split over 64 oz
   }
 });
 
-test("PayPal: order amount = items after promo + mask shipping, with a shipping breakdown", () => {
-  for (const [items, promo, shippingCents] of [
-    [[balaclava(1)], null, 895],
-    [[balaclava(3)], null, 895],
-    [[balaclava(2), skiMask(1)], null, 0],
-    [[balaclava(2), skiMask(1)], TEN_OFF, 895],
-    [[bag(1)], null, 0],
+test("PayPal: US mask orders have no shipping charge; total = items after promo", () => {
+  for (const [items, promo] of [
+    [[balaclava(1)], null],
+    [[balaclava(3)], null],
+    [[balaclava(2), skiMask(1)], TEN_OFF],
+    [[bag(1)], null],
   ]) {
     const pricing = priceCartForStripe(items, null, promo);
     const shipping = resolveCheckoutShipping(pricing, "US");
-    assert.equal(shipping.shippingCents, shippingCents);
+    assert.equal(shipping.shippingCents, 0);
     const order = buildPayPalOrder(pricing, { siteUrl: "https://cigcompany.com", shipping });
     const unit = order.purchase_units[0];
-    assert.equal(unit.amount.value, ((pricing.totalCents + shippingCents) / 100).toFixed(2));
-    const breakdown = unit.amount.breakdown || {};
-    if (shippingCents) assert.equal(breakdown.shipping.value, (shippingCents / 100).toFixed(2));
-    else assert.equal(breakdown.shipping, undefined);
+    assert.equal(unit.amount.value, (pricing.totalCents / 100).toFixed(2));
+    assert.equal((unit.amount.breakdown || {}).shipping, undefined);
     const itemsCents = unit.items.reduce((s, i) => s + Math.round(Number(i.unit_amount.value) * 100) * Number(i.quantity), 0);
     assert.equal(itemsCents, pricing.totalCents);
   }
+  // Abroad, PayPal still adds the in-hand mask rate (unchanged).
+  const pricing = priceCartForStripe([balaclava(1)], null);
+  const shipping = resolveCheckoutShipping(pricing, "CA");
+  const unit = buildPayPalOrder(pricing, { siteUrl: "https://cigcompany.com", shipping }).purchase_units[0];
+  assert.equal(unit.amount.breakdown.shipping.value, "25.00");
 });
 
 function stripeHarness({ environment = {}, promo = null } = {}) {
@@ -156,42 +145,31 @@ function stripeHarness({ environment = {}, promo = null } = {}) {
   };
 }
 
-test("Stripe: mask orders under/at $75 get one $8.95 US shipping option; over $75 and FW26-only get none", async () => {
+test("Stripe: US mask orders get no shipping option or fee; abroad still pays the flat mask rate", async () => {
   const stripe = stripeHarness();
-  let { res, created } = await stripe.post({ items: [balaclava(1)] });
-  assert.equal(res.statusCode, 200);
-  assert.equal(created.shipping_options.length, 1);
-  assert.equal(created.shipping_options[0].shipping_rate_data.fixed_amount.amount, 895);
-  assert.equal(created.shipping_options[0].shipping_rate_data.fixed_amount.currency, "usd");
-  assert.equal(created.metadata.shipping_cents, "895");
-  assert.deepEqual(created.shipping_address_collection.allowed_countries, ["US"]);
-
-  ({ created } = await stripe.post({ items: [balaclava(3)] }));
-  assert.equal(created.shipping_options[0].shipping_rate_data.fixed_amount.amount, 895);
-
-  ({ created } = await stripe.post({ items: [balaclava(2), skiMask(1)] }));
-  assert.equal(created.shipping_options, undefined);
-
-  ({ created } = await stripe.post({ items: [bag(1)] }));
-  assert.equal(created.shipping_options, undefined);
-  assert.equal(created.metadata.shipping_cents, undefined);
-
-  ({ res, created } = await stripe.post({ items: [balaclava(1)], shipCountry: "GB" }));
+  for (const items of [[balaclava(1)], [balaclava(3)], [balaclava(2), skiMask(1)], [bag(1)]]) {
+    const { res, created } = await stripe.post({ items });
+    assert.equal(res.statusCode, 200);
+    assert.equal(created.shipping_options, undefined, JSON.stringify(items));
+    assert.equal(created.metadata.shipping_cents, undefined);
+    assert.deepEqual(created.shipping_address_collection.allowed_countries, ["US"]);
+  }
+  const { res, created } = await stripe.post({ items: [balaclava(1)], shipCountry: "GB" });
   assert.equal(res.statusCode, 200);
   assert.equal(created.shipping_options[0].shipping_rate_data.fixed_amount.amount, 3100);
   assert.equal(created.shipping_options[0].shipping_rate_data.display_name, "Standard shipping to United Kingdom");
   assert.deepEqual(created.shipping_address_collection.allowed_countries, ["GB"]);
 });
 
-test("Stripe: a promo that drops an $80 mask order to $72 adds the $8.95 back", async () => {
+test("Stripe: a promo on a US mask order doesn't add shipping", async () => {
   const { created } = await stripeHarness({ promo: TEN_OFF }).post({ items: [balaclava(2), skiMask(1)], promoCode: "TEST10" });
   assert.equal(created.metadata.promo_code, "TEST10");
   const items = created.line_items.reduce((s, l) => s + l.price_data.unit_amount * l.quantity, 0);
   assert.equal(items, 7200);
-  assert.equal(created.shipping_options[0].shipping_rate_data.fixed_amount.amount, 895);
+  assert.equal(created.shipping_options, undefined);
 });
 
-test("drop-test code: pre-drop FW26 + mask test order gets the same mask shipping and is flagged", async () => {
+test("drop-test code: pre-drop FW26 + mask test order ships free in the US and is flagged", async () => {
   let created = null;
   const handler = createStripeSession({
     environment: { STRIPE_SECRET_KEY: "sk_test", SITE_URL: "https://cigcompany.com", DROP_TEST_CODE: "drop-test-code-2026" },
@@ -207,21 +185,10 @@ test("drop-test code: pre-drop FW26 + mask test order gets the same mask shippin
   const ok = await post({ dropTestCode: "drop-test-code-2026" });
   assert.equal(ok.statusCode, 200);
   assert.equal(created.metadata.drop_test, "true");
-  // $35 tote + $25 balaclava (promo on the mask only, 20% → $20.00)
-  // = $55.00 → $8.95; the test code doesn't change pricing or shipping.
-  assert.equal(created.shipping_options[0].shipping_rate_data.fixed_amount.amount, 895);
+  assert.equal(created.shipping_options, undefined);
 });
 
-test("tote counts as FW26: free alone, never flagged as a mask, and with a mask follows the $75 rule", () => {
+test("tote still counts as FW26 and is never flagged as a mask", () => {
   const tote = (quantity = 1) => ({ productId: "FW26-TOTE", color: "Hunter", quantity });
   assert.deepEqual(priceCartForStripe([tote(), balaclava()], null).shippingLines.map((l) => l.mask), [false, true]);
-  assert.equal(usShipping([tote()]), 0);                    // $35, tote only
-  assert.equal(usShipping([tote(3)]), 0);                   // $105, totes only
-  assert.equal(usShipping([tote(), balaclava()]), 895);     // $35 + $25 = $60: pays $8.95 once
-  assert.equal(usShipping([tote(2), balaclava()]), 0);      // $70 + $25 = $95: free
-  assert.equal(usShipping([tote(2), balaclava()], TEN_OFF), 0);   // $85.50 after promo: still free
-  assert.equal(usShipping([tote(), balaclava(2)]), 0);      // $85: free
-  // Masks-only promo at 20%: $35 + 2 x $20.00 = exactly $75.00 → still pays.
-  assert.equal(usShipping([tote(), balaclava(2)], { code: "T20", discountBasisPoints: 2000 }), 895);
-  assert.equal(usShipping([tote(2), balaclava(1)], { code: "T20", discountBasisPoints: 2000 }), 0); // $90: free
 });

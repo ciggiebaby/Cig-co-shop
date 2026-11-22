@@ -4,17 +4,17 @@
 //   CA, GB, DE, AU: APPROVED by CIG on 2026-10-21.
 //   JP, KR:         APPROVED by CIG on 2026-10-21.
 //
-// US: free shipping on FW26/Printful pieces. In-hand backstock masks (products
-// with `liveStock`, flagged `mask: true` on shipping lines) ship from CIG:
-// any US order with a mask pays a flat MASK_US_SHIPPING_CENTS per ORDER,
-// free when the merchandise total after promo (before shipping) is OVER
-// MASK_FREE_SHIPPING_OVER_CENTS. Exactly $75.00 still pays. (CIG, 2026-10-22.)
+// US: free shipping on everything. FW26/Printful pieces were always free; the
+// in-hand backstock masks (products with `liveStock`, flagged `mask: true` on
+// shipping lines) also ship free in the US since CIG approved it 2026-11-01
+// ("yup thats a go"), matching Etsy and Google Merchant Center: free US
+// shipping, about 5–14 business days. (Before: $8.95 per order, free over $75.)
 // International: only the countries below.
 //   - In-hand items (everything CIG ships himself via Pirate Ship: masks and
 //     any other non-Printful product, flagged `inHand: true` on shipping
 //     lines) ship to ALL of them for one per-ORDER charge by package weight
 //     (IN_HAND_INTL_SHIPPING_USD below). CIG 2026-10-30: "There's no reason
-//     any on hand item is blocked from anywhere." No US free-over-$75 abroad.
+//     any on hand item is blocked from anywhere." Free shipping is US only.
 //   - Printful pieces ship abroad only if their products.js `shipping` class is
 //     listed in INTERNATIONAL_SHIPPING_PER_ITEM_USD (pillows: US only; MagSafe
 //     cases: not JP/KR). A cart with both pays the in-hand order charge PLUS
@@ -76,9 +76,10 @@ function normalizePccc(value) {
 // Printful can't ship cases there, so those routes are blocked instead).
 const SLOW_DELIVERY = {};
 
-const MASK_US_SHIPPING_CENTS = 895;
-const MASK_FREE_SHIPPING_OVER_CENTS = 7500;
-const MASK_SHIPPING_NOTE = "Mask orders ship from the US for $8.95 \u2014 free over $75. International mask orders pay a flat USPS rate shown at checkout.";
+// US mask shipping per order (CIG 2026-11-01: free, was 895 with free over $75).
+const MASK_US_SHIPPING_CENTS = 0;
+const MASK_US_DELIVERY_DAYS = "5\u201314 business days";
+const MASK_SHIPPING_NOTE = "Masks ship free in the US (about 5\u201314 business days). International mask orders pay a flat USPS rate shown at checkout.";
 
 // ---------- In-hand items abroad (CIG ships via Pirate Ship, USPS) ----------
 // Service: USPS First-Class Package International (FCPI), the cheapest USPS
@@ -157,15 +158,11 @@ function inHandInternationalCents(lines, country) {
   return cents;
 }
 
-// US shipping for a cart: $8.95 per order if any line is a mask and the
-// merchandise total after promo is not over $75; otherwise free. A missing
-// merchandiseCents is treated as under the threshold (never undercharges).
-function usShippingCents(lines, merchandiseCents) {
-  const hasMask = lines.some((line) => line && line.mask);
-  if (!hasMask) return 0;
-  return Number.isFinite(merchandiseCents) && merchandiseCents > MASK_FREE_SHIPPING_OVER_CENTS
-    ? 0
-    : MASK_US_SHIPPING_CENTS;
+// US shipping for a cart: free. Masks (MASK_US_SHIPPING_CENTS, now 0) and
+// FW26 pieces both ship free in the US, with no minimum order.
+function usShippingCents(lines) {
+  const hasMask = (lines || []).some((line) => line && line.mask);
+  return hasMask ? MASK_US_SHIPPING_CENTS : 0;
 }
 
 // Returns the per-item charge in cents, or null if that class can't ship there.
@@ -183,7 +180,7 @@ function shipsAbroad(shippingClass) {
 }
 
 // lines: [{ name, shipping, quantity, mask, inHand, weightOz }] (shipping = the
-// product's class; mask = live-stock mask (US $8.95 rule); inHand = shipped by
+// product's class; mask = live-stock mask (ships free in the US); inHand = shipped by
 // CIG, priced abroad by weight; weightOz = per unit). merchandiseCents = items
 // total after promo, before shipping (only used for the US mask rule).
 // Returns { country, shippingCents, blocked, usOnly } where blocked lists the
@@ -240,8 +237,8 @@ if (typeof module !== "undefined" && module.exports) {
     IN_HAND_INTL_SHIPPING_USD,
     IN_HAND_MAILER_OZ,
     INTERNATIONAL_SHIPPING_PER_ITEM_USD,
-    MASK_FREE_SHIPPING_OVER_CENTS,
     MASK_SHIPPING_NOTE,
+    MASK_US_DELIVERY_DAYS,
     MASK_US_SHIPPING_CENTS,
     PCCC_PATTERN,
     SHIP_TO_COUNTRIES,

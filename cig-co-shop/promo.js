@@ -85,7 +85,9 @@ const MASK_PROMO_PRICE_FLOOR_USD = {
 
 // Free prize masks ship separately on their own Pirate Ship label, so the
 // winner always pays the standard mask shipping for the gift, even when their
-// own order is over $75. (Same $8.95 as MASK_US_SHIPPING_CENTS in shipping-rates.js.)
+// own order ships free. Kept at $8.95 on purpose: shop mask orders ship free in
+// the US since 2026-11-01 (MASK_US_SHIPPING_CENTS = 0), but prize shipping was
+// not part of that change.
 // Winners abroad (CIG 2026-10-30) pay the international in-hand rate for one
 // mask to their country instead (giftMaskShippingCents; $25 CA to $40 AU).
 const GIFT_MASK_SHIPPING_CENTS = 895;

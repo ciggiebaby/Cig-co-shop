@@ -54,7 +54,7 @@ const codePrize = () => ({
 
 // ---------- lib/subscribers.js ----------
 test("src list: qr, shop, fani live in one config list and are stored as-is", () => {
-  assert.deepEqual(Object.keys(subscribers.ARCADE_SRC_LIST), ["qr", "shop", "fani", "thankyou"]);
+  assert.deepEqual(Object.keys(subscribers.ARCADE_SRC_LIST), ["qr", "shop", "fani", "thankyou", "home", "pdp", "bag", "footer"]);
   for (const slug of Object.keys(subscribers.ARCADE_SRC_LIST)) {
     assert.equal(subscribers.arcadeSource(slug), slug);
     assert.match(slug, subscribers.SOURCE_SLUG_PATTERN, "listed slugs must fit the DB check");
@@ -174,8 +174,8 @@ test("Arcade claim shows the code only with the emergency switch", async () => {
   assert.equal(JSON.parse(res.body).prize.code, CODE);
 });
 
-function registerSetup({ hourlyAllowed = true, lastPlay = null, logger = quiet } = {}) {
-  const calls = { subscribe: [], register: [], limits: [] };
+function registerSetup({ hourlyAllowed = true, lastPlay = null, logger = quiet, storedConsent = null } = {}) {
+  const calls = { subscribe: [], register: [], limits: [], kit: [] };
   const store = {
     checkArcadeRateLimit: async (key, limit, windowSeconds) => {
       calls.limits.push([limit, windowSeconds]);
@@ -183,11 +183,17 @@ function registerSetup({ hourlyAllowed = true, lastPlay = null, logger = quiet }
     },
     registerArcade: async (r) => {
       calls.register.push(r);
-      return { contactId: "c1", eligible: true, serverNow: "now", lastPlay, marketingConsent: r.marketingConsent };
+      const marketingConsent = r.marketingConsent === true ? true : storedConsent === true;
+      return { contactId: "c1", eligible: true, serverNow: "now", lastPlay, marketingConsent };
     },
     subscribe: async (s) => { calls.subscribe.push(s); return { created: true }; },
   };
-  const handler = registerHandler({ storeFactory: () => store, syncKit: async () => {}, environment: ENV, logger });
+  const handler = registerHandler({
+    storeFactory: () => store,
+    syncKit: async (args) => { calls.kit.push(args); },
+    environment: ENV,
+    logger,
+  });
   return { handler, calls };
 }
 
@@ -209,9 +215,63 @@ test("Arcade gate stores the email with source arcade / qr / shop / fani / new s
 
 test("Arcade gate records the optional promo opt-in as consent", async () => {
   const { handler, calls } = registerSetup();
-  await handler(post({ email: "p@example.com", consentProvided: true, marketingConsent: true }));
+  const res = await handler(post({ email: "p@example.com", consentProvided: true, marketingConsent: true }));
   assert.equal(calls.subscribe[0].marketingConsent, true);
-  assert.match(calls.subscribe[0].consentText, /Arcade/);
+  assert.match(calls.subscribe[0].consentText, /optional checkbox/);
+  assert.equal(calls.register[0].consentSource, "arcade_gate");
+  assert.equal(JSON.parse(res.body).marketingConsent, true);
+  assert.equal(calls.kit.length, 1);
+  assert.equal(calls.kit[0].contact.marketingConsent, true);
+  assert.equal(calls.kit[0].contact.sourceArcade, true);
+});
+
+test("result-screen opt-in writes subscribers consent and syncs Kit, without a new prize", async () => {
+  const { handler, calls } = registerSetup();
+  const res = await handler(post({
+    email: "p@example.com",
+    consentProvided: true,
+    marketingConsent: true,
+    consentSource: "arcade_result",
+    source: "home",
+  }));
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.body);
+  assert.equal(body.marketingConsent, true);
+  assert.equal(body.eligible, true);
+  assert.equal(calls.subscribe.length, 1);
+  assert.equal(calls.subscribe[0].source, "home");
+  assert.equal(calls.subscribe[0].marketingConsent, true);
+  assert.equal(calls.subscribe[0].consentText, subscribers.CONSENT_TEXT.arcadeResult);
+  assert.match(calls.subscribe[0].consentText, /giveaway/);
+  assert.equal(calls.register[0].consentSource, "arcade_result");
+  assert.equal(calls.register[0].marketingConsent, true);
+  assert.equal(calls.kit.length, 1);
+  assert.equal(calls.kit[0].contact.marketingConsent, true);
+});
+
+test("a declined checkbox does not grant consent, and a bogus consent source stays the gate", async () => {
+  const { handler, calls } = registerSetup();
+  const res = await handler(post({
+    email: "p@example.com",
+    consentProvided: true,
+    marketingConsent: false,
+    consentSource: "stripe_checkout",
+    source: "pdp",
+  }));
+  assert.equal(JSON.parse(res.body).marketingConsent, false);
+  assert.equal(calls.subscribe[0].marketingConsent, false);
+  assert.equal(calls.subscribe[0].consentText, null);
+  assert.equal(calls.subscribe[0].source, "pdp");
+  assert.equal(calls.register[0].consentSource, null);
+  assert.equal(calls.kit.length, 0);
+});
+
+test("a returning player who already opted in is flagged consented and is not a new sign-up", async () => {
+  const { handler, calls } = registerSetup({ storedConsent: true });
+  const res = await handler(post({ email: "p@example.com", consentProvided: false, source: "arcade" }));
+  assert.equal(JSON.parse(res.body).marketingConsent, true);
+  assert.equal(calls.subscribe.length, 0);
+  assert.equal(calls.register[0].marketingConsent, null);
 });
 
 test("returning-visitor refresh is not a new sign-up, unless they came from a card", async () => {
@@ -278,6 +338,11 @@ test("Arcade page: banner says check your email, src is slug-checked, honeypot +
     assert.equal(arcadeSignupSource("?src=shop"), "shop");
     store.clear();
     assert.equal(arcadeSignupSource("?src=fani"), "fani");
+    store.clear();
+    for (const slug of ["home", "pdp", "bag", "footer"]) {
+      assert.equal(arcadeSignupSource("?src=" + slug), slug);
+      store.clear();
+    }
     store.clear();
     assert.equal(arcadeSignupSource("?src=closette-2"), "closette-2");
     store.clear();

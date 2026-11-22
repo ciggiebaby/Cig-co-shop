@@ -18,7 +18,7 @@ Every FW26/27 piece is printed and made just for you after you order. Because we
 | United States | about 5 to 9 business days | Free |
 | Canada, UK, Germany, Australia, Japan, South Korea | about 7 to 25 business days | Calculated at checkout |
 
-- **Masks:** In-stock masks ship from our own stock, and their shipping is different. Abroad, a mask order pays one flat USPS rate per order, shown at checkout. Any US order with a mask in it has $8.95 shipping, which is free when the order total after any promo code is over $75. [See the mask terms for details](#mask-terms).
+- **Masks:** In-stock masks ship from our own stock, and their shipping is different. Abroad, a mask order pays one flat USPS rate per order, shown at checkout. In the US, masks ship free, with no minimum, and arrive in about 5 to 14 business days. [See the mask terms for details](#mask-terms).
 - All delivery times are estimates, not guarantees. Carrier delays, weather, holidays, and customs can push delivery past the estimate.
 - Once your order ships, you'll get a tracking link by email. It usually starts updating within 24 hours.
 - An order with several items may arrive in more than one package.
@@ -70,8 +70,8 @@ If your order arrives damaged or defective, has a print error, or isn't what you
 - In-stock masks ship within 1–2 business days of your order. Business days are Monday through Friday, not counting holidays.
 - You'll get a tracking link by email when your order ships.
 - **Where we ship:** Masks ship to the US, Canada, the UK, Germany, Australia, Japan, and South Korea.
-- **Cost:** Any US order with a mask in it has $8.95 shipping. Shipping is free when your order total after any promo code is over $75. At exactly $75, the $8.95 still applies.
-- **International cost:** One flat rate per order by package weight (USPS First-Class Package International), shown at checkout: 1 to 4 masks cost $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea. Larger orders cost more. The free-over-$75 offer is US only. Duties and taxes due on delivery are paid by the buyer, and South Korea orders need your Personal Customs Clearance Code (PCCC).
+- **Cost:** US shipping on masks is free, with no minimum order. Estimated US delivery is about 5 to 14 business days from your order.
+- **International cost:** One flat rate per order by package weight (USPS First-Class Package International), shown at checkout: 1 to 4 masks cost $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea. Larger orders cost more. Free shipping is US only. Duties and taxes due on delivery are paid by the buyer, and South Korea orders need your Personal Customs Clearance Code (PCCC).
 - **Mixed orders:** If your order has masks and made-to-order pieces, they ship separately and arrive in different packages.
 
 ### Returns & exchanges
