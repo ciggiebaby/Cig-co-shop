@@ -43,7 +43,7 @@ test("privacy policy shows the November 2026 effective date and postal address",
 
 test("support email is a mailto link on policy pages", () => {
   for (const page of ["shipping-returns.html", "faq.html"]) {
-    assert.match(read(page), /<a href="mailto:orders@cigcompany\.com">orders@cigcompany\.com<\/a>/, page);
+    assert.match(read(page), /<a href="mailto:info@cigcompany\.com">info@cigcompany\.com<\/a>/, page);
   }
   const privacy = read("privacy.html");
   assert.match(privacy, /<a href="mailto:info@cigcompany\.com">info@cigcompany\.com<\/a>/);
@@ -59,7 +59,7 @@ test("footer links to Shipping & Returns, FAQ, and Privacy on every page", () =>
     assert.match(footer, /href="shipping-returns\.html"/, page);
     assert.match(footer, /href="faq\.html"/, page);
     assert.match(footer, /href="privacy\.html"/, page);
-    assert.match(footer, /mailto:orders@cigcompany\.com/, page);
+    assert.match(footer, /mailto:info@cigcompany\.com/, page);
   }
 });
 

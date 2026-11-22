@@ -13,7 +13,6 @@ import re, pathlib, markdown, html
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 LAST_UPDATED = "November 1, 2026"
 EMAILS = (
-    "orders@cigcompany.com",
     "info@cigcompany.com",
     "ventures@cigcompany.com",
 )
