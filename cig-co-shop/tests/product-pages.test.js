@@ -247,7 +247,7 @@ test("Google-facing names never say CIG; shop names in products.js are untouched
     const ld = links.productJsonLd(PRODUCTS.find((p) => p.id === "0008"), { color: "Red", size: "1-Hole" }, {
       priceFor: () => 30, stockFor: () => 5, imageFor: () => "assets/products/skimask-red-1hole.jpg",
     });
-    assert.equal(ld.name, "Paisley Bandana Print Ski Mask (Red / 1-Hole)");
+    assert.equal(ld.name, "Bandana Paisley Ski Mask (Red / 1-Hole)");
     assert.deepEqual(ld.brand, { "@type": "Brand", name: "CIG & CO." });
   } finally { delete globalThis.CIGProductSeo; }
 });
