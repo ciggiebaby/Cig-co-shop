@@ -22,10 +22,10 @@ These are estimates, not guarantees:
 - **International:** about 7 to 25 business days from the time you order, depending on the country and customs.
 
 **Where do you ship?**
-Masks, bags, cases, and sleeves ship to the US, Canada, the UK, Germany, Australia, Japan, and South Korea. Pillows ship to the US only, so any order with a pillow needs a US address.
+Masks, crossbody bags, totes, and laptop sleeves ship to the US, Canada, the UK, Germany, Australia, Japan, and South Korea. MagSafe cases ship to all of those except Japan and South Korea. Pillows ship to the US only, so any order with a pillow needs a US address.
 
 **How much is shipping?**
-US shipping is free on FW26 collection pieces. International shipping on those pieces is calculated at checkout. Masks also ship free in the US, with no minimum, and arrive in about 5 to 14 business days. Masks also ship to Canada, the UK, Germany, Australia, Japan, and South Korea for one flat USPS rate per order, shown at checkout (1 to 4 masks cost $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea). Free shipping is US only.
+US shipping is free on FW26 collection pieces. International shipping on those pieces is a flat fee per item, calculated at checkout. Masks also ship free in the US, with no minimum, and arrive in about 5 to 14 business days. Masks also ship to Canada, the UK, Germany, Australia, Japan, and South Korea for one USPS rate per order, priced by package weight: 1 to 4 masks cost $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea. Bigger orders step up by weight and are priced at checkout. Free shipping is US only.
 
 **Will I pay customs or duties?**
 On international orders, any customs duties, import taxes, and brokerage fees are paid by the customer. Customs can also slow down delivery.

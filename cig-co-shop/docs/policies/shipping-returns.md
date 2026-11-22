@@ -11,14 +11,14 @@ Every FW26/27 piece is printed and made just for you after you order. Because we
 - If there's a problem with your order, like an address we can't verify, we'll email you and pause production until it's fixed.
 
 ## Shipping
-**Where we ship:** Masks, crossbody bags, MagSafe cases, and laptop sleeves ship to the US, Canada, the UK, Germany, Australia, Japan, and South Korea. Throw pillows ship to the US only, so any order with a pillow needs a US address.
+**Where we ship:** Masks, crossbody bags, totes, and laptop sleeves ship to the US, Canada, the UK, Germany, Australia, Japan, and South Korea. MagSafe cases ship to all of those except Japan and South Korea. Throw pillows ship to the US only, so any order with a pillow needs a US address.
 
 | Destination | Estimated delivery from order date | Cost |
 |---|---|---|
 | United States | about 5 to 9 business days | Free |
 | Canada, UK, Germany, Australia, Japan, South Korea | about 7 to 25 business days | Calculated at checkout |
 
-- **Masks:** In-stock masks ship from our own stock, and their shipping is different. Abroad, a mask order pays one flat USPS rate per order, shown at checkout. In the US, masks ship free, with no minimum, and arrive in about 5 to 14 business days. [See the mask terms for details](#mask-terms).
+- **Masks:** In-stock masks ship from our own stock, and their shipping is different. Abroad, a mask order pays one USPS rate per order, priced by package weight and shown at checkout. FW26 pieces abroad pay a flat fee per item. In the US, masks ship free, with no minimum, and arrive in about 5 to 14 business days. [See the mask terms for details](#mask-terms).
 - All delivery times are estimates, not guarantees. Carrier delays, weather, holidays, and customs can push delivery past the estimate.
 - Once your order ships, you'll get a tracking link by email. It usually starts updating within 24 hours.
 - An order with several items may arrive in more than one package.
@@ -71,7 +71,7 @@ If your order arrives damaged or defective, has a print error, or isn't what you
 - You'll get a tracking link by email when your order ships.
 - **Where we ship:** Masks ship to the US, Canada, the UK, Germany, Australia, Japan, and South Korea.
 - **Cost:** US shipping on masks is free, with no minimum order. Estimated US delivery is about 5 to 14 business days from your order.
-- **International cost:** One flat rate per order by package weight (USPS First-Class Package International), shown at checkout: 1 to 4 masks cost $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea. Larger orders cost more. Free shipping is US only. Duties and taxes due on delivery are paid by the buyer, and South Korea orders need your Personal Customs Clearance Code (PCCC).
+- **International cost:** One rate per order, priced by package weight (USPS First-Class Package International), shown at checkout: 1 to 4 masks cost $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea. Bigger orders step up by weight and are priced at checkout. Free shipping is US only. Duties and taxes due on delivery are paid by the buyer, and South Korea orders need your Personal Customs Clearance Code (PCCC).
 - **Mixed orders:** If your order has masks and made-to-order pieces, they ship separately and arrive in different packages.
 
 ### Returns & exchanges

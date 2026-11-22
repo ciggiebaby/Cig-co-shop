@@ -79,7 +79,7 @@ const SLOW_DELIVERY = {};
 // US mask shipping per order (CIG 2026-11-01: free, was 895 with free over $75).
 const MASK_US_SHIPPING_CENTS = 0;
 const MASK_US_DELIVERY_DAYS = "5\u201314 business days";
-const MASK_SHIPPING_NOTE = "Masks ship free in the US (about 5\u201314 business days). International mask orders pay a flat USPS rate shown at checkout.";
+const MASK_SHIPPING_NOTE = "Masks ship free in the US (about 5\u201314 business days). Abroad, mask orders pay one USPS rate per order, priced by package weight and shown at checkout.";
 
 // ---------- In-hand items abroad (CIG ships via Pirate Ship, USPS) ----------
 // Service: USPS First-Class Package International (FCPI), the cheapest USPS
