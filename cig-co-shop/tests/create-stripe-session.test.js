@@ -242,3 +242,29 @@ test("ignores a spoofed request host and falls back to the canonical site URL", 
   assert.equal(created.cancel_url.includes("attacker.example"), false);
   assert.ok(created.success_url.startsWith("https://cigcompany.com/"));
 });
+
+test("passes ?src= / utm attribution into Stripe session metadata", async () => {
+  for (const src of ["ig", "tiktok", "x", "arcade"]) {
+    const stripe = createStripeStub();
+    const response = await testHandler(stripe.stripeFactory)(
+      checkoutEvent({
+        cart: [{ productId: "TEST-PILLOW", color: "Red", size: null, style: null, qty: 1 }],
+        attribution: { src, utm_campaign: "FW26_Drop", utm_medium: "<script>", evil: "x" },
+      }),
+    );
+    assert.equal(response.statusCode, 200);
+    const md = stripe.getSessionRequest().metadata;
+    assert.equal(md.src, src);
+    assert.equal(md.utm_campaign, "fw26_drop");
+    assert.equal(md.utm_medium, undefined);
+    assert.equal(md.evil, undefined);
+  }
+});
+
+test("no attribution adds no src metadata", async () => {
+  const stripe = createStripeStub();
+  await testHandler(stripe.stripeFactory)(
+    checkoutEvent({ cart: [{ productId: "TEST-PILLOW", color: "Red", size: null, style: null, qty: 1 }] }),
+  );
+  assert.equal("src" in stripe.getSessionRequest().metadata, false);
+});

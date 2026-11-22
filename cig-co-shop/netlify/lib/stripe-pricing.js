@@ -192,7 +192,10 @@ function resolveRequestedItem(rawItem, now = Date.now()) {
     ? product.componentStock[color]
     : null;
   const productName = selectedStyle ? `${product.name} (${selectedStyle.name})` : product.name;
-  const stripeName = [productName, color, size].filter(Boolean).join(" — ");
+  // Bundle (products.js FW26-BUNDLE): color = Crossbody, style = MagSafe, size = model.
+  const stripeName = product.bundle
+    ? `${product.name} — Crossbody ${color} + MagSafe ${style} (${size})`
+    : [productName, color, size].filter(Boolean).join(" — ");
 
   return {
     key: JSON.stringify([productId, style, color, size]),
@@ -312,7 +315,7 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo, { now = Date.
       name: item.productName,
       shipping: item.shippingClass,
       quantity: item.quantity,
-      // In-hand backstock masks: US $8.95/order under $75 (shipping-rates.js).
+      // In-hand backstock masks (ship free in the US; priced by weight abroad).
       mask: !!item.liveStock,
       // Shipped by CIG (not Printful): every store country, priced by weight.
       inHand: !!item.liveStock || (!item.pod && !item.shippingClass),

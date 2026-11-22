@@ -75,6 +75,44 @@ function printfulItemForLine({ productId, style, color, size, quantity, retailPr
   return item;
 }
 
+// Every Printful item for one paid line. A bundle product (products.js
+// pod.bundle, e.g. FW26-BUNDLE) becomes one item per part (a bag + a case),
+// each mapped through its own product's sync variants; the paid unit price is
+// split across the parts by their list prices so the retail prices add up.
+// Any other product is the single item from printfulItemForLine.
+function printfulItemsForLine(line) {
+  const product = findPodProduct(line && line.productId);
+  const parts = product && product.pod && product.pod.bundle;
+  if (!Array.isArray(parts) || parts.length === 0) return [printfulItemForLine(line)];
+
+  const styles = (product.styles || []).map((s) => s.name);
+  if (!product.colors.includes(line.color) || !styles.includes(line.style) || !product.sizes.includes(line.size)) {
+    throw new PrintfulError(`Invalid bundle selection for product ${product.id}.`);
+  }
+  const listCents = parts.map((part) => Math.round(part.listPrice * 100));
+  const totalList = listCents.reduce((a, b) => a + b, 0);
+  const paidCents = typeof line.retailPrice === "string" && Number.isFinite(Number(line.retailPrice))
+    ? Math.round(Number(line.retailPrice) * 100)
+    : null;
+  let remaining = paidCents;
+  return parts.map((part, i) => {
+    let retailPrice;
+    if (paidCents != null && totalList > 0) {
+      const share = i === parts.length - 1 ? remaining : Math.round((paidCents * listCents[i]) / totalList);
+      remaining -= share;
+      retailPrice = (share / 100).toFixed(2);
+    }
+    return printfulItemForLine({
+      productId: part.productId,
+      style: part.style ? line[part.style] : null,
+      color: part.color ? line[part.color] : null,
+      size: part.size ? line[part.size] : null,
+      quantity: line.quantity,
+      retailPrice,
+    });
+  });
+}
+
 // Printful external_id must be short; Stripe PaymentIntent ids fit (pi_…).
 function printfulExternalId(paymentId) {
   const id = String(paymentId || "");
@@ -170,4 +208,5 @@ module.exports = {
   podVariantKey,
   printfulExternalId,
   printfulItemForLine,
+  printfulItemsForLine,
 };

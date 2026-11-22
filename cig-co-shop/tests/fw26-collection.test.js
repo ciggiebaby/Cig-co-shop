@@ -14,7 +14,7 @@ const product = (id) => PRODUCTS.find((p) => p.id === id);
 
 test("one product per item type, with every colorway (and Multi for the bag)", () => {
   const ids = PRODUCTS.filter((p) => p.id.startsWith("FW26-")).map((p) => p.id);
-  assert.deepEqual(ids, ["FW26-BAG", "FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE"]);
+  assert.deepEqual(ids, ["FW26-BAG", "FW26-CASE", "FW26-BUNDLE", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE"]);
   assert.deepEqual(product("FW26-BAG").colors, [...COLORWAYS, "Multi"]);
   for (const id of ["FW26-CASE", "FW26-SLEEVE", "FW26-PILLOW", "FW26-TOTE"]) assert.deepEqual(product(id).colors, COLORWAYS);
   assert.deepEqual(product("FW26-TOTE").sizes, []);

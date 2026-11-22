@@ -25,7 +25,7 @@ These are estimates, not guarantees:
 Masks, crossbody bags, totes, and laptop sleeves ship to the US, Canada, the UK, Germany, Australia, Japan, and South Korea. MagSafe cases ship to all of those except Japan and South Korea. Pillows ship to the US only, so any order with a pillow needs a US address.
 
 **How much is shipping?**
-US shipping is free on FW26 collection pieces. International shipping on those pieces is a flat fee per item, calculated at checkout. Any US order with a mask in it has $8.95 shipping. That shipping is free once your order total after any promo code is over $75. At exactly $75, the $8.95 still applies. Masks also ship to Canada, the UK, Germany, Australia, Japan, and South Korea for one USPS rate per order, priced by package weight: 1 mask is $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea (the same rate covers up to 4 masks). Bigger orders step up by weight and are priced at checkout. The free-over-$75 offer is US only.
+US shipping is free on FW26 collection pieces. International shipping on those pieces is a flat fee per item, calculated at checkout. Masks also ship free in the US, with no minimum, and arrive in about 5 to 14 business days. Masks also ship to Canada, the UK, Germany, Australia, Japan, and South Korea for one USPS rate per order, priced by package weight: 1 to 4 masks cost $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea. Bigger orders step up by weight and are priced at checkout. Free shipping is US only.
 
 **Will I pay customs or duties?**
 On international orders, any customs duties, import taxes, and brokerage fees are paid by the customer. Customs can also slow down delivery.
@@ -42,7 +42,7 @@ Not always. If you order several items, they may arrive in separate packages.
 ## Tracking
 
 **How do I track my order?**
-After you order, you'll get a receipt from orders@cigcompany.com. Once your order ships, we'll email you a tracking link, which usually starts updating within 24 hours.
+After you order, you'll get an email receipt. Once your order ships, we'll email you a tracking link, which usually starts updating within 24 hours.
 
 **My tracking hasn't moved. What do I do?**
 Tracking can pause while a package moves between carriers or goes through customs. If it's more than 5 business days past the estimated delivery date, email us with your order number and we'll look into it.
@@ -71,4 +71,4 @@ If a package comes back to us, we'll email you. Once you confirm the right addre
 Approved refunds go back to your card or PayPal account, and your bank usually takes 5 to 10 business days to show them. We process approved refunds within 3 business days.
 
 **How do I reach you?**
-Email orders@cigcompany.com and include your order number. We reply within 1 to 2 business days.
+Email info@cigcompany.com and include your order number. We reply within 1 to 2 business days.

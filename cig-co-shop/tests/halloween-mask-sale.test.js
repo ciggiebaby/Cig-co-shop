@@ -110,16 +110,14 @@ test("no stacking: during the sale a promo or Arcade code is refused, so it isn'
   }
 });
 
-test("shipping: US $8.95 / free over $75 uses the merchandise total at sale prices; intl rates unchanged", () => {
+test("shipping: US mask orders ship free at sale or full prices; intl rates unchanged", () => {
   const usShip = (cart, now) => resolveCheckoutShipping(priceCartForStripe(cart, null, undefined, { now }), "US").shippingCents;
-  // 3 ski masks: $90 full price (free) but $72 on sale (pays $8.95).
-  assert.equal(usShip([ski(3)], BEFORE), 0);
-  assert.equal(usShip([ski(3)], DURING), 895);
-  // 4 ski masks on sale: $96 > $75, free.
-  assert.equal(usShip([ski(4)], DURING), 0);
-  // 1 balaclava: $8.95 either way.
-  assert.equal(usShip([balaclava()], BEFORE), 895);
-  assert.equal(usShip([balaclava()], DURING), 895);
+  // Free US mask shipping (CIG 2026-11-01), whatever the total.
+  for (const now of [BEFORE, DURING, AFTER]) {
+    assert.equal(usShip([ski(3)], now), 0);
+    assert.equal(usShip([ski(4)], now), 0);
+    assert.equal(usShip([balaclava()], now), 0);
+  }
   // International mask rates don't change with the sale (Korea $30, Canada $25).
   for (const [country, cents] of [["KR", 3000], ["CA", 2500]]) {
     for (const now of [BEFORE, DURING, AFTER]) {
@@ -211,6 +209,12 @@ function loadStorefront(now, storedCart = null) {
   return { context, grid, run: (code) => vm.runInContext(code, context) };
 }
 
+// The FW26 bundle always shows its own struck-through "buy separately" price,
+// so the mask-sale checks below look at every card except the bundle.
+function withoutBundle(grid) {
+  return grid.innerHTML.replace(cardHtml(grid, "FW26-BUNDLE"), "");
+}
+
 function cardHtml(grid, id) {
   const start = grid.innerHTML.indexOf(`data-id="${id}"`);
   assert.ok(start >= 0, id);
@@ -226,7 +230,7 @@ test("storefront before the sale: full prices, no strikethrough", () => {
     assert.match(card, new RegExp(`\\$${price}\\.00`), id);
     assert.equal(run(`currentPrice(PRODUCTS.find((p) => p.id === "${id}"), null, null, null)`), price, id);
   }
-  assert.doesNotMatch(grid.innerHTML, /price-strike/);
+  assert.doesNotMatch(withoutBundle(grid), /price-strike/);
 });
 
 test("storefront during the sale: struck-through regular price and the sale price", () => {
@@ -237,12 +241,12 @@ test("storefront during the sale: struck-through regular price and the sale pric
     assert.equal(run(`currentPrice(PRODUCTS.find((p) => p.id === "${id}"), null, null, null)`), sale, id);
   }
   // Only the masks are struck through.
-  assert.equal((grid.innerHTML.match(/price-strike/g) || []).length, 3);
+  assert.equal((withoutBundle(grid).match(/price-strike/g) || []).length, 3);
 });
 
 test("storefront after the sale: back to full price", () => {
   const { grid } = loadStorefront(AFTER);
-  assert.doesNotMatch(grid.innerHTML, /price-strike/);
+  assert.doesNotMatch(withoutBundle(grid), /price-strike/);
   assert.match(cardHtml(grid, "0005"), /\$25\.00/);
 });
 

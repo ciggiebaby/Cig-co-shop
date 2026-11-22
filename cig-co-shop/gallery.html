@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Gallery — CIG &amp; CO.</title>
 <meta name="description" content="The CIG &amp; CO. lookbook — paisley pieces, editorial shots, and the story behind the brand." />
 <link rel="canonical" href="https://cigcompany.com/gallery" />
@@ -71,13 +71,17 @@
 <footer class="site-footer">
   <section class="shipping-policy" id="shipping-policy" aria-label="Shipping and returns">
     <h2 class="shipping-policy-title">Shipping &amp; returns</h2>
-    <p>Free US shipping on FW26 pieces. Masks: $8.95 per US order, free over $75 after any promo (US only). Abroad, masks and other in-stock items pay one USPS rate per order, priced by package weight: 1 mask is $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea; bigger orders step up by weight and are priced at checkout. FW26 pieces ship to Canada, the UK, Germany, Australia, Japan and South Korea for a flat per-item fee shown at checkout. Pillows ship to the US only. MagSafe cases can&rsquo;t ship to Japan or South Korea. South Korea orders need the buyer&rsquo;s Personal Customs Clearance Code (PCCC).</p>
+    <p>Free US shipping on FW26 pieces and masks. Abroad, masks and other in-stock items pay one USPS rate per order, priced by package weight: 1 to 4 masks cost $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea; bigger orders step up by weight and are priced at checkout. FW26 pieces ship to Canada, the UK, Germany, Australia, Japan and South Korea for a flat per-item fee shown at checkout. Pillows ship to the US only. MagSafe cases can&rsquo;t ship to Japan or South Korea. South Korea orders need the buyer&rsquo;s Personal Customs Clearance Code (PCCC).</p>
+
     <p>Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility. Shipping isn&rsquo;t refunded on refused parcels.</p>
   </section>
   <nav class="footer-links" aria-label="Policies and help">
     <a href="shipping-returns.html">Shipping &amp; Returns</a>
     <a href="faq.html">FAQ</a>
-    <a href="mailto:orders@cigcompany.com">orders@cigcompany.com</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="/ventures">Ventures</a>
+    <a href="/arcade?src=footer">Arcade</a>
+    <a href="mailto:info@cigcompany.com">info@cigcompany.com</a>
   </nav>
   <p>&copy; <span id="year"></span> CIG &amp; CO. All rights reserved.</p>
 </footer>
@@ -98,11 +102,22 @@
   </div>
   <div id="cart-items" class="cart-items"></div>
   <div class="cart-footer">
+    <div id="cart-bundle-offer" class="cart-bundle-offer" hidden></div>
     <div class="cart-subtotal">
       <span>Subtotal</span>
       <span id="cart-subtotal-amount">$0.00</span>
     </div>
+    <div id="cart-shipping-row" class="cart-line" hidden>
+      <span>Shipping</span>
+      <span id="cart-shipping-amount">Free (US)</span>
+    </div>
+    <div id="cart-total-row" class="cart-line cart-total" hidden>
+      <span>Total</span>
+      <span id="cart-total-amount">$0.00</span>
+    </div>
+    <p id="cart-ship-note" class="cart-ship-note" hidden>US total. International shipping is shown at checkout.</p>
     <button id="checkout-btn" class="btn btn-gold btn-full">Checkout</button>
+    <a class="cart-arcade-link" href="/arcade?src=bag">Arcade — 10% off masks</a>
   </div>
 </div>
 <div id="cart-backdrop" class="backdrop"></div>
@@ -122,10 +137,17 @@
       <p id="promo-message" class="promo-message"></p>
 
       <div class="checkout-fields">
-        <input type="email" id="checkout-email" placeholder="Email" required />
-        <input type="text" id="checkout-name" placeholder="Full name" required />
-        <input type="text" id="checkout-address" placeholder="Shipping address" required />
-        <input type="text" id="checkout-city" placeholder="City, State, ZIP" required />
+        <input type="email" id="checkout-email" placeholder="Email" autocomplete="email" inputmode="email" required />
+        <p class="checkout-note">Card and PayPal collect your shipping address on the next page. US shipping is shown in your bag.</p>
+        <div class="checkout-crypto-fields" data-crypto-only hidden>
+          <input type="text" id="checkout-name" placeholder="Full name" autocomplete="name" />
+          <input type="text" id="checkout-address" placeholder="Shipping address" autocomplete="street-address" />
+          <input type="text" id="checkout-city" placeholder="City" autocomplete="address-level2" />
+          <div class="checkout-row">
+            <input type="text" id="checkout-state" placeholder="State (e.g. GA)" maxlength="60" autocomplete="address-level1" />
+            <input type="text" id="checkout-zip" placeholder="ZIP" maxlength="10" autocomplete="postal-code" />
+          </div>
+        </div>
         <label class="checkbox-row">
           <input type="checkbox" id="checkout-optin" />
           <span>Keep me posted on drops &amp; discounts (optional)</span>
@@ -153,6 +175,7 @@
 </form>
 
 <script src="site-visits.js"></script>
+<script src="checkout-attribution.js"></script>
 <script src="products.js"></script>
 <script src="gallery-data.js"></script>
 <script src="promo.js"></script>

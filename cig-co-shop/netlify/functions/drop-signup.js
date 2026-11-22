@@ -12,6 +12,7 @@ const {
 } = require("../lib/customer-utils.js");
 const { createCustomerStore } = require("../lib/customer-store.js");
 const { createKitClient } = require("../lib/kit.js");
+const { CONSENT_TEXT, SOURCES, recordSubscriber } = require("../lib/subscribers.js");
 
 function createHandler({
   storeFactory = createCustomerStore,
@@ -48,6 +49,16 @@ function createHandler({
       const kit = kitFactory({ apiKey: environment.KIT_API_KEY });
       const { subscriber, suppressed } = await kit.upsertSubscriber({ email, firstName: null });
       if (!suppressed) await kit.addTags(subscriber.id, [tagId]);
+      // Email list: the drop "Get notified" form is an early-access sign-up.
+      if (!suppressed && typeof store.subscribe === "function") {
+        await recordSubscriber(store, {
+          email,
+          emailOriginal: body.email.trim(),
+          source: SOURCES.EARLY_ACCESS,
+          marketingConsent: true,
+          consentText: CONSENT_TEXT.early_access,
+        }, { logger });
+      }
       // Same response either way, so the form never reveals list status.
       return jsonResponse(200, { ok: true });
     } catch (error) {

@@ -37,7 +37,7 @@ function addKoreaCustomsCode(recipient, pccc) {
 const {
   autoConfirmEnabled,
   createPrintfulClient,
-  printfulItemForLine,
+  printfulItemsForLine,
 } = require("../lib/printful.js");
 
 const SUPPORTED_EVENTS = new Set([
@@ -172,7 +172,7 @@ function createHandler({
       const result = await printful.createOrder({
         paymentId,
         recipient: printfulRecipient(session),
-        items: lines.map(printfulItemForLine),
+        items: lines.flatMap(printfulItemsForLine),
         confirm: autoConfirmEnabled(environment),
       });
 

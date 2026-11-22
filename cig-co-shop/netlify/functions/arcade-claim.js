@@ -9,6 +9,7 @@ const {
 } = require("../lib/customer-utils.js");
 const { createCustomerStore } = require("../lib/customer-store.js");
 const { sendPrizeTransaction } = require("../lib/integrations.js");
+const { publicPrize } = require("../lib/arcade-public.js");
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const GAMES = new Set(["wheel", "scratch", "boxes"]);
@@ -62,7 +63,8 @@ function createHandler({
         firstPlay: claim.firstPlay || false,
         playedAt: claim.playedAt,
         nextEligibleAt: claim.nextEligibleAt,
-        prize: claim.prize,
+        // The code itself only goes out by email (see arcade-register.js).
+        prize: publicPrize(claim.prize, environment),
       });
     } catch (error) {
       if (error instanceof RequestValidationError) {

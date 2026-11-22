@@ -44,7 +44,8 @@ function loadLiveStock({ products = typeof PRODUCTS !== "undefined" ? PRODUCTS :
     .catch(() => []);
 }
 
-if (typeof document !== "undefined" && document.getElementById && typeof PRODUCTS !== "undefined") {
+// Product pages (/products/<slug>/) load stock themselves (product-page.js).
+if (typeof document !== "undefined" && document.getElementById && typeof PRODUCTS !== "undefined" && !document.getElementById("product-page")) {
   loadLiveStock({ onUpdate: () => { if (typeof renderProductGrid === "function") renderProductGrid(); } });
 }
 

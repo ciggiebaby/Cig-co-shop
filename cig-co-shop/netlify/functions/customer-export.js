@@ -3,6 +3,40 @@ const {
   csvCell,
   timingSafeTokenMatch,
 } = require("../lib/customer-utils.js");
+const { isValidSource } = require("../lib/subscribers.js");
+
+// Email list exports (subscribers table), separate from the contact filters:
+//   ?filter=subscribers                 every sign-up, all sources
+//   ?filter=subscribers&source=qr       one source (arcade, qr, shop, fani,
+//                                       any card slug, checkout, notify_me,
+//                                       early_access)
+//   ?filter=subscriber_counts           per-source totals for BG's recaps
+const SUBSCRIBER_FILTERS = new Set(["subscribers", "subscriber_counts"]);
+
+const SUBSCRIBER_HEADERS = [
+  "Email", "Source", "Product", "Variant", "Marketing consent", "Consent date",
+  "First signed up", "Last signed up", "Sign-up count", "Unsubscribed",
+  "Restock emailed", "Customer",
+];
+const SUBSCRIBER_COLUMNS = [
+  "email", "source", "product_id", "variant", "marketing_consent", "consent_at",
+  "first_seen_at", "last_seen_at", "signup_count", "unsubscribed_at",
+  "notified_at", "is_customer",
+];
+const COUNT_HEADERS = [
+  "Source", "Sign-ups", "Unique emails", "Marketing consent (active)",
+  "Unsubscribed", "Last 7 days", "Became customers",
+];
+const COUNT_COLUMNS = [
+  "source", "signups", "unique_emails", "marketing_consent", "unsubscribed",
+  "last_7_days", "became_customers",
+];
+
+function tableToCsv(headers, columns, rows) {
+  const lines = [headers.map(csvCell).join(",")];
+  for (const row of rows) lines.push(columns.map((c) => csvCell(row[c])).join(","));
+  return `${lines.join("\r\n")}\r\n`;
+}
 
 const FILTERS = new Set([
   "all",
@@ -82,6 +116,41 @@ function createHandler({
     }
 
     const filter = event.queryStringParameters && event.queryStringParameters.filter || "all";
+    if (SUBSCRIBER_FILTERS.has(filter)) {
+      const source = event.queryStringParameters.source || null;
+      if (source && !isValidSource(source)) {
+        return {
+          statusCode: 400,
+          headers: { "Cache-Control": "no-store" },
+          body: "Unknown subscriber source.",
+        };
+      }
+      try {
+        const store = storeFactory();
+        const counts = filter === "subscriber_counts";
+        const rows = counts ? await store.subscriberCounts() : await store.exportSubscribers(source);
+        const name = counts ? "cigco-subscriber-counts" : `cigco-subscribers-${source || "all"}`;
+        return {
+          statusCode: 200,
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": `attachment; filename="${name}.csv"`,
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+          },
+          body: counts
+            ? tableToCsv(COUNT_HEADERS, COUNT_COLUMNS, rows || [])
+            : tableToCsv(SUBSCRIBER_HEADERS, SUBSCRIBER_COLUMNS, rows || []),
+        };
+      } catch (error) {
+        logger.error("Subscriber export failed.", { error: error && error.name });
+        return {
+          statusCode: 500,
+          headers: { "Cache-Control": "no-store" },
+          body: "Export could not be created.",
+        };
+      }
+    }
     if (!FILTERS.has(filter)) {
       return {
         statusCode: 400,
@@ -117,6 +186,8 @@ const handler = createHandler();
 
 module.exports = {
   FILTERS,
+  SUBSCRIBER_FILTERS,
+  tableToCsv,
   createHandler,
   handler,
   rowsToCsv,

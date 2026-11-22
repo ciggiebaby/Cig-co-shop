@@ -109,8 +109,10 @@ test("a saved bag drops sold-out lines and shows current names", () => {
 });
 
 test("policy mask terms use the new mask names", () => {
-  for (const file of ["docs/policies/shipping-returns.md", "shipping-returns.html"]) {
-    const text = fs.readFileSync(path.join(root, file), "utf8");
+  const md = fs.readFileSync(path.join(root, "docs/policies/shipping-returns.md"), "utf8");
+  const html = fs.readFileSync(path.join(root, "shipping-returns.html"), "utf8");
+  const main = html.match(/<main class="policy-page"[^>]*>([\s\S]*?)<\/main>/)[1];
+  for (const [file, text] of [["docs/policies/shipping-returns.md", md], ["shipping-returns.html", main]]) {
     assert.match(text, /the CIG Ski Mask, the CIG Balaclava, and the Moto Mask/, file);
     assert.doesNotMatch(text, /Acrylic Ski Mask|Paisley Balaclava/, file);
   }

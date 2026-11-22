@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <!-- Link-preview copy (title, description, og/twitter) is DRAFT pending CIG. -->
 <title>CIG &amp; CO. — FW26/27 Collection</title>
 <meta name="description" content="FW26/27 Collection drops Fri, Oct 30 at 12 PM ET." />
+<meta name="p:domain_verify" content="cc9c193fc3b8a746c510d8f9a628578c"/>
 <link rel="canonical" href="https://cigcompany.com/" />
 <meta property="og:site_name" content="CIG &amp; CO." />
 <meta property="og:type" content="website" />
@@ -49,6 +50,8 @@
     </button>
   </div>
 </header>
+
+<a class="arcade-strip" href="/arcade?src=home">Unlock the Arcade — first play wins 10% off masks</a>
 
 <div id="checkout-status" class="checkout-status" role="status" aria-live="polite" hidden></div>
 
@@ -110,6 +113,21 @@
   <div id="product-grid" class="product-grid"></div>
 </section>
 
+<section id="early-access" class="early-access reveal" aria-labelledby="early-access-title">
+  <h2 class="section-title" id="early-access-title">Early access</h2>
+  <p class="early-access-copy">Get first dibs on the next drop and our Black Friday code before anyone else.</p>
+  <form id="early-access-form" class="early-access-form" novalidate>
+    <label class="visually-hidden" for="early-access-email">Email</label>
+    <div class="email-gate-row">
+      <input type="email" id="early-access-email" placeholder="you@email.com" autocomplete="email" required />
+      <button type="submit" class="btn btn-gold btn-promo">Get early access</button>
+    </div>
+    <div class="hp-field" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>
+    <p class="early-access-note">Drop and promo emails from CIG &amp; CO. Unsubscribe anytime.</p>
+    <p class="early-access-message" role="status" aria-live="polite"></p>
+  </form>
+</section>
+
 <section id="about" class="about reveal">
   <h2 class="section-title reveal">About</h2>
   <p>Cig &amp; Co. transforms the iconic paisley motif into collectible leather goods, jewelry, and refined accessories. Rooted in timeless design rather than fleeting trends, every piece is created as a work of functional art—crafted to be worn, displayed, passed down, and remembered.</p>
@@ -119,13 +137,31 @@
 <footer class="site-footer">
   <section class="shipping-policy" id="shipping-policy" aria-label="Shipping and returns">
     <h2 class="shipping-policy-title">Shipping &amp; returns</h2>
-    <p>Free US shipping on FW26 pieces. Masks: $8.95 per US order, free over $75 after any promo (US only). Abroad, masks and other in-stock items pay one USPS rate per order, priced by package weight: 1 mask is $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea; bigger orders step up by weight and are priced at checkout. FW26 pieces ship to Canada, the UK, Germany, Australia, Japan and South Korea for a flat per-item fee shown at checkout. Pillows ship to the US only. MagSafe cases can&rsquo;t ship to Japan or South Korea. South Korea orders need the buyer&rsquo;s Personal Customs Clearance Code (PCCC).</p>
+    <p>Free US shipping on FW26 pieces and masks. Abroad, masks and other in-stock items pay one USPS rate per order, priced by package weight: 1 to 4 masks cost $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea; bigger orders step up by weight and are priced at checkout. FW26 pieces ship to Canada, the UK, Germany, Australia, Japan and South Korea for a flat per-item fee shown at checkout. Pillows ship to the US only. MagSafe cases can&rsquo;t ship to Japan or South Korea. South Korea orders need the buyer&rsquo;s Personal Customs Clearance Code (PCCC).</p>
     <p>Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility. Shipping isn&rsquo;t refunded on refused parcels.</p>
   </section>
+  <!-- product-links:start (scripts/build-product-pages.js) -->
+  <nav class="footer-links footer-products" aria-label="Products">
+    <a href="/products/paisley-crossbody-bag/">Bandana Paisley Crossbody Bag</a>
+    <a href="/products/paisley-magsafe-phone-case/">Bandana Paisley Phone Case, MagSafe iPhone</a>
+    <a href="/products/paisley-crossbody-magsafe-bundle/">Bandana Paisley Crossbody Bag + MagSafe Phone Case Bundle</a>
+    <a href="/products/paisley-laptop-sleeve/">Bandana Paisley Laptop Sleeve</a>
+    <a href="/products/paisley-throw-pillow/">Bandana Paisley Throw Pillow</a>
+    <a href="/products/paisley-tote-bag/">Bandana Paisley Tote Bag</a>
+    <a href="/products/silky-bonnet-durag/">Silky Bonnet &amp; Durag</a>
+    <a href="/products/paisley-balaclava/">Bandana Paisley Balaclava</a>
+    <a href="/products/paisley-ski-mask/">Bandana Paisley Ski Mask</a>
+    <a href="/products/paisley-moto-mask/">Bandana Paisley Moto Mask</a>
+    <a href="/products/paisley-bikini/">Bandana Paisley Bikini</a>
+  </nav>
+  <!-- product-links:end -->
   <nav class="footer-links" aria-label="Policies and help">
     <a href="shipping-returns.html">Shipping &amp; Returns</a>
     <a href="faq.html">FAQ</a>
-    <a href="mailto:orders@cigcompany.com">orders@cigcompany.com</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="/ventures">Ventures</a>
+    <a href="/arcade?src=footer">Arcade</a>
+    <a href="mailto:info@cigcompany.com">info@cigcompany.com</a>
   </nav>
   <p>&copy; <span id="year"></span> CIG &amp; CO. All rights reserved.</p>
 </footer>
@@ -146,11 +182,22 @@
   </div>
   <div id="cart-items" class="cart-items"></div>
   <div class="cart-footer">
+    <div id="cart-bundle-offer" class="cart-bundle-offer" hidden></div>
     <div class="cart-subtotal">
       <span>Subtotal</span>
       <span id="cart-subtotal-amount">$0.00</span>
     </div>
+    <div id="cart-shipping-row" class="cart-line" hidden>
+      <span>Shipping</span>
+      <span id="cart-shipping-amount">Free (US)</span>
+    </div>
+    <div id="cart-total-row" class="cart-line cart-total" hidden>
+      <span>Total</span>
+      <span id="cart-total-amount">$0.00</span>
+    </div>
+    <p id="cart-ship-note" class="cart-ship-note" hidden>US total. International shipping is shown at checkout.</p>
     <button id="checkout-btn" class="btn btn-gold btn-full">Checkout</button>
+    <a class="cart-arcade-link" href="/arcade?src=bag">Arcade — 10% off masks</a>
   </div>
 </div>
 <div id="cart-backdrop" class="backdrop"></div>
@@ -173,33 +220,39 @@
       <p id="promo-message" class="promo-message"></p>
 
       <div class="checkout-fields">
-        <input type="email" id="checkout-email" placeholder="Email" required />
-        <input type="text" id="checkout-name" placeholder="Full name" required />
-        <label class="checkout-label" for="checkout-country">Ship to</label>
-        <select id="checkout-country" autocomplete="country">
-          <option value="US" selected>United States</option>
-          <option value="CA">Canada</option>
-          <option value="GB">United Kingdom</option>
-          <option value="DE">Germany</option>
-          <option value="AU">Australia</option>
-          <option value="JP">Japan</option>
-          <option value="KR">South Korea</option>
-        </select>
-        <p id="checkout-shipping-note" class="checkout-note" hidden></p>
-        <p id="checkout-mask-shipping-note" class="checkout-note" hidden>US mask orders ship for $8.95 &mdash; free over $75. Abroad, mask orders pay one USPS rate per order, priced by package weight and shown at checkout.</p>
-        <p id="checkout-duties-note" class="checkout-note checkout-duties-note" hidden>Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility. Shipping isn&rsquo;t refunded on refused parcels.</p>
-        <input type="text" id="checkout-address" placeholder="Shipping address" required />
-        <input type="text" id="checkout-city" placeholder="City" required />
-        <div class="checkout-row">
-          <input type="text" id="checkout-state" placeholder="State (e.g. GA)" maxlength="60" autocomplete="address-level1" />
-          <input type="text" id="checkout-zip" placeholder="ZIP" maxlength="10" autocomplete="postal-code" />
+        <input type="email" id="checkout-email" placeholder="Email" autocomplete="email" inputmode="email" required />
+        <p class="checkout-note">Card and PayPal collect your shipping address on the next page.</p>
+        <p id="checkout-mask-shipping-note" class="checkout-note" hidden>Masks ship free in the US (about 5&ndash;14 business days). Abroad, mask orders pay one USPS rate per order, priced by package weight and shown at checkout.</p>
+        <button type="button" id="checkout-intl-toggle" class="checkout-intl-toggle" data-crypto-off>Shipping outside the US?</button>
+        <div id="checkout-intl" hidden>
+          <label class="checkout-label" for="checkout-country">Ship to</label>
+          <select id="checkout-country" autocomplete="country">
+            <option value="US" selected>United States</option>
+            <option value="CA">Canada</option>
+            <option value="GB">United Kingdom</option>
+            <option value="DE">Germany</option>
+            <option value="AU">Australia</option>
+            <option value="JP">Japan</option>
+            <option value="KR">South Korea</option>
+          </select>
+          <p id="checkout-shipping-note" class="checkout-note" hidden></p>
+          <p id="checkout-duties-note" class="checkout-note checkout-duties-note" hidden>Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility. Shipping isn&rsquo;t refunded on refused parcels.</p>
+          <div id="checkout-pccc-row" class="checkout-pccc-row" hidden>
+            <label class="checkout-label" for="checkout-pccc">Personal Customs Clearance Code (PCCC)</label>
+            <input type="text" id="checkout-pccc" placeholder="P + 12 digits (e.g. P123456789012)" maxlength="16" autocomplete="off" inputmode="text" />
+            <p class="checkout-note">Required by Korea Customs for every South Korea order. Get yours at unipass.customs.go.kr.</p>
+          </div>
         </div>
-        <div id="checkout-pccc-row" class="checkout-pccc-row" hidden>
-          <label class="checkout-label" for="checkout-pccc">Personal Customs Clearance Code (PCCC)</label>
-          <input type="text" id="checkout-pccc" placeholder="P + 12 digits (e.g. P123456789012)" maxlength="16" autocomplete="off" inputmode="text" />
-          <p class="checkout-note">Required by Korea Customs for every South Korea order. Get yours at unipass.customs.go.kr.</p>
+        <div class="checkout-crypto-fields" data-crypto-only hidden>
+          <input type="text" id="checkout-name" placeholder="Full name" autocomplete="name" />
+          <input type="text" id="checkout-address" placeholder="Shipping address" autocomplete="street-address" />
+          <input type="text" id="checkout-city" placeholder="City" autocomplete="address-level2" />
+          <div class="checkout-row">
+            <input type="text" id="checkout-state" placeholder="State (e.g. GA)" maxlength="60" autocomplete="address-level1" />
+            <input type="text" id="checkout-zip" placeholder="ZIP" maxlength="10" autocomplete="postal-code" />
+          </div>
         </div>
-        <p class="checkout-note">Free US shipping on FW26 pieces. Masks: $8.95 per US order, free when your total after promo is over $75 (US only); abroad, one rate per order priced by package weight (1 mask from $25), shown above. FW26 pieces to Canada, UK, Germany, Australia, Japan &amp; South Korea ship for a flat per-item fee shown above. MagSafe cases can&rsquo;t ship to Japan or South Korea. Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility; shipping isn&rsquo;t refunded on refused parcels. Pillows ship to the US only.<span data-crypto-only hidden> Crypto orders need a state + ZIP (US) or postal code.</span></p>
+        <p class="checkout-note">Free US shipping on FW26 pieces and masks. Masks abroad: one USPS rate per order, priced by package weight, shown above. FW26 pieces to Canada, UK, Germany, Australia, Japan &amp; South Korea ship for a flat per-item fee shown above. MagSafe cases can&rsquo;t ship to Japan or South Korea. Duties and taxes may apply on delivery and are the buyer&rsquo;s responsibility; shipping isn&rsquo;t refunded on refused parcels. Pillows ship to the US only.<span data-crypto-only hidden> Crypto orders need a state + ZIP (US) or postal code.</span></p>
         <label class="checkbox-row">
           <input type="checkbox" id="checkout-optin" />
           <span>Keep me posted on drops &amp; discounts (optional)</span>
@@ -228,12 +281,15 @@
 </form>
 
 <script src="site-visits.js"></script>
+<script src="checkout-attribution.js"></script>
 <script src="products.js"></script>
 <script src="promo.js"></script>
 <script src="shipping-rates.js"></script>
 <script src="email-list.js"></script>
 <script src="cart.js"></script>
 <script src="checkout-fingerprint.js"></script>
+<script src="product-seo.js"></script>
+<script src="product-links.js"></script>
 <script src="app.js"></script>
 <script src="live-stock-client.js"></script>
 <script src="drop-hero.js"></script>

@@ -77,8 +77,10 @@ test("a discounted mask never goes below its wholesale floor", () => {
   assert.equal(promo.promoUnitCents("NOT-LISTED", 3000, 1000), 3000);
 });
 
-test("free prize masks always pay standard mask shipping", () => {
-  assert.equal(promo.GIFT_MASK_SHIPPING_CENTS, MASK_US_SHIPPING_CENTS);
+test("free prize masks still pay $8.95 US shipping (not part of the free US mask shipping change)", () => {
+  // Shop mask orders ship free in the US since 2026-11-01; prize shipping is separate.
+  assert.equal(MASK_US_SHIPPING_CENTS, 0);
+  assert.equal(promo.GIFT_MASK_SHIPPING_CENTS, 895);
   for (const prize of [{ type: "merch" }, { type: "gift" }, { id: "giveaway", type: "perk" }]) {
     const note = promo.prizeTermsNote(prize);
     assert.match(note, /one mask only/);

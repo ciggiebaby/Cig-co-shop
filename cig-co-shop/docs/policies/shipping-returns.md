@@ -1,6 +1,6 @@
 # Shipping, Returns & Refunds
 
-*Applies to the FW26/27 collection (crossbody bags, MagSafe cases, laptop sleeves, and throw pillows). Questions? Email orders@cigcompany.com.*
+*Applies to the FW26/27 collection (crossbody bags, MagSafe cases, laptop sleeves, and throw pillows). Questions? Email info@cigcompany.com.*
 
 ## Made to Order
 Every FW26/27 piece is printed and made just for you after you order. Because we don't keep these pieces in stock, our cancellation and return rules are different from a regular store's.
@@ -18,7 +18,7 @@ Every FW26/27 piece is printed and made just for you after you order. Because we
 | United States | about 5 to 9 business days | Free |
 | Canada, UK, Germany, Australia, Japan, South Korea | about 7 to 25 business days | Calculated at checkout |
 
-- **Masks:** In-stock masks ship from our own stock, and their shipping is different. Abroad, a mask order pays one USPS rate per order, priced by package weight and shown at checkout. FW26 pieces abroad pay a flat fee per item. Any US order with a mask in it has $8.95 shipping, which is free when the order total after any promo code is over $75. [See the mask terms for details](#mask-terms).
+- **Masks:** In-stock masks ship from our own stock, and their shipping is different. Abroad, a mask order pays one USPS rate per order, priced by package weight and shown at checkout. FW26 pieces abroad pay a flat fee per item. In the US, masks ship free, with no minimum, and arrive in about 5 to 14 business days. [See the mask terms for details](#mask-terms).
 - All delivery times are estimates, not guarantees. Carrier delays, weather, holidays, and customs can push delivery past the estimate.
 - Once your order ships, you'll get a tracking link by email. It usually starts updating within 24 hours.
 - An order with several items may arrive in more than one package.
@@ -27,7 +27,7 @@ Every FW26/27 piece is printed and made just for you after you order. Because we
 - **P.O. boxes:** We can't guarantee delivery to P.O. boxes, so please use a street address if you can.
 
 ## Order Changes & Cancellations
-- **Cancel or change items:** Email orders@cigcompany.com within 12 hours of ordering. If production hasn't started, we'll cancel or change your order and refund you in full. Once production starts, we can't cancel the order or change the items.
+- **Cancel or change items:** Email info@cigcompany.com within 12 hours of ordering. If production hasn't started, we'll cancel or change your order and refund you in full. Once production starts, we can't cancel the order or change the items.
 - **Change your shipping address:** Let us know right away. We can usually update it until the order ships. After it ships, the carrier can't redirect it.
 
 ## Returns & Exchanges
@@ -37,7 +37,7 @@ Every piece is made just for you, so we don't accept returns or exchanges if you
 If your order arrives damaged or defective, has a print error, or isn't what you ordered, we'll send you a free replacement or give you a refund, whichever you prefer. In most cases you don't need to send anything back.
 
 **How to report it:**
-1. Email orders@cigcompany.com within 14 days of delivery and include your order number.
+1. Email info@cigcompany.com within 14 days of delivery and include your order number.
 2. Include clear, well-lit photos:
    - **Damage or defect:** the full item plus a close-up of the problem.
    - **Print error or wrong placement:** the whole item laid flat, ideally with a ruler next to it.
@@ -70,20 +70,20 @@ If your order arrives damaged or defective, has a print error, or isn't what you
 - In-stock masks ship within 1–2 business days of your order. Business days are Monday through Friday, not counting holidays.
 - You'll get a tracking link by email when your order ships.
 - **Where we ship:** Masks ship to the US, Canada, the UK, Germany, Australia, Japan, and South Korea.
-- **Cost:** Any US order with a mask in it has $8.95 shipping. Shipping is free when your order total after any promo code is over $75. At exactly $75, the $8.95 still applies.
-- **International cost:** One rate per order, priced by package weight (USPS First-Class Package International): 1 mask is $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea (the same rate covers up to 4 masks). Bigger orders step up by weight and are priced at checkout. The free-over-$75 offer is US only. Duties and taxes due on delivery are paid by the buyer, and South Korea orders need your Personal Customs Clearance Code (PCCC).
+- **Cost:** US shipping on masks is free, with no minimum order. Estimated US delivery is about 5 to 14 business days from your order.
+- **International cost:** One rate per order, priced by package weight (USPS First-Class Package International), shown at checkout: 1 to 4 masks cost $25 to Canada, $31 to the UK, $28 to Germany, $40 to Australia, $33 to Japan, and $30 to South Korea. Bigger orders step up by weight and are priced at checkout. Free shipping is US only. Duties and taxes due on delivery are paid by the buyer, and South Korea orders need your Personal Customs Clearance Code (PCCC).
 - **Mixed orders:** If your order has masks and made-to-order pieces, they ship separately and arrive in different packages.
 
 ### Returns & exchanges
 Masks are worn on the face, so for hygiene reasons we can only accept masks that are **unworn, unwashed, and in their original packaging**.
 
-- **Exchanges (different color or style):** Email orders@cigcompany.com within 14 days of delivery. Send the unworn mask back, and once we receive it we'll ship your new one, as long as it's still in stock. You pay to ship the mask back, and we pay to ship the replacement.
+- **Exchanges (different color or style):** Email info@cigcompany.com within 14 days of delivery. Send the unworn mask back, and once we receive it we'll ship your new one, as long as it's still in stock. You pay to ship the mask back, and we pay to ship the replacement.
 - **Refunds:** Masks can be exchanged but not refunded. The exception is a mask that arrives damaged, defective, or wrong (see below).
 - **Sale and promo items:** The same rules apply.
 - We inspect every return. If a mask has been worn, washed, or damaged, or arrives without its packaging, we can't accept it and will ship it back to you at your cost.
 
 ### Damaged, defective, or wrong items
-If your mask arrives damaged or defective, or you got the wrong color or style, email orders@cigcompany.com within 14 days of delivery with your order number and a photo. We'll send a replacement at no cost, or refund you if that color is sold out. You won't need to send the item back unless we ask.
+If your mask arrives damaged or defective, or you got the wrong color or style, email info@cigcompany.com within 14 days of delivery with your order number and a photo. We'll send a replacement at no cost, or refund you if that color is sold out. You won't need to send the item back unless we ask.
 
 ### Lost packages and wrong addresses
 These follow the same rules as the rest of the store. If the carrier confirms your package is lost, we'll replace it or refund you. If a package shows as delivered but you can't find it, please contact the carrier first. If an order went to a wrong address you entered, you pay to reship it.
@@ -95,6 +95,6 @@ Approved refunds go back to your original payment method within 3 business days.
 Store orders are paid upfront by invoice and ship once payment clears. Wholesale orders are final sale. The exception is a damaged or short-shipped case, which the store needs to report within 7 days of delivery.
 
 ## Contact
-Email orders@cigcompany.com and include your order number. We reply within 1 to 2 business days.
+Email info@cigcompany.com and include your order number. We reply within 1 to 2 business days.
 
 *Last updated: [publish date]*

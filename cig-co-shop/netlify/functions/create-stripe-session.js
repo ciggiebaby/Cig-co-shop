@@ -8,6 +8,7 @@ const {
   RequestValidationError,
   normalizeEmail,
 } = require("../lib/customer-utils.js");
+const { normalizeAttribution } = require("../lib/attribution.js");
 const { assertDropOpen, dropTestCodeValid } = require("../lib/drop-lock.js");
 const {
   LiveStockUnavailableError,
@@ -63,6 +64,31 @@ function checkoutSiteUrl(value) {
     throw new Error("SITE_URL is invalid.");
   }
   return url.href.replace(/\/+$/, "");
+}
+
+// Stripe Checkout cart recovery, behind env flags that default OFF (CIG has to OK it):
+//   STRIPE_CHECKOUT_RECOVERY=true      -> after_expiration.recovery.enabled on new sessions,
+//     so an expired session's checkout.session.expired event carries a 30-day
+//     recovery URL (a copy of the cart) for a "still want it?" email. Promo-code
+//     entry stays off on recovered sessions (Stripe's default; no discounts until BF).
+//   STRIPE_CHECKOUT_PROMO_CONSENT=true -> consent_collection.promotions = "auto", so
+//     Stripe's own "Keep me updated" checkbox is shown. Optional: the site already
+//     asks for email-list consent before checkout (metadata.marketing_consent), and
+//     Stripe's docs say that's enough; only email buyers who opted in either way.
+// Nothing here sends an email; the flags only make the recovery link exist.
+function envFlag(environment, name) {
+  return String((environment && environment[name]) || "").trim().toLowerCase() === "true";
+}
+
+function checkoutRecoveryOptions(environment = process.env) {
+  const out = {};
+  if (envFlag(environment, "STRIPE_CHECKOUT_RECOVERY")) {
+    out.after_expiration = { recovery: { enabled: true } };
+  }
+  if (envFlag(environment, "STRIPE_CHECKOUT_PROMO_CONSENT")) {
+    out.consent_collection = { promotions: "auto" };
+  }
+  return out;
 }
 
 function createHandler({
@@ -144,16 +170,21 @@ function createHandler({
           promo_code: pricing.promoCode || "",
           // Read back by stripe-webhook to decrement live stock once paid.
           ...encodeStockMetadata(pricing.stockLines),
+          // Marketing attribution (?src= / utm_*), only keys that were present.
+          ...normalizeAttribution(body.attribution),
         },
         shipping_address_collection: { allowed_countries: [shipping.country] },
         success_url: `${resolvedSiteUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${resolvedSiteUrl}/?checkout=cancelled`,
       };
+      // Abandoned-checkout recovery (off unless CIG turns it on; see checkoutRecoveryOptions).
+      Object.assign(sessionRequest, checkoutRecoveryOptions(environment));
       // Flag CIG's pre-launch test order so it's easy to spot in Stripe.
       if (dropTestCodeValid(body.dropTestCode, environment)) sessionRequest.metadata.drop_test = "true";
       if (shipping.country === "US" && shipping.shippingCents > 0) {
-        // US orders with a mask: flat per-order fee (free over $75, shipping-rates.js).
-        // FW26-only US carts stay free (no shipping option, same as before).
+        // A US shipping charge from shipping-rates.js. US shipping is free for
+        // everything now (masks too, CIG 2026-11-01), so this doesn't run; kept
+        // in case a US fee ever comes back.
         sessionRequest.metadata.shipping_cents = String(shipping.shippingCents);
         sessionRequest.shipping_options = [{
           shipping_rate_data: {
@@ -206,6 +237,7 @@ function createHandler({
 const handler = createHandler();
 
 module.exports = {
+  checkoutRecoveryOptions,
   checkoutSiteUrl,
   createHandler,
   handler,

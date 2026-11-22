@@ -49,7 +49,9 @@ function renderProductGrid() {
   const grid = document.getElementById("product-grid");
   if (!grid) return;
   grid.innerHTML = shopGridProducts().map((p) => {
-    const price = p.styles || hasPriceRange(p)
+    const price = p.bundle
+      ? bundlePriceHtml(p, p.price)
+      : p.styles || hasPriceRange(p)
       ? `From $${minPrice(p).toFixed(2)}`
       : salePriceNow(p) != null
       ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${salePriceNow(p).toFixed(2)}</span>`
@@ -63,17 +65,32 @@ function renderProductGrid() {
         </div>
       </div>
       <div class="product-card-body">
-        <div class="product-card-name">${p.name}</div>
+        <div class="product-card-name">${productPageHref(p) ? `<a class="product-card-link" href="${productPageHref(p)}">${p.name}</a>` : p.name}</div>
         <div class="product-card-price">${price}</div>
       </div>
     </div>`;
   }).join("");
 
   grid.querySelectorAll(".product-card").forEach((card) => {
-    card.addEventListener("click", () => openProductModal(card.dataset.id));
+    card.addEventListener("click", (e) => {
+      // The name is a real link to the product's own page (for search engines
+      // and new-tab clicks); a plain click still opens the pop-up as before.
+      const link = e && e.target && e.target.closest ? e.target.closest("a.product-card-link") : null;
+      if (link && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1)) return;
+      if (link && e.preventDefault) e.preventDefault();
+      openProductModal(card.dataset.id);
+    });
   });
 
+  renderCatalogJsonLd();
+  if (openProductId) syncProductView();
   if (window.initScrollEffects) window.initScrollEffects();
+}
+
+// The product's own page (/products/<slug>/, product-seo.js), or null.
+function productPageHref(p) {
+  const seo = typeof window !== "undefined" && window.CIGProductSeo;
+  return seo && typeof seo.productPagePath === "function" ? seo.productPagePath(p) : null;
 }
 
 // ---------- Product modal ----------
@@ -164,6 +181,14 @@ function hasPriceRange(p) {
   return new Set(allPrices(p)).size > 1;
 }
 
+// Crossbody + MagSafe bundle: its price, with the separate total struck through
+// only when the bundle is actually cheaper (products.js BUNDLE_PRICE).
+function bundlePriceHtml(p, price) {
+  return typeof p.compareAtPrice === "number" && p.compareAtPrice > price
+    ? `<span class="price-strike">$${p.compareAtPrice.toFixed(2)}</span><span class="price-sale">$${price.toFixed(2)}</span>`
+    : `$${price.toFixed(2)}`;
+}
+
 function productImageForColor(p, color, size, style) {
   if (p.styleImages && style && p.styleImages[style]) {
     return p.styleImages[style][color] || p.image;
@@ -182,6 +207,8 @@ function productGalleryImages(p, color, size, style) {
   let extra = [];
   if (p.styleGallery && style && p.styleGallery[style]) extra = p.styleGallery[style][color] || [];
   else extra = (p.gallery && p.gallery[color]) || [];
+  // Bundle: the picked MagSafe case (on the picked phone) right after the bag.
+  if (typeof p.bundleImages === "function") extra = p.bundleImages(style, size).concat(extra);
   const seen = new Set([primary]);
   const rest = extra.filter((img) => {
     if (seen.has(img)) return false;
@@ -243,11 +270,20 @@ function watchModalScroll() {
   }
 }
 
-function openProductModal(id) {
+// pick: optional { color, size, style } from a shared link (?product=...).
+// Anything that isn't one of this product's own options is ignored, so the
+// product's usual default shows instead.
+function openProductModal(id, pick = null) {
   const p = PRODUCTS.find((x) => x.id === id);
-  if (!p || p.hidden) return;
+  if (!p || p.hidden) return false;
   if (typeof trackSiteEvent === "function") trackSiteEvent("product_view", p.id);
   modalState = { style: (p.styles && p.styles[0].name) || null, color: (p.defaultColor && p.colors.includes(p.defaultColor) ? p.defaultColor : p.colors[0]) || null, size: p.sizes[0] || null, qty: 1, slide: 0 };
+  if (pick) {
+    if (pick.style && (p.styles || []).some((st) => st.name === pick.style)) modalState.style = pick.style;
+    if (pick.color && p.colors.includes(pick.color)) modalState.color = pick.color;
+    if (pick.size && p.sizes.includes(pick.size)) modalState.size = pick.size;
+  }
+  openProductId = p.id;
 
   document.getElementById("modal-content").innerHTML = `
     <div class="pd-media" id="pd-media">
@@ -262,14 +298,19 @@ function openProductModal(id) {
     ${p.material || p.shipTime || (p.details && p.details.length) ? `<div class="pd-specs">${p.material ? `<p class="pd-material">${p.material}</p>` : ""}${p.shipTime ? `<p class="pd-shiptime">Shipping: ${p.shipTime}</p>` : ""}${p.details && p.details.length ? `<ul class="pd-details-list">${p.details.map((d) => `<li>${d}</li>`).join("")}</ul>` : ""}</div>` : ""}
     ${p.styles ? `
       <div class="pd-field">
-        <label>Style</label>
+        <label>${p.styleLabel || "Style"}</label>
         <div class="pd-options" id="pd-styles">
-          ${p.styles.map((st) => `<button class="pd-option${st.name === modalState.style ? " selected" : ""}" data-style="${st.name}">${st.name} \u00b7 $${st.price.toFixed(2)}</button>`).join("")}
+          ${p.styles.map((st) => {
+            const swatch = p.styleSwatches && p.styleSwatches[st.name];
+            const dot = swatch ? `<img class="pd-swatch-img" src="${swatch}" alt="" loading="lazy" />` : "";
+            const label = p.bundle ? st.name : `${st.name} \u00b7 $${st.price.toFixed(2)}`;
+            return `<button class="pd-option${dot ? " pd-swatch" : ""}${st.name === modalState.style ? " selected" : ""}" data-style="${st.name}" title="${st.name}">${dot}<span>${label}</span></button>`;
+          }).join("")}
         </div>
       </div>` : ""}
     ${p.colors.length ? `
       <div class="pd-field">
-        <label>Color</label>
+        <label>${p.colorLabel || "Color"}</label>
         <div class="pd-options" id="pd-colors">
           ${p.colors.map((c) => {
             const swatch = p.colorSwatches && p.colorSwatches[c];
@@ -294,6 +335,16 @@ function openProductModal(id) {
         <button id="qty-plus">+</button>
       </div>
     </div>
+    <form class="notify-me" id="pd-notify" hidden novalidate>
+      <label for="pd-notify-email">Sold out. Get an email when <span id="pd-notify-variant"></span> is back.</label>
+      <div class="email-gate-row">
+        <input type="email" id="pd-notify-email" placeholder="you@email.com" autocomplete="email" required />
+        <button type="submit" class="btn btn-outline btn-promo">Notify me</button>
+      </div>
+      <div class="hp-field" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>
+      <p class="notify-me-note">One email when it&rsquo;s back. Unsubscribe anytime.</p>
+      <p class="notify-me-message" role="status" aria-live="polite"></p>
+    </form>
     <button class="btn btn-gold btn-full" id="add-to-cart-btn">Add to Bag</button>
     </div>
   `;
@@ -313,13 +364,15 @@ function openProductModal(id) {
     const priceEl = document.getElementById("pd-price");
     if (priceEl) {
       const shown = currentPrice(p, modalState.style, modalState.color, modalState.size);
-      priceEl.innerHTML = selectionOnSale(p, modalState.style, modalState.color, modalState.size)
+      priceEl.innerHTML = p.bundle ? bundlePriceHtml(p, shown) : selectionOnSale(p, modalState.style, modalState.color, modalState.size)
         ? `<span class="price-strike">$${p.price.toFixed(2)}</span><span class="price-sale">$${shown.toFixed(2)}</span>`
         : `$${shown.toFixed(2)}`;
     }
+    syncProductView();
     const avail = variantStock(p, modalState.style, modalState.color, modalState.size);
     const addBtn = document.getElementById("add-to-cart-btn");
     const qtyVal = document.getElementById("qty-value");
+    refreshNotifyMe(p, avail);
     if (addBlockedByDrop(p)) {
       addBtn.textContent = dropBadgeText(p);
       addBtn.disabled = true;
@@ -385,7 +438,7 @@ function openProductModal(id) {
     addToCart({
       productId: p.id,
       sku: p.sku,
-      name: p.styles ? `${p.name} (${modalState.style})` : p.name,
+      name: p.styles && !p.bundle ? `${p.name} (${modalState.style})` : p.name,
       price: currentPrice(p, modalState.style, modalState.color, modalState.size),
       image: productImageForColor(p, modalState.color, modalState.size, modalState.style),
       color: modalState.color,
@@ -396,14 +449,144 @@ function openProductModal(id) {
     dismissProductModal();
   });
 
-  refreshAvailability();
+  wireNotifyMe(p);
   document.getElementById("product-modal").setAttribute("aria-hidden", "false");
   pushProductModalHistory();
+  refreshAvailability();
+  return true;
+}
+
+// ---------- Notify me (sold-out products/variants) ----------
+// Email list source "notify_me", stored with the product and variant so we can
+// email exactly the people waiting when it restocks.
+function notifyVariantLabel(p, state) {
+  return [p.styles ? state.style : null, state.color, state.size].filter(Boolean).join(" / ");
+}
+// Offer it on anything sold out, but not on drop-locked or coming-soon items.
+function shouldOfferNotifyMe(p, avail) {
+  return !p.comingSoon && !dropLocked(p) && avail <= 0;
+}
+function refreshNotifyMe(p, avail) {
+  const form = document.getElementById("pd-notify");
+  if (!form) return;
+  const offer = shouldOfferNotifyMe(p, avail);
+  form.hidden = !offer;
+  if (!offer) return;
+  const label = notifyVariantLabel(p, modalState);
+  const variantEl = document.getElementById("pd-notify-variant");
+  if (variantEl) variantEl.textContent = label ? `${p.name} (${label})` : p.name;
+  if (form.dataset.variant !== label) {
+    form.dataset.variant = label;
+    const message = form.querySelector(".notify-me-message");
+    if (message) message.textContent = "";
+  }
+}
+function wireNotifyMe(p) {
+  const form = document.getElementById("pd-notify");
+  if (!form || form.dataset.wired) return;
+  form.dataset.wired = "1";
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const input = document.getElementById("pd-notify-email");
+    const message = form.querySelector(".notify-me-message");
+    const button = form.querySelector('button[type="submit"]');
+    const email = input ? input.value : "";
+    if (!isValidEmail(email)) {
+      if (message) message.textContent = "Enter a valid email.";
+      return;
+    }
+    if (button) button.disabled = true;
+    try {
+      await subscribeEmail({
+        email,
+        source: "notify_me",
+        productId: p.id,
+        variant: notifyVariantLabel(p, modalState) || null,
+        website: form.querySelector('input[name="website"]').value,
+      });
+      if (message) message.textContent = "You're on the list. We'll email you when it's back.";
+      if (input) input.value = "";
+    } catch (error) {
+      if (message) message.textContent = error.message;
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
 }
 
 function closeModal(id) {
   const el = document.getElementById(id);
   if (el) el.setAttribute("aria-hidden", "true");
+  if (id === "product-modal") {
+    openProductId = null;
+    syncProductView();
+  }
+}
+
+// ---------- Shareable product links + Google product data (product-links.js) ----------
+// The open pop-up's product (or null) — kept in the address bar and in the
+// page's schema.org data so a copied link reopens the same product and pick.
+let openProductId = null;
+
+function structuredDataHelpers() {
+  return {
+    priceFor: (p, style, color, size) => currentPrice(p, style, color, size),
+    stockFor: (p, style, color, size) => variantStock(p, style, color, size),
+    imageFor: (p, color, size, style) => productImageForColor(p, color, size, style),
+  };
+}
+
+function setJsonLd(elementId, data) {
+  if (typeof document === "undefined" || !document.getElementById || typeof jsonLdText !== "function") return;
+  let el = document.getElementById(elementId);
+  if (!data) { if (el && el.parentNode) el.parentNode.removeChild(el); return; }
+  if (!el) {
+    if (!document.createElement || !document.head) return;
+    el = document.createElement("script");
+    el.type = "application/ld+json";
+    el.id = elementId;
+    document.head.appendChild(el);
+  }
+  el.textContent = jsonLdText(data);
+}
+
+// Puts the open product + pick in the URL (or takes it out once closed) and
+// refreshes that product's JSON-LD. replaceState only: the pop-up's own
+// history entry (pushProductModalHistory) is what Back closes.
+function syncProductView() {
+  const p = openProductId ? PRODUCTS.find((x) => x.id === openProductId) : null;
+  const sel = p ? { id: p.id, style: modalState.style, color: modalState.color, size: modalState.size } : null;
+  const nav = typeof window !== "undefined" ? window.history : null;
+  const loc = typeof window !== "undefined" ? window.location : null;
+  if (nav && loc && typeof urlWithProductView === "function" && typeof nav.replaceState === "function") {
+    try {
+      const next = urlWithProductView(loc.href, sel);
+      if (next !== `${loc.pathname}${loc.search}${loc.hash}`) nav.replaceState(nav.state, "", next);
+    } catch { /* address bar update is best-effort */ }
+  }
+  if (typeof productJsonLd === "function") setJsonLd("product-jsonld", p ? productJsonLd(p, sel, structuredDataHelpers()) : null);
+}
+
+// Homepage: a list of the product pages (each page carries its own Product
+// data, so Google reads one product per URL). Falls back to the old catalog
+// block if product-seo.js isn't loaded.
+function renderCatalogJsonLd() {
+  const seo = typeof window !== "undefined" && window.CIGProductSeo;
+  if (seo && typeof seo.catalogItemListJsonLd === "function") setJsonLd("catalog-jsonld", seo.catalogItemListJsonLd(PRODUCTS));
+  else if (typeof catalogJsonLd === "function") setJsonLd("catalog-jsonld", catalogJsonLd(PRODUCTS, structuredDataHelpers()));
+}
+
+// On page load: ?product=<id>&color=..&size=.. opens that pop-up. A link to an
+// unknown or hidden product just shows the grid (and its params are dropped).
+function openProductFromLink(href = typeof window !== "undefined" && window.location ? window.location.href : "") {
+  if (!href || typeof parseProductLink !== "function") return false;
+  let hasParam = false;
+  try { hasParam = new URL(href).searchParams.has("product"); } catch { return false; }
+  if (!hasParam) return false;
+  const link = parseProductLink(href, PRODUCTS);
+  if (link && openProductModal(link.id, link)) return true;
+  syncProductView();   // bad link: strip the params, stay on the grid
+  return false;
 }
 
 // ---------- Product modal dismissal ----------
@@ -489,6 +672,11 @@ function applyCryptoSwitch() {
   if (typeof document === "undefined" || typeof document.querySelectorAll !== "function") return;
   Array.from(document.querySelectorAll("[data-crypto-only]")).forEach((el) => { el.hidden = !cryptoEnabled; });
   Array.from(document.querySelectorAll("[data-crypto-off]")).forEach((el) => { el.hidden = cryptoEnabled; });
+  // Crypto has no hosted address page, so the ship-to country stays visible.
+  if (cryptoEnabled) {
+    const intl = document.getElementById("checkout-intl");
+    if (intl) intl.hidden = false;
+  }
 }
 applyCryptoSwitch();
 
@@ -555,9 +743,15 @@ if (checkoutBtn) {
   checkoutBtn.addEventListener("click", () => {
     const cart = getCart();
     if (cart.length === 0) return;
-    if (typeof trackSiteEvent === "function") trackSiteEvent("checkout_start");
+    if (typeof trackSiteEvent === "function") {
+      trackSiteEvent("checkout_start");
+      trackSiteEvent("checkout_form_view");
+    }
     if (promoInputEl && promoState) promoInputEl.value = promoState;
     renderCheckoutSummary();
+    // Close the bag first: on phones the drawer is full width and sat on top of
+    // the checkout form, so tapping Checkout looked like it did nothing.
+    closeCart();
     const checkoutModal = document.getElementById("checkout-modal");
     if (checkoutModal) checkoutModal.setAttribute("aria-hidden", "false");
   });
@@ -693,6 +887,18 @@ if (shipCountryEl && typeof shipCountryEl.addEventListener === "function") {
   shipCountryEl.addEventListener("change", () => renderCheckoutSummary());
 }
 
+const intlToggle = document.getElementById("checkout-intl-toggle");
+if (intlToggle && typeof intlToggle.addEventListener === "function") {
+  intlToggle.addEventListener("click", () => {
+    const intl = document.getElementById("checkout-intl");
+    if (intl) intl.hidden = false;
+    intlToggle.hidden = true;
+    const select = document.getElementById("checkout-country");
+    if (select && typeof select.focus === "function") select.focus();
+    renderCheckoutSummary();
+  });
+}
+
 function renderCheckoutSummary() {
   const summary = document.getElementById("checkout-summary");
   if (!summary) return;
@@ -710,7 +916,7 @@ function renderCheckoutSummary() {
 
   let rows = cart
     .map((item) => {
-      const meta = [item.color, item.size].filter(Boolean).join(" / ");
+      const meta = (typeof bundleCartMeta === "function" && bundleCartMeta(item)) || [item.color, item.size].filter(Boolean).join(" / ");
       return `<div class="checkout-summary-row"><span>${item.name}${meta ? " (" + meta + ")" : ""} &times;${item.qty}</span><span>$${(item.price * item.qty).toFixed(2)}</span></div>`;
     })
     .join("");
@@ -763,8 +969,38 @@ function validateKoreaCustomsCode(fields) {
     : "South Korea orders need your Personal Customs Clearance Code (PCCC): P followed by 12 digits.";
 }
 
-function validateCheckoutFields(fields) {
-  return fields.email && fields.name && fields.address && fields.city;
+const CHECKOUT_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function payMethodToken(method) {
+  if (method === "stripe") return "card";
+  if (method === "paypal") return "paypal";
+  if (method === "crypto") return "crypto";
+  return "other";
+}
+
+function trackCheckout(event, detail) {
+  if (typeof trackSiteEvent === "function") trackSiteEvent(event, null, detail);
+}
+
+// Card and PayPal collect the street address on their own pages. Crypto does
+// not, so it still needs the address here. Returns { field, message } or null.
+// `field` is a short token (email, pccc, state...) with no shopper data in it.
+function checkoutProblem(fields, method) {
+  if (!fields.email || !CHECKOUT_EMAIL_PATTERN.test(fields.email)) {
+    return { field: "email", message: "Enter your email to continue." };
+  }
+  if (method === "crypto") {
+    if (!fields.name) return { field: "name", message: "Crypto orders need the name on the shipping address." };
+    if (!fields.address) return { field: "address", message: "Crypto orders need a shipping address." };
+    if (!fields.city) return { field: "city", message: "Crypto orders need a city." };
+    const shippingError = validateCryptoShipping(fields);
+    if (shippingError) {
+      return { field: /state/i.test(shippingError) ? "state" : "zip", message: shippingError };
+    }
+  }
+  const pcccError = validateKoreaCustomsCode(fields);
+  if (pcccError) return { field: "pccc", message: pcccError };
+  return null;
 }
 
 // Crypto has no hosted address form, so it needs the full address from us:
@@ -940,25 +1176,15 @@ paymentButtons.forEach((btn) => {
     }
     const fields = getCheckoutFields();
     const loadingEl = document.getElementById("checkout-loading");
+    const methodToken = payMethodToken(method);
     errorEl.textContent = "";
+    trackCheckout("checkout_pay_click", methodToken);
 
-    if (!validateCheckoutFields(fields)) {
-      errorEl.textContent = "Please fill in all fields before checking out.";
+    const problem = checkoutProblem(fields, method);
+    if (problem) {
+      trackCheckout("checkout_validation_error", problem.field);
+      errorEl.textContent = problem.message;
       return;
-    }
-
-    const pcccError = validateKoreaCustomsCode(fields);
-    if (pcccError) {
-      errorEl.textContent = pcccError;
-      return;
-    }
-
-    if (method === "crypto") {
-      const shippingError = validateCryptoShipping(fields);
-      if (shippingError) {
-        errorEl.textContent = shippingError;
-        return;
-      }
     }
 
     const cart = getCart();
@@ -986,6 +1212,7 @@ paymentButtons.forEach((btn) => {
 
     const shipQuote = cartShippingQuote(cart, fields.country);
     if (shipQuote.shippingCents === null) {
+      trackCheckout("checkout_validation_error", "country");
       const notHereNames = shipQuote.blocked.filter((name) => !shipQuote.usOnly.includes(name));
       errorEl.textContent = shipQuote.usOnly.length
         ? usOnlyMessage(shipQuote.usOnly)
@@ -1027,13 +1254,24 @@ paymentButtons.forEach((btn) => {
       // enforces this too); prices themselves are always computed server-side.
       const checkoutPromo = method === "crypto" ? null : promoState;
 
-      // Only crypto needs state/ZIP/country from us; card and PayPal collect the
-      // shipping address on their own hosted pages (locked to the chosen country).
-      // The PCCC is only sent for South Korea (customs needs it on the parcel).
-      const { state, zip, country, pccc, ...baseFields } = fields;
-      if (country === "KR") baseFields.pccc = pccc;
-      const customerFields =
-        method === "crypto" ? { ...baseFields, state, zip, country } : baseFields;
+      // Card and PayPal collect the street address on their hosted pages (Stripe
+      // shipping_address_collection, PayPal shipping on capture). Email stays
+      // here so Stripe checkout recovery still gets customer_email. Crypto has
+      // no hosted address form, so it still sends the full address. The PCCC
+      // is only sent for South Korea (customs needs it on the parcel).
+      const country = fields.country;
+      const customerFields = method === "crypto"
+        ? {
+          email: fields.email,
+          name: fields.name,
+          address: fields.address,
+          city: fields.city,
+          state: fields.state,
+          zip: fields.zip,
+          country,
+        }
+        : { email: fields.email };
+      if (country === "KR") customerFields.pccc = fields.pccc;
 
       let requestBody = buildCheckoutRequestBody(
         method,
@@ -1056,6 +1294,12 @@ paymentButtons.forEach((btn) => {
       // Pre-launch test order only (see the drop lock above).
       const dropTestCode = DROP_TEST_MODE ? checkoutFieldValue("drop-test-code") : "";
       if (dropTestCode) requestBody.dropTestCode = dropTestCode;
+      // Marketing attribution (?src= / utm_*) for BG's reports.
+      const attribution =
+        typeof window !== "undefined" && window.CIGAttribution
+          ? window.CIGAttribution.current()
+          : {};
+      if (attribution && Object.keys(attribution).length) requestBody.attribution = attribution;
       if (method === "stripe") {
         requestBody = await addCheckoutFingerprint(
           requestBody,
@@ -1075,10 +1319,17 @@ paymentButtons.forEach((btn) => {
       if (!res.ok || !data.url) {
         throw new Error(data.error || "Checkout could not be started.");
       }
+      trackCheckout("checkout_redirect", methodToken);
       // Save the cart+order id locally in case you want to show an order history later.
       window.location.href = data.url;
     } catch (err) {
       loadingEl.hidden = true;
+      const reason = err instanceof CheckoutFingerprintError
+        ? "fingerprint"
+        : err instanceof CheckoutRequestError
+          ? "rejected"
+          : "failed";
+      trackCheckout("checkout_session_error", `${methodToken}_${reason}`);
       if (err instanceof CheckoutFingerprintError) {
         console.error(
           "Checkout fingerprint generation failed.",
@@ -1106,6 +1357,7 @@ paymentButtons.forEach((btn) => {
 // ---------- Init ----------
 handleCheckoutResult();
 renderProductGrid();
+openProductFromLink();
 
 // Show the drop-test code box only in test mode.
 (function showDropTestRow() {
@@ -1145,6 +1397,21 @@ renderProductGrid();
 })();
 if (typeof renderCart === "function") renderCart();
 
+// Deep links from emails (thank-you "complete the fit"): cigcompany.com/#product-0008
+function productIdFromHash(hash) {
+  const match = /^#product-([A-Za-z0-9-]{1,20})$/.exec(String(hash || ""));
+  return match ? match[1] : null;
+}
+(function openLinkedProduct() {
+  try {
+    if (typeof location === "undefined" || typeof document === "undefined" || !document.getElementById) return;
+    const id = productIdFromHash(location.hash);
+    if (id && document.getElementById("modal-content")) openProductModal(id);
+  } catch {
+    /* a bad link never breaks the shop */
+  }
+})();
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     CheckoutFingerprintError,
@@ -1157,6 +1424,10 @@ if (typeof module !== "undefined" && module.exports) {
     dropLocked,
     minPrice,
     handleCheckoutResult,
+    notifyVariantLabel,
+    openProductFromLink,
+    productIdFromHash,
+    shouldOfferNotifyMe,
     productTotalStock,
     salePriceNow,
     selectionOnSale,
