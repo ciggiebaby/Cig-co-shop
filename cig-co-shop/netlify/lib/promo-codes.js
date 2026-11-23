@@ -20,6 +20,7 @@ async function resolvePromo({
   email = null,
   requireOwner = true,
   storeFactory = createCustomerStore,
+  now = Date.now(),
 }) {
   if (promoCode == null || promoCode === "") return null;
   if (typeof promoCode !== "string") {
@@ -27,7 +28,7 @@ async function resolvePromo({
   }
   const code = promoCode.trim().toUpperCase();
   if (!code) return null;
-  if (!isArcadeCode(code)) return normalizePromoCode(code);
+  if (!isArcadeCode(code)) return normalizePromoCode(code, now);
   if (requireOwner && !email) {
     throw new PricingValidationError("Enter the email you played the Arcade with to use this code.");
   }

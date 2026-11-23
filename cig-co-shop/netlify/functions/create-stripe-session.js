@@ -17,6 +17,7 @@ const {
   encodeStockMetadata,
 } = require("../lib/live-stock.js");
 const { resolvePromo } = require("../lib/promo-codes.js");
+const { PROMO_CODES } = require("../../promo.js");
 const {
   countryName,
   requireKoreaCustomsCode,
@@ -76,6 +77,24 @@ function checkoutSiteUrl(value) {
 //     asks for email-list consent before checkout (metadata.marketing_consent), and
 //     Stripe's docs say that's enough; only email buyers who opted in either way.
 // Nothing here sends an email; the flags only make the recovery link exist.
+// Time-limited static codes (promo.js endsAt, e.g. EARLYCIG): the discounted
+// price is baked into the session's line items, so a session must not stay
+// payable past the code's end. Stripe's default is 24 hours and its minimum is
+// 30 minutes, so the session ends at the code's end time, or 31 minutes from
+// now if that's sooner. Cart recovery (a 30-day copy of the cart at the
+// discounted price) is left off for these sessions. Returns {} otherwise.
+const STRIPE_MIN_EXPIRY_SECONDS = 31 * 60;
+const STRIPE_DEFAULT_EXPIRY_SECONDS = 24 * 60 * 60;
+function promoSessionLimits(promoCode, nowMs) {
+  const promo = promoCode ? PROMO_CODES[promoCode] : null;
+  const endMs = promo && promo.endsAt != null ? Date.parse(promo.endsAt) : NaN;
+  if (!Number.isFinite(endMs)) return {};
+  const nowSec = Math.floor(nowMs / 1000);
+  const endSec = Math.floor(endMs / 1000);
+  if (endSec >= nowSec + STRIPE_DEFAULT_EXPIRY_SECONDS) return { noRecovery: true };
+  return { noRecovery: true, expiresAt: Math.max(endSec, nowSec + STRIPE_MIN_EXPIRY_SECONDS) };
+}
+
 function envFlag(environment, name) {
   return String((environment && environment[name]) || "").trim().toLowerCase() === "true";
 }
@@ -136,6 +155,7 @@ function createHandler({
       const promo = await promoResolver({
         promoCode: body.promoCode,
         email: customerEmail || null,
+        now: now(),
       });
       // FW26/27 items can't be bought before DROP_AT (products.js) unless the
       // DROP_TEST_CODE env var is set and sent as dropTestCode.
@@ -179,6 +199,9 @@ function createHandler({
       };
       // Abandoned-checkout recovery (off unless CIG turns it on; see checkoutRecoveryOptions).
       Object.assign(sessionRequest, checkoutRecoveryOptions(environment));
+      const promoLimits = promoSessionLimits(pricing.promoCode, now());
+      if (promoLimits.noRecovery) delete sessionRequest.after_expiration;
+      if (promoLimits.expiresAt) sessionRequest.expires_at = promoLimits.expiresAt;
       // Flag CIG's pre-launch test order so it's easy to spot in Stripe.
       if (dropTestCodeValid(body.dropTestCode, environment)) sessionRequest.metadata.drop_test = "true";
       if (shipping.country === "US" && shipping.shippingCents > 0) {
@@ -237,6 +260,7 @@ function createHandler({
 const handler = createHandler();
 
 module.exports = {
+  promoSessionLimits,
   checkoutRecoveryOptions,
   checkoutSiteUrl,
   createHandler,

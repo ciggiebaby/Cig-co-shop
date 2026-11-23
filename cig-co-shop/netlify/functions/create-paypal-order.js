@@ -42,7 +42,7 @@ function createHandler({
       assertPodAllowedWithoutCard(trustedCartItems(body));
       // Arcade codes must belong to the email entered on the site.
       const email = body.customer && body.customer.email ? normalizeEmail(body.customer.email) : null;
-      const promo = await promoResolver({ promoCode: body.promoCode, email });
+      const promo = await promoResolver({ promoCode: body.promoCode, email, now: now() });
       const pricing = priceCartForStripe(trustedCartItems(body), body.promoCode, promo, { now: now() });
       // Backstock masks: refuse if the live Supabase count is lower than asked.
       await assertLiveStock(pricing.stockLines, { stockStoreFactory, logger });

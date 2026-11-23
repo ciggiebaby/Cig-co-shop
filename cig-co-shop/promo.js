@@ -3,16 +3,53 @@
 // discount is a fraction off each MASK's price (0.10 = 10% off); promos never
 // touch FW26/27 pieces (see "Masks-only promos" below).
 //
-// No codes are active right now — every code entered at checkout shows
-// "That code isn't valid." To add one, put a line inside the braces, e.g.
-//   SUMMER15: { discount: 0.15, label: "15% off" },
+// Static codes live in PROMO_CODES below. Each entry:
+//   discount       fraction off each eligible MASK's price (0.20 = 20% off)
+//   label          short text shown at checkout ("20% off")
+//   productIds     optional: which masks it covers (a subset of
+//                  PROMO_ELIGIBLE_PRODUCT_IDS). Missing = all three masks.
+//   eligibleLabel  optional: how those masks are named in checkout messages
+//   startsAt       optional ISO time: the code is refused before this moment
+//   endsAt         optional ISO time: the code is refused from this moment on
 // Codes are UPPERCASE; customers can type them in any case. The server checks
-// this same list, so a code only works once it's here and deployed.
+// this same list (and the time window), so a code only works once it's here,
+// deployed, and inside its window.
 // Promo codes never stack with the 20% crypto discount — crypto checkout
-// always uses the crypto discount instead of a promo code.
+// always uses the crypto discount instead of a promo code — and checkout
+// takes one code per order, so codes never stack with each other.
 
 const PROMO_CODES = {
+  // Black Friday early access (CIG approved Mon 11/23/2026, 12:31 AM ET).
+  // 20% off ski masks ($30 -> $24) and balaclavas ($25 -> $20) only. Moto
+  // masks, FW26/27 pieces (Crossbody, MagSafe, the $99 bundle, sleeves,
+  // pillows, tote) and Arcade prizes get nothing. One code per order.
+  // Live Tue 11/24 12:00 AM ET through Mon 11/30 11:59 PM ET.
+  EARLYCIG: {
+    discount: 0.20,
+    label: "20% off",
+    productIds: ["0008", "0005"], // ski mask, balaclava (no moto)
+    eligibleLabel: "ski masks and balaclavas",
+    startsAt: "2026-11-24T05:00:00.000Z", // Tue 11/24 12:00 AM ET
+    endsAt: "2026-12-01T05:00:00.000Z",   // refused from Tue 12/1 12:00 AM ET
+  },
 };
+
+// "active", "not_started", "expired", or null (no such static code).
+function promoCodeStatus(code, now = Date.now()) {
+  const promo = PROMO_CODES[code];
+  if (!promo) return null;
+  const start = promo.startsAt == null ? -Infinity : Date.parse(promo.startsAt);
+  const end = promo.endsAt == null ? Infinity : Date.parse(promo.endsAt);
+  if (Number.isNaN(start) || Number.isNaN(end)) return "expired"; // bad config: fail closed
+  if (now < start) return "not_started";
+  if (now >= end) return "expired";
+  return "active";
+}
+
+// The PROMO_CODES entry if the code exists and is inside its window, else null.
+function activePromoCode(code, now = Date.now()) {
+  return promoCodeStatus(code, now) === "active" ? PROMO_CODES[code] : null;
+}
 
 // Arcade codes (e.g. CIG10-7KQ4XW2M) are different: each one is unique to the
 // email that won it, single use, and expires 7 days after it's issued. They
@@ -26,7 +63,7 @@ function isArcadeCode(code) {
 const PROMO_STORAGE_KEY = "cig_co_promo_v1";
 
 function savePromoWin(code) {
-  if (!PROMO_CODES[code] && !isArcadeCode(code)) return;
+  if (!activePromoCode(code) && !isArcadeCode(code)) return;
   localStorage.setItem(PROMO_STORAGE_KEY, code);
 }
 
@@ -36,7 +73,7 @@ function clearSavedPromo() {
 
 function getSavedPromo() {
   const code = localStorage.getItem(PROMO_STORAGE_KEY);
-  return code && (PROMO_CODES[code] || isArcadeCode(code)) ? code : null;
+  return code && (activePromoCode(code) || isArcadeCode(code)) ? code : null;
 }
 
 // ---------- Arcade prizes ----------
@@ -104,15 +141,18 @@ function giftMaskShippingCents(country) {
   return rates.inHandInternationalCents([{ name: "Prize mask", quantity: 1, inHand: true }], code);
 }
 
-function isPromoEligibleProduct(productId) {
-  return PROMO_ELIGIBLE_PRODUCT_IDS.includes(productId);
+// eligibleIds (optional) narrows a code to some of the masks (e.g. EARLYCIG:
+// ski mask + balaclava). It can never widen past PROMO_ELIGIBLE_PRODUCT_IDS.
+function isPromoEligibleProduct(productId, eligibleIds) {
+  if (!PROMO_ELIGIBLE_PRODUCT_IDS.includes(productId)) return false;
+  return Array.isArray(eligibleIds) ? eligibleIds.includes(productId) : true;
 }
 
 // Unit price in cents after a promo of `basisPoints` (1000 = 10% off), for one
 // product. Non-mask products are returned unchanged. Shared by the checkout
 // page (app.js) and the server (stripe-pricing.js) so totals match.
-function promoUnitCents(productId, unitCents, basisPoints) {
-  if (!basisPoints || basisPoints <= 0 || !isPromoEligibleProduct(productId)) return unitCents;
+function promoUnitCents(productId, unitCents, basisPoints, eligibleIds) {
+  if (!basisPoints || basisPoints <= 0 || !isPromoEligibleProduct(productId, eligibleIds)) return unitCents;
   const floorUsd = MASK_PROMO_PRICE_FLOOR_USD[productId];
   if (typeof floorUsd !== "number" || !Number.isFinite(floorUsd) || floorUsd <= 0) return unitCents;
   const capBasisPoints = Math.round(MASK_PROMO_MAX_DISCOUNT * 10000);
@@ -122,8 +162,8 @@ function promoUnitCents(productId, unitCents, basisPoints) {
   return Math.max(discounted, floorCents);
 }
 
-function cartHasPromoEligibleItem(productIds) {
-  return Array.isArray(productIds) && productIds.some((id) => isPromoEligibleProduct(id));
+function cartHasPromoEligibleItem(productIds, eligibleIds) {
+  return Array.isArray(productIds) && productIds.some((id) => isPromoEligibleProduct(id, eligibleIds));
 }
 
 // Masks-only terms shown under an Arcade prize (wheel/scratch/boxes banner and
@@ -153,10 +193,12 @@ if (typeof module !== "undefined" && module.exports) {
     PROMO_ELIGIBLE_LABEL,
     PROMO_ELIGIBLE_PRODUCT_IDS,
     PRIZES,
+    activePromoCode,
     cartHasPromoEligibleItem,
     isArcadeCode,
     isPromoEligibleProduct,
     prizeTermsNote,
+    promoCodeStatus,
     promoUnitCents,
   };
 }
