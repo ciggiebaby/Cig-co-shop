@@ -53,7 +53,7 @@ test("PayPal orders are priced from products.js, not the browser", async () => {
   assert.equal(unit.amount.breakdown.item_total.value, "18.00");
   assert.deepEqual(unit.items[0].unit_amount, { currency_code: "USD", value: "9.00" });
   assert.equal(unit.items[0].quantity, "2");
-  assert.deepEqual(JSON.parse(unit.custom_id), { p: "CIG10", m: 1 });
+  assert.deepEqual(JSON.parse(unit.custom_id), { p: "CIG10", d: 200, m: 1 });
   assert.equal(sent.application_context.return_url, "https://shop.test/.netlify/functions/paypal-capture");
   assert.equal(sent.application_context.shipping_preference, "GET_FROM_FILE");
 });
@@ -95,7 +95,7 @@ test("PayPal checkout applies a valid Arcade code bound to the site email", asyn
   assert.equal(response.statusCode, 200);
   assert.deepEqual(checks, [{ code: "CIG15-ABCDEFGH", email: "buyer@example.com" }]);
   assert.equal(sent.purchase_units[0].amount.value, "17.00"); // $10 x2, 15% off
-  assert.deepEqual(JSON.parse(sent.purchase_units[0].custom_id), { p: "CIG15-ABCDEFGH", m: 0 });
+  assert.deepEqual(JSON.parse(sent.purchase_units[0].custom_id), { p: "CIG15-ABCDEFGH", d: 300, m: 0 });
 });
 
 // ---------- PayPal capture + recording ----------

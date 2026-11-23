@@ -45,8 +45,13 @@ function createCustomerStore(client = createSupabaseClient()) {
       });
     },
 
-    processStripeOrder(order) {
-      return client.rpc("cigco_process_stripe_order", {
+    // p_discount_cents (orders.discount_cents) is only sent when known. If the
+    // database migration 202611230001_orders_discount_cents.sql hasn't run yet,
+    // PostgREST answers PGRST202 (no such function signature) and the order is
+    // recorded without it, so a site deploy ahead of the migration never loses
+    // an order.
+    async processStripeOrder(order) {
+      const params = {
         p_event_id: order.eventId,
         p_event_type: order.eventType,
         p_session_id: order.sessionId,
@@ -63,7 +68,15 @@ function createCustomerStore(client = createSupabaseClient()) {
         p_cart_fingerprint: order.cartFingerprint,
         p_promo_code: order.promoCode,
         p_paid_at: order.paidAt,
-      });
+      };
+      const discountCents = order.discountCents;
+      if (discountCents === undefined) return client.rpc("cigco_process_stripe_order", params);
+      try {
+        return await client.rpc("cigco_process_stripe_order", { ...params, p_discount_cents: discountCents });
+      } catch (error) {
+        if (!error || error.code !== "PGRST202") throw error;
+        return client.rpc("cigco_process_stripe_order", params);
+      }
     },
 
     reserveIntegration({

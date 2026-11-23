@@ -1,4 +1,5 @@
 const { createCustomerStore } = require("../lib/customer-store.js");
+const { recordedDiscountCents } = require("../lib/stripe-pricing.js");
 const { CONSENT_TEXT, SOURCES, recordSubscriber } = require("../lib/subscribers.js");
 const {
   normalizeEmail,
@@ -136,6 +137,10 @@ function createHandler({
         marketingConsent,
         cartFingerprint: session.metadata && session.metadata.cart_fingerprint,
         promoCode: session.metadata && session.metadata.promo_code,
+        discountCents: recordedDiscountCents(
+          session.metadata && session.metadata.discount_cents,
+          session.metadata && session.metadata.promo_code,
+        ),
         paidAt: new Date(stripeEvent.created * 1000).toISOString(),
       });
 

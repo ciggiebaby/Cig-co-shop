@@ -9,8 +9,8 @@ const {
   priceCartForStripe,
 } = require("../netlify/lib/stripe-pricing.js");
 
-test("no promo codes are active", () => {
-  assert.deepEqual(Object.keys(PROMO_CODES), []);
+test("the only static code is EARLYCIG (Black Friday, CIG approved 11/23/2026)", () => {
+  assert.deepEqual(Object.keys(PROMO_CODES), ["EARLYCIG"]);
 });
 
 test("retired codes are rejected by the server", () => {

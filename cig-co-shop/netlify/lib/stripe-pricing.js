@@ -3,6 +3,7 @@ const {
   PROMO_CODES,
   PROMO_ELIGIBLE_LABEL,
   cartHasPromoEligibleItem,
+  promoCodeStatus,
   promoUnitCents,
 } = require("../../promo.js");
 
@@ -11,6 +12,18 @@ const MASKS_ONLY_PROMO_MESSAGE = `Promo codes only work on ${PROMO_ELIGIBLE_LABE
 // (products.js saleBlocksPromo). If every mask in the bag is on sale, the code is refused (so an
 // Arcade code isn't burned for nothing).
 const SALE_NO_STACK_PROMO_MESSAGE = "Promo codes don't stack with sale prices. Your masks are already on sale, so remove the code to check out.";
+
+const PROMO_NOT_STARTED_MESSAGE = "This code isn't active yet.";
+const PROMO_EXPIRED_MESSAGE = "This code has expired.";
+
+// Refusal for a cart with nothing the code covers. Codes limited to some masks
+// (promo.productIds, e.g. EARLYCIG: ski mask + balaclava) name those masks.
+function promoNotEligibleMessage(promo) {
+  if (promo && Array.isArray(promo.productIds) && promo.eligibleLabel) {
+    return `This code only works on ${promo.eligibleLabel}. Add one to your bag to use it.`;
+  }
+  return MASKS_ONLY_PROMO_MESSAGE;
+}
 
 const MAX_CART_LINES = 50;
 const MAX_QUANTITY_PER_VARIANT = 99;
@@ -138,7 +151,22 @@ function variantStock(product, style, color, size) {
   return stock;
 }
 
-function normalizePromoCode(rawCode) {
+// now (ms): a static code with startsAt/endsAt (promo.js) is refused outside
+// its window, so a deployed code can't be used early or late.
+// Dollars off, read back from Stripe metadata (discount_cents) or the PayPal
+// custom_id ("d"). Returns whole cents >= 0, or null when it wasn't recorded:
+// an order with a code but no amount (checkout started before amounts were
+// stored) is null; an order with no code is 0.
+function recordedDiscountCents(rawValue, promoCode) {
+  if (rawValue != null && rawValue !== "") {
+    const cents = typeof rawValue === "number" ? rawValue : Number(String(rawValue).trim());
+    if (Number.isSafeInteger(cents) && cents >= 0) return cents;
+    return null;
+  }
+  return promoCode ? null : 0;
+}
+
+function normalizePromoCode(rawCode, now = Date.now()) {
   if (rawCode == null || rawCode === "") return null;
   if (typeof rawCode !== "string") {
     validationError("Promo code must be a string.");
@@ -153,15 +181,24 @@ function normalizePromoCode(rawCode) {
     throw new Error(`Invalid discount configuration for promo code ${code}.`);
   }
 
+  const status = promoCodeStatus(code, now);
+  if (status === "not_started") validationError(PROMO_NOT_STARTED_MESSAGE);
+  if (status !== "active") validationError(PROMO_EXPIRED_MESSAGE);
+
   const discountBasisPoints = Math.round(promo.discount * 10000);
-  return { code, discountBasisPoints };
+  const resolved = { code, discountBasisPoints };
+  if (Array.isArray(promo.productIds)) {
+    resolved.productIds = promo.productIds.slice();
+    if (promo.eligibleLabel) resolved.eligibleLabel = promo.eligibleLabel;
+  }
+  return resolved;
 }
 
 // Promos are masks only (promo.js): FW26/27 lines keep full price, and a
 // mask's discount is capped at MASK_PROMO_MAX_DISCOUNT and its floor price.
 function discountedUnitAmount(unitAmount, promo, productId, onSale = false) {
   if (!promo || onSale) return unitAmount;
-  return promoUnitCents(productId, unitAmount, promo.discountBasisPoints);
+  return promoUnitCents(productId, unitAmount, promo.discountBasisPoints, promo.productIds);
 }
 
 function resolveRequestedItem(rawItem, now = Date.now()) {
@@ -230,7 +267,7 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo, { now = Date.
     validationError(`Cart cannot contain more than ${MAX_CART_LINES} lines.`);
   }
 
-  const promo = resolvedPromo !== undefined ? resolvedPromo : normalizePromoCode(rawPromoCode);
+  const promo = resolvedPromo !== undefined ? resolvedPromo : normalizePromoCode(rawPromoCode, now);
   const variants = new Map();
   let totalQuantity = 0;
 
@@ -253,10 +290,11 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo, { now = Date.
   });
 
   const resolvedItems = Array.from(variants.values());
-  if (promo && !cartHasPromoEligibleItem(resolvedItems.filter((item) => !item.onSale).map((item) => item.productId))) {
-    validationError(cartHasPromoEligibleItem(resolvedItems.map((item) => item.productId))
+  const promoIds = promo ? promo.productIds : undefined;
+  if (promo && !cartHasPromoEligibleItem(resolvedItems.filter((item) => !item.onSale).map((item) => item.productId), promoIds)) {
+    validationError(cartHasPromoEligibleItem(resolvedItems.map((item) => item.productId), promoIds)
       ? SALE_NO_STACK_PROMO_MESSAGE
-      : MASKS_ONLY_PROMO_MESSAGE);
+      : promoNotEligibleMessage(promo));
   }
   const componentUsage = new Map();
   resolvedItems.forEach((item) => {
@@ -341,6 +379,8 @@ function priceCartForStripe(rawItems, rawPromoCode, resolvedPromo, { now = Date.
 
 module.exports = {
   MASKS_ONLY_PROMO_MESSAGE,
+  PROMO_EXPIRED_MESSAGE,
+  PROMO_NOT_STARTED_MESSAGE,
   SALE_NO_STACK_PROMO_MESSAGE,
   catalogUnitPrice,
   MAX_CART_LINES,
@@ -349,4 +389,5 @@ module.exports = {
   PricingValidationError,
   normalizePromoCode,
   priceCartForStripe,
+  recordedDiscountCents,
 };

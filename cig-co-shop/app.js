@@ -651,8 +651,17 @@ if (cartBackdropEl) cartBackdropEl.addEventListener("click", closeCart);
 const serverPromos = {};
 function promoDetails(code) {
   if (!code) return null;
-  if (typeof PROMO_CODES !== "undefined" && PROMO_CODES[code]) return PROMO_CODES[code];
+  if (typeof PROMO_CODES !== "undefined" && PROMO_CODES[code]) return staticPromoIfActive(code);
   return serverPromos[code] || null;
+}
+// A static code (promo.js) only counts inside its startsAt/endsAt window; the
+// server enforces the same window at checkout.
+function staticPromoIfActive(code) {
+  if (typeof activePromoCode === "function") return activePromoCode(code);
+  return typeof PROMO_CODES !== "undefined" ? PROMO_CODES[code] || null : null;
+}
+function promoMasksLabel(promoInfo) {
+  return (promoInfo && promoInfo.eligibleLabel) || "masks";
 }
 function looksLikeArcadeCode(code) {
   return typeof isArcadeCode === "function" && isArcadeCode(code);
@@ -689,10 +698,18 @@ async function applyPromoCode(rawCode, { quiet = false } = {}) {
     renderCheckoutSummary();
     return;
   }
-  if (typeof PROMO_CODES !== "undefined" && PROMO_CODES[code]) {
+  if (typeof PROMO_CODES !== "undefined" && PROMO_CODES[code] && !staticPromoIfActive(code)) {
+    promoState = null;
+    if (typeof clearSavedPromo === "function") clearSavedPromo();
+    const status = typeof promoCodeStatus === "function" ? promoCodeStatus(code) : "expired";
+    if (messageEl) {
+      messageEl.textContent = status === "not_started" ? "This code isn't active yet." : "This code has expired.";
+      messageEl.classList.add("promo-error");
+    }
+  } else if (typeof PROMO_CODES !== "undefined" && PROMO_CODES[code]) {
     promoState = code;
     if (typeof savePromoWin === "function") savePromoWin(code);
-    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label} on masks.${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
+    if (messageEl) { messageEl.textContent = `Code applied — ${PROMO_CODES[code].label} on ${promoMasksLabel(PROMO_CODES[code])}.${CRYPTO_NOTE}`; messageEl.classList.remove("promo-error"); }
   } else if (looksLikeArcadeCode(code)) {
     if (messageEl) { messageEl.textContent = "Checking code…"; messageEl.classList.remove("promo-error"); }
     let result = null;
@@ -808,7 +825,7 @@ function cartMerchandiseCents(cart, promoInfo) {
     const charged = cartItemOnSale(item)
       ? unit
       : typeof promoUnitCents === "function"
-      ? promoUnitCents(item.productId, unit, basisPoints)
+      ? promoUnitCents(item.productId, unit, basisPoints, promoInfo ? promoInfo.productIds : undefined)
       : unit; // promo.js missing: show full price (the server decides anyway)
     return sum + charged * item.qty;
   }, 0);
@@ -924,13 +941,13 @@ function renderCheckoutSummary() {
   rows += `<div class="checkout-summary-row" style="border-top:1px solid #2a2a2a;margin-top:8px;padding-top:8px;"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>`;
 
   if (discountFraction > 0 && discountAmount > 0) {
-    rows += `<div class="checkout-summary-row" style="color:var(--gold);"><span>Promo (${promoState}, masks only)</span><span>&minus;$${discountAmount.toFixed(2)}</span></div>`;
+    rows += `<div class="checkout-summary-row" style="color:var(--gold);"><span>Promo (${promoState}, ${promoMasksLabel(promoInfo)} only)</span><span>&minus;$${discountAmount.toFixed(2)}</span></div>`;
   } else if (discountFraction > 0 && cart.some((item) => cartItemOnSale(item))) {
     // No stacking with sale prices; checkout refuses the code (stripe-pricing.js).
     rows += `<div class="checkout-summary-row promo-error"><span>Promo (${promoState}) doesn't stack with sale prices. Your masks are already on sale, so remove the code.</span><span></span></div>`;
   } else if (discountFraction > 0) {
     // Promos are masks only (promo.js); checkout refuses a code on a bag with no mask.
-    rows += `<div class="checkout-summary-row promo-error"><span>Promo (${promoState}) only works on masks (ski mask, balaclava, moto mask). Add a mask or remove the code.</span><span></span></div>`;
+    rows += `<div class="checkout-summary-row promo-error"><span>Promo (${promoState}) only works on ${promoInfo && promoInfo.eligibleLabel ? promoInfo.eligibleLabel : "masks (ski mask, balaclava, moto mask)"}. Add one or remove the code.</span><span></span></div>`;
   }
 
   const shippingLabel = shippingQuote.shippingCents === null

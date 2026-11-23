@@ -129,6 +129,10 @@ test("creates expected Stripe line items from valid identifiers", async () => {
       cart_fingerprint: `v1:${"a".repeat(64)}`,
       marketing_consent: "true",
       promo_code: "CIG10",
+      discount_cents: "450",
+    },
+    payment_intent_data: {
+      metadata: { promo_code: "CIG10", discount_cents: "450" },
     },
     shipping_address_collection: {
       allowed_countries: ["US"],

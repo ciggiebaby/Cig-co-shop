@@ -34,6 +34,8 @@ async function recordPaidOrder(order, {
     marketingConsent: !!order.marketingConsent,
     cartFingerprint: null,
     promoCode: order.promoCode || null,
+    // Cents a promo code took off (0 = no code, null = not recorded).
+    discountCents: order.discountCents === undefined ? undefined : order.discountCents,
     paidAt: order.paidAt || new Date().toISOString(),
   });
 
