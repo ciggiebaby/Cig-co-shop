@@ -48,9 +48,11 @@ KR $30, from `IN_HAND_INTL_SHIPPING_USD` in `shipping-rates.js`). The 20% crypto
 discount is separate and unchanged.
 
 Store-wide promo codes live in `promo.js` under `PROMO_CODES` (Arcade codes
-are separate; see below). **No store-wide codes are active right now** (CIG5, CIG10 and CIG20 were retired), so any code a customer types
-shows "That code isn't valid." To add one, add a line inside the braces and
-deploy:
+are separate; see below). The only one is **EARLYCIG** (Black Friday: 20% off
+ski masks and balaclavas, Tue 11/24 12:00 AM ET to Mon 11/30 11:59 PM ET). A
+code can be limited to some masks (`productIds`) and to a time window
+(`startsAt` / `endsAt`); the server refuses it outside the window. To add one,
+add a line inside the braces and deploy:
 
 ```js
 const PROMO_CODES = {
@@ -63,6 +65,17 @@ customers can type it in any case. The checkout server reads the same file, so
 a code works for card and PayPal as soon as it's deployed. **Promo codes never
 stack with the 20% crypto discount.** Crypto checkout always uses its 20% and
 ignores any promo code.
+
+**Recording the discount (BG, Nov 23, 2026).** Every code order stores the
+code and the dollars off, in cents: Stripe session metadata `promo_code` +
+`discount_cents` (also copied to the PaymentIntent metadata on code orders),
+PayPal `custom_id` keys `p` + `d`, and Supabase `orders.promo_code` +
+`orders.discount_cents` (0 = no code; NULL = not recorded, i.e. orders before
+this change). The column comes from
+`supabase/migrations/202611230001_orders_discount_cents.sql`. **Run it in the
+Supabase SQL Editor (or `supabase db push`) before or with the deploy**:
+Netlify does not run migrations. If the site goes out first, orders still
+record, just without the amount.
 
 ## Arcade page + email list
 

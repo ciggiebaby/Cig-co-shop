@@ -153,6 +153,19 @@ function variantStock(product, style, color, size) {
 
 // now (ms): a static code with startsAt/endsAt (promo.js) is refused outside
 // its window, so a deployed code can't be used early or late.
+// Dollars off, read back from Stripe metadata (discount_cents) or the PayPal
+// custom_id ("d"). Returns whole cents >= 0, or null when it wasn't recorded:
+// an order with a code but no amount (checkout started before amounts were
+// stored) is null; an order with no code is 0.
+function recordedDiscountCents(rawValue, promoCode) {
+  if (rawValue != null && rawValue !== "") {
+    const cents = typeof rawValue === "number" ? rawValue : Number(String(rawValue).trim());
+    if (Number.isSafeInteger(cents) && cents >= 0) return cents;
+    return null;
+  }
+  return promoCode ? null : 0;
+}
+
 function normalizePromoCode(rawCode, now = Date.now()) {
   if (rawCode == null || rawCode === "") return null;
   if (typeof rawCode !== "string") {
@@ -376,4 +389,5 @@ module.exports = {
   PricingValidationError,
   normalizePromoCode,
   priceCartForStripe,
+  recordedDiscountCents,
 };

@@ -5,6 +5,7 @@ const { commitOrderStock, payPalStockLines, payPalStockSku } = require("./live-s
 const { recordPaidOrder } = require("./order-recording.js");
 const { autoConfirmEnabled, createPrintfulClient, printfulItemsForLine } = require("./printful.js");
 const { normalizePccc } = require("../../shipping-rates.js");
+const { recordedDiscountCents } = require("./stripe-pricing.js");
 
 // Made-to-order (Printful) lines carry their catalog selection in the PayPal
 // item sku ("pod:<productId>|<style>|<color>|<size>"), the same way live-stock
@@ -158,6 +159,8 @@ function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping
         description: dropTest ? "CIG & CO. order (DROP TEST)" : "CIG & CO. order",
         custom_id: JSON.stringify({
           p: pricing.promoCode || "",
+          // Dollars off in cents, only with a code (custom_id max 127 chars).
+          ...(pricing.promoCode ? { d: pricing.discountCents } : {}),
           m: marketingConsent ? 1 : 0,
           ...(shipping.country !== "US" ? { c: shipping.country } : {}),
           ...(shipping.country === "KR" && pccc ? { k: pccc } : {}),
@@ -183,6 +186,7 @@ function parseCustomId(value) {
     const parsed = JSON.parse(value || "{}");
     return {
       promoCode: parsed.p || null,
+      discountCents: recordedDiscountCents(parsed.d, parsed.p || null),
       marketingConsent: parsed.m === 1,
       shipCountry: typeof parsed.c === "string" && parsed.c ? parsed.c : "US",
       pccc: typeof parsed.k === "string" ? parsed.k : null,
@@ -190,7 +194,7 @@ function parseCustomId(value) {
       src: typeof parsed.s === "string" && parsed.s ? parsed.s : null,
     };
   } catch {
-    return { promoCode: null, marketingConsent: false, shipCountry: "US", pccc: null, dropTest: false, src: null };
+    return { promoCode: null, discountCents: null, marketingConsent: false, shipCountry: "US", pccc: null, dropTest: false, src: null };
   }
 }
 
@@ -260,6 +264,7 @@ function paidPayPalOrder(order) {
     } : null,
     marketingConsent: custom.marketingConsent,
     promoCode: custom.promoCode,
+    discountCents: custom.discountCents,
     paidAt: capture.create_time || new Date().toISOString(),
   };
 }

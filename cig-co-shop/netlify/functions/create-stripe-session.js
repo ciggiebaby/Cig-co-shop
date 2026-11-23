@@ -188,6 +188,9 @@ function createHandler({
           cart_fingerprint: checkoutFingerprint || "",
           marketing_consent: marketingConsent ? "true" : "false",
           promo_code: pricing.promoCode || "",
+          // Dollars the code took off the items, in cents ("0" with no code),
+          // for BG's promo cost count; stripe-webhook saves it to orders.discount_cents.
+          discount_cents: String(pricing.discountCents),
           // Read back by stripe-webhook to decrement live stock once paid.
           ...encodeStockMetadata(pricing.stockLines),
           // Marketing attribution (?src= / utm_*), only keys that were present.
@@ -198,6 +201,16 @@ function createHandler({
         cancel_url: `${resolvedSiteUrl}/?checkout=cancelled`,
       };
       // Abandoned-checkout recovery (off unless CIG turns it on; see checkoutRecoveryOptions).
+      // Session metadata isn't copied to the PaymentIntent, so a code order
+      // also tags the payment itself (Stripe Payments list and exports).
+      if (pricing.promoCode) {
+        sessionRequest.payment_intent_data = {
+          metadata: {
+            promo_code: pricing.promoCode,
+            discount_cents: String(pricing.discountCents),
+          },
+        };
+      }
       Object.assign(sessionRequest, checkoutRecoveryOptions(environment));
       const promoLimits = promoSessionLimits(pricing.promoCode, now());
       if (promoLimits.noRecovery) delete sessionRequest.after_expiration;
