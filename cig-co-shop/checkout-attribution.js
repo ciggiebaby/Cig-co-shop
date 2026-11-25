@@ -1,8 +1,10 @@
-// Marketing attribution for checkout (BG's "which link sold it").
+// Marketing attribution for checkout (which link sold it).
 // Captures ?src= (ig, tiktok, x, arcade, qr, fani...) and utm_* tags from the
-// landing URL, keeps them for the tab (sessionStorage, last touch wins), and
-// app.js sends them to create-stripe-session / create-paypal-order as
-// `attribution`. The server re-validates everything (netlify/lib/attribution.js).
+// landing URL. The first valid set is kept for 30 days in localStorage (first
+// touch). A later link in that window does not replace it. The slug rule
+// matches track-visit.js. app.js sends the tags to create-stripe-session and
+// create-paypal-order as `attribution`. The server checks them again
+// (netlify/lib/attribution.js). A missing or broken store never throws.
 (function (root, factory) {
   var api = factory();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
@@ -10,11 +12,24 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   var KEYS = ["src", "utm_source", "utm_medium", "utm_campaign", "utm_content"];
   var STORAGE_KEY = "cig_checkout_attribution";
+  var TTL_MS = 30 * 24 * 60 * 60 * 1000;
+  var SLUG = /^[A-Za-z0-9._~+\- ]+$/;
+  var MAX = 80;
 
   function clean(value) {
     if (typeof value !== "string") return null;
-    var v = value.trim().toLowerCase().slice(0, 80);
-    return /^[a-z0-9][a-z0-9_.\-]*$/.test(v) ? v : null;
+    var v = value.trim().slice(0, MAX);
+    return v && SLUG.test(v) ? v : null;
+  }
+
+  function cleanTags(input) {
+    var out = {};
+    if (!input || typeof input !== "object") return out;
+    KEYS.forEach(function (k) {
+      var v = clean(input[k]);
+      if (v) out[k] = v;
+    });
+    return out;
   }
 
   function fromUrl(href) {
@@ -29,37 +44,96 @@
     return out;
   }
 
-  // Returns the attribution for this tab, saving fresh URL tags if present.
-  function capture(href, storage) {
+  function writeTags(storage, tags, now) {
+    if (!storage || typeof storage.setItem !== "function") return;
+    storage.setItem(STORAGE_KEY, JSON.stringify({ savedAt: now, tags: tags }));
+  }
+
+  function dropStored(storage) {
+    try {
+      if (storage && typeof storage.removeItem === "function") storage.removeItem(STORAGE_KEY);
+    } catch (e) {}
+  }
+
+  // Saved first-touch tags, or null when missing, expired, or not a tag set.
+  // A flat map from the old sessionStorage shape is adopted as of `now`.
+  function storedTags(storage, now) {
+    try {
+      if (!storage || typeof storage.getItem !== "function") return null;
+      var raw = storage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      var saved = JSON.parse(raw);
+      if (!saved || typeof saved !== "object" || Array.isArray(saved)) return null;
+      if (saved.tags && typeof saved.savedAt === "number" && isFinite(saved.savedAt)) {
+        if (saved.savedAt > now + 24 * 60 * 60 * 1000 || now - saved.savedAt > TTL_MS) {
+          dropStored(storage);
+          return null;
+        }
+        var tags = cleanTags(saved.tags);
+        return Object.keys(tags).length ? tags : null;
+      }
+      var legacy = cleanTags(saved);
+      if (!Object.keys(legacy).length) return null;
+      writeTags(storage, legacy, now);
+      return legacy;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Returns the attribution to send with checkout. Fresh URL tags are saved
+  // only when nothing valid is stored yet.
+  function capture(href, storage, now) {
+    var clock = typeof now === "number" ? now : Date.now();
     var found = fromUrl(href);
     try {
+      var saved = storedTags(storage, clock);
+      if (saved) return saved;
       if (Object.keys(found).length) {
-        if (storage) storage.setItem(STORAGE_KEY, JSON.stringify(found));
+        try { writeTags(storage, found, clock); } catch (e) {}
         return found;
       }
-      var saved = storage ? JSON.parse(storage.getItem(STORAGE_KEY) || "null") : null;
-      var out = {};
-      if (saved && typeof saved === "object") {
-        KEYS.forEach(function (k) {
-          var v = clean(saved[k]);
-          if (v) out[k] = v;
-        });
-      }
-      return out;
+      return {};
     } catch (e) {
       return found;
     }
   }
 
-  function current() {
-    if (typeof window === "undefined") return {};
-    var storage = null;
-    try { storage = window.sessionStorage; } catch (e) {}
-    return capture(window.location && window.location.href, storage);
+  function safeGet(storage) {
+    try { return storage && storage.getItem(STORAGE_KEY); } catch (e) { return null; }
   }
 
-  // Save on page load so the tag survives navigating away from the landing URL.
-  if (typeof window !== "undefined") current();
+  function current() {
+    if (typeof window === "undefined") return {};
+    var local = null;
+    var session = null;
+    try { local = window.localStorage; } catch (e) {}
+    try { session = window.sessionStorage; } catch (e) {}
+    var primary = local || session;
+    // Same key used to live in sessionStorage for the tab. Move it once so a
+    // buyer who landed before this change still gets credit in this tab.
+    if (local && session && !safeGet(local)) {
+      var legacy = null;
+      try { legacy = session.getItem(STORAGE_KEY); } catch (e) {}
+      if (legacy) {
+        try { local.setItem(STORAGE_KEY, legacy); }
+        catch (e) { primary = session; }
+      }
+    }
+    return capture(window.location && window.location.href, primary);
+  }
 
-  return { KEYS: KEYS, STORAGE_KEY: STORAGE_KEY, clean: clean, fromUrl: fromUrl, capture: capture, current: current };
+  if (typeof window !== "undefined") {
+    try { current(); } catch (e) {}
+  }
+
+  return {
+    KEYS: KEYS,
+    STORAGE_KEY: STORAGE_KEY,
+    TTL_MS: TTL_MS,
+    clean: clean,
+    fromUrl: fromUrl,
+    capture: capture,
+    current: current,
+  };
 });

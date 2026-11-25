@@ -5,6 +5,7 @@ const { commitOrderStock, payPalStockLines, payPalStockSku } = require("./live-s
 const { recordPaidOrder } = require("./order-recording.js");
 const { autoConfirmEnabled, createPrintfulClient, printfulItemsForLine } = require("./printful.js");
 const { normalizePccc } = require("../../shipping-rates.js");
+const { normalizeAttribution } = require("./attribution.js");
 const { recordedDiscountCents } = require("./stripe-pricing.js");
 
 // Made-to-order (Printful) lines carry their catalog selection in the PayPal
@@ -127,7 +128,29 @@ function createPayPalClient({ environment = process.env, fetchImpl = fetch } = {
 // chosen country is stored in custom_id so capture can check PayPal's address.
 // pccc: South Korea customs code (validated by create-paypal-order), kept for
 // the Printful draft. dropTest: CIG's pre-launch test order, flagged in PayPal.
-function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping = { country: "US", shippingCents: 0 }, pccc = null, dropTest = false, src = null }) {
+// attribution: landing tags. custom_id is capped at 127 characters, so tags
+// that do not fit are left off (sale fields are never dropped). `src` is the
+// older single-tag argument and still works.
+const PAYPAL_CUSTOM_ID_MAX = 127;
+const PAYPAL_ATTR_FIELDS = [
+  ["s", "src"],
+  ["us", "utm_source"],
+  ["um", "utm_medium"],
+  ["uc", "utm_campaign"],
+];
+
+function customIdWithAttribution(base, attribution) {
+  const tags = normalizeAttribution(attribution);
+  const packed = { ...base };
+  for (const [short, key] of PAYPAL_ATTR_FIELDS) {
+    if (!tags[key]) continue;
+    packed[short] = tags[key];
+    if (JSON.stringify(packed).length > PAYPAL_CUSTOM_ID_MAX) delete packed[short];
+  }
+  return JSON.stringify(packed);
+}
+
+function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping = { country: "US", shippingCents: 0 }, pccc = null, dropTest = false, src = null, attribution = null }) {
   const items = pricing.lineItems.map((line, index) => {
     const stock = pricing.lineStock && pricing.lineStock[index];
     const meta = line.price_data.product_data.metadata || {};
@@ -157,7 +180,7 @@ function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping
           },
         },
         description: dropTest ? "CIG & CO. order (DROP TEST)" : "CIG & CO. order",
-        custom_id: JSON.stringify({
+        custom_id: customIdWithAttribution({
           p: pricing.promoCode || "",
           // Dollars off in cents, only with a code (custom_id max 127 chars).
           ...(pricing.promoCode ? { d: pricing.discountCents } : {}),
@@ -165,8 +188,9 @@ function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping
           ...(shipping.country !== "US" ? { c: shipping.country } : {}),
           ...(shipping.country === "KR" && pccc ? { k: pccc } : {}),
           ...(dropTest ? { t: 1 } : {}),
-          // ?src= tag (custom_id is capped at 127 chars, so src only, max 24).
-          ...(src ? { s: String(src).slice(0, 24) } : {}),
+        }, {
+          ...(src ? { src } : null),
+          ...(attribution && typeof attribution === "object" ? attribution : null),
         }),
         items,
       },
@@ -182,8 +206,24 @@ function buildPayPalOrder(pricing, { siteUrl, marketingConsent = false, shipping
 }
 
 function parseCustomId(value) {
+  const empty = {
+    promoCode: null,
+    discountCents: null,
+    marketingConsent: false,
+    shipCountry: "US",
+    pccc: null,
+    dropTest: false,
+    src: null,
+    attribution: {},
+  };
   try {
     const parsed = JSON.parse(value || "{}");
+    const attribution = normalizeAttribution({
+      src: typeof parsed.s === "string" ? parsed.s : undefined,
+      utm_source: typeof parsed.us === "string" ? parsed.us : undefined,
+      utm_medium: typeof parsed.um === "string" ? parsed.um : undefined,
+      utm_campaign: typeof parsed.uc === "string" ? parsed.uc : undefined,
+    });
     return {
       promoCode: parsed.p || null,
       discountCents: recordedDiscountCents(parsed.d, parsed.p || null),
@@ -191,10 +231,11 @@ function parseCustomId(value) {
       shipCountry: typeof parsed.c === "string" && parsed.c ? parsed.c : "US",
       pccc: typeof parsed.k === "string" ? parsed.k : null,
       dropTest: parsed.t === 1,
-      src: typeof parsed.s === "string" && parsed.s ? parsed.s : null,
+      src: attribution.src || null,
+      attribution,
     };
   } catch {
-    return { promoCode: null, discountCents: null, marketingConsent: false, shipCountry: "US", pccc: null, dropTest: false, src: null };
+    return empty;
   }
 }
 
@@ -265,6 +306,7 @@ function paidPayPalOrder(order) {
     marketingConsent: custom.marketingConsent,
     promoCode: custom.promoCode,
     discountCents: custom.discountCents,
+    attribution: custom.attribution,
     paidAt: capture.create_time || new Date().toISOString(),
   };
 }

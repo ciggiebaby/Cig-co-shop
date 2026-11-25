@@ -4,6 +4,7 @@
 // event, product id, referring site, utm/src tags, mobile/desktop, a random
 // per-tab session id and the visitor's country (from Netlify's geo header).
 // Bots are dropped. Always answers 204 so the browser never retries or errors.
+const { campaignTag } = require("../lib/attribution.js");
 const { createSupabaseClient } = require("../lib/supabase.js");
 
 const MAX_BODY_BYTES = 2048;
@@ -51,8 +52,6 @@ function tag(value, pattern, max) {
   return v;
 }
 
-const SLUG = /^[A-Za-z0-9._~+\- ]+$/;
-
 // Optional tags that don't match are dropped. A weird referrer or src must not
 // throw away the whole visit (that was losing pageviews, and with them the
 // referrer and campaign tags, on direct ?product= landings).
@@ -82,10 +81,10 @@ function validatePayload(input) {
     event: input.event,
     product_id: productId,
     referrer_host: referrer ? referrer.toLowerCase() : null,
-    utm_source: optionalTag(input.utm_source, SLUG, 80),
-    utm_medium: optionalTag(input.utm_medium, SLUG, 80),
-    utm_campaign: optionalTag(input.utm_campaign, SLUG, 80),
-    src: optionalTag(input.src, SLUG, 80),
+    utm_source: campaignTag(input.utm_source),
+    utm_medium: campaignTag(input.utm_medium),
+    utm_campaign: campaignTag(input.utm_campaign),
+    src: campaignTag(input.src),
     device,
   };
   // Omit detail when empty so inserts keep working until the column exists.

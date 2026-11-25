@@ -124,7 +124,7 @@ test("PayPal: custom_id carries d (cents off) only with a code, stays <= 127 cha
   assert.deepEqual(JSON.parse(plain.purchase_units[0].custom_id), { p: "", m: 0 });
   assert.equal(parseCustomId(plain.purchase_units[0].custom_id).discountCents, 0);
 
-  // Worst case: Arcade code, KR customs code, drop test, 24-char src, a big discount.
+  // Worst case: Arcade code, KR customs code, drop test, a long src, a big discount.
   const worst = buildPayPalOrder(
     { ...priced, promoCode: "CIG15-ABCDEFGH", discountCents: 9999999 },
     { siteUrl: "https://cigcompany.com", marketingConsent: true, shipping: { country: "KR", shippingCents: 4000 }, pccc: "P123456789012", dropTest: true, src: "x".repeat(40) },

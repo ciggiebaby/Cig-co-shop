@@ -180,6 +180,7 @@ function createHandler({
         throw new RequestValidationError("Checkout fingerprint is invalid.");
       }
 
+      const attribution = normalizeAttribution(body.attribution);
       const sessionRequest = {
         mode: "payment",
         line_items: pricing.lineItems,
@@ -194,7 +195,8 @@ function createHandler({
           // Read back by stripe-webhook to decrement live stock once paid.
           ...encodeStockMetadata(pricing.stockLines),
           // Marketing attribution (?src= / utm_*), only keys that were present.
-          ...normalizeAttribution(body.attribution),
+          // stripe-webhook copies these onto public.orders.
+          ...attribution,
         },
         shipping_address_collection: { allowed_countries: [shipping.country] },
         success_url: `${resolvedSiteUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
@@ -203,13 +205,15 @@ function createHandler({
       // Abandoned-checkout recovery (off unless CIG turns it on; see checkoutRecoveryOptions).
       // Session metadata isn't copied to the PaymentIntent, so a code order
       // also tags the payment itself (Stripe Payments list and exports).
+      // Attribution is copied the same way when the buyer arrived with tags.
+      const paymentMetadata = {};
       if (pricing.promoCode) {
-        sessionRequest.payment_intent_data = {
-          metadata: {
-            promo_code: pricing.promoCode,
-            discount_cents: String(pricing.discountCents),
-          },
-        };
+        paymentMetadata.promo_code = pricing.promoCode;
+        paymentMetadata.discount_cents = String(pricing.discountCents);
+      }
+      Object.assign(paymentMetadata, attribution);
+      if (Object.keys(paymentMetadata).length) {
+        sessionRequest.payment_intent_data = { metadata: paymentMetadata };
       }
       Object.assign(sessionRequest, checkoutRecoveryOptions(environment));
       const promoLimits = promoSessionLimits(pricing.promoCode, now());

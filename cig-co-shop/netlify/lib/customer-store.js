@@ -1,3 +1,4 @@
+const { orderAttributionParams } = require("./attribution.js");
 const { createSupabaseClient } = require("./supabase.js");
 
 function createCustomerStore(client = createSupabaseClient()) {
@@ -45,11 +46,11 @@ function createCustomerStore(client = createSupabaseClient()) {
       });
     },
 
-    // p_discount_cents (orders.discount_cents) is only sent when known. If the
-    // database migration 202611230001_orders_discount_cents.sql hasn't run yet,
-    // PostgREST answers PGRST202 (no such function signature) and the order is
-    // recorded without it, so a site deploy ahead of the migration never loses
-    // an order.
+    // p_discount_cents and the attribution parameters are only sent when known.
+    // If migration 202611230001 (discount) or 202611250001 (src / utm columns)
+    // has not run yet, PostgREST answers PGRST202 and the order is recorded
+    // without the unknown parameters, so a site deploy ahead of a migration
+    // never loses an order.
     async processStripeOrder(order) {
       const params = {
         p_event_id: order.eventId,
@@ -69,13 +70,26 @@ function createCustomerStore(client = createSupabaseClient()) {
         p_promo_code: order.promoCode,
         p_paid_at: order.paidAt,
       };
-      const discountCents = order.discountCents;
-      if (discountCents === undefined) return client.rpc("cigco_process_stripe_order", params);
+      if (order.discountCents !== undefined) params.p_discount_cents = order.discountCents;
+      const attribution = orderAttributionParams(order.attribution);
+      const full = { ...params, ...attribution };
+      const hasAttribution = Object.keys(attribution).length > 0;
+      const hasDiscount = Object.prototype.hasOwnProperty.call(params, "p_discount_cents");
+      const withoutDiscount = { ...params };
+      delete withoutDiscount.p_discount_cents;
       try {
-        return await client.rpc("cigco_process_stripe_order", { ...params, p_discount_cents: discountCents });
+        return await client.rpc("cigco_process_stripe_order", full);
       } catch (error) {
-        if (!error || error.code !== "PGRST202") throw error;
-        return client.rpc("cigco_process_stripe_order", params);
+        if (!error || error.code !== "PGRST202" || (!hasAttribution && !hasDiscount)) throw error;
+        if (!hasAttribution) return client.rpc("cigco_process_stripe_order", withoutDiscount);
+        try {
+          // Attribution migration not applied yet. The discount parameter is
+          // still the live signature when that migration has run.
+          return await client.rpc("cigco_process_stripe_order", params);
+        } catch (retryError) {
+          if (!retryError || retryError.code !== "PGRST202" || !hasDiscount) throw retryError;
+          return client.rpc("cigco_process_stripe_order", withoutDiscount);
+        }
       }
     },
 

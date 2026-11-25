@@ -259,9 +259,27 @@ test("passes ?src= / utm attribution into Stripe session metadata", async () => 
     assert.equal(response.statusCode, 200);
     const md = stripe.getSessionRequest().metadata;
     assert.equal(md.src, src);
-    assert.equal(md.utm_campaign, "fw26_drop");
+    assert.equal(md.utm_campaign, "FW26_Drop");
     assert.equal(md.utm_medium, undefined);
     assert.equal(md.evil, undefined);
+    assert.equal(stripe.getSessionRequest().payment_intent_data.metadata.src, src);
+    assert.equal(stripe.getSessionRequest().payment_intent_data.metadata.utm_campaign, "FW26_Drop");
+    assert.equal(stripe.getSessionRequest().payment_intent_data.metadata.utm_medium, undefined);
+  }
+});
+
+test("malformed attribution does not block Stripe checkout", async () => {
+  for (const attribution of [null, "ig", ["ig"], { src: "<script>", utm_source: 5 }, { src: "" }]) {
+    const stripe = createStripeStub();
+    const response = await testHandler(stripe.stripeFactory)(
+      checkoutEvent({
+        cart: [{ productId: "TEST-PILLOW", color: "Red", size: null, style: null, qty: 1 }],
+        attribution,
+      }),
+    );
+    assert.equal(response.statusCode, 200, JSON.stringify(attribution));
+    assert.equal("src" in stripe.getSessionRequest().metadata, false);
+    assert.equal(stripe.getSessionRequest().payment_intent_data, undefined);
   }
 });
 
