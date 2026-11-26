@@ -1,8 +1,10 @@
 // Records a confirmed PayPal or Coinbase payment exactly like stripe-webhook.js
 // records a Stripe one: Supabase order + contact, order email, and Kit sync.
 // Provider ids are prefixed ("paypal:…", "coinbase:…") and stored in the
-// existing order id columns, so no database migration is needed and replays
-// of the same payment are de-duplicated by the same unique constraints.
+// existing order id columns, so replays of the same payment are de-duplicated
+// by the same unique constraints. Landing tags go in columns from
+// 202611250001_orders_attribution.sql; if that migration has not run, the
+// order is still recorded without them.
 const { createCustomerStore } = require("./customer-store.js");
 const { normalizeEmail, safeIdentifier, splitName } = require("./customer-utils.js");
 const { sendOrderTransaction, syncContactToKit } = require("./integrations.js");
@@ -36,6 +38,8 @@ async function recordPaidOrder(order, {
     promoCode: order.promoCode || null,
     // Cents a promo code took off (0 = no code, null = not recorded).
     discountCents: order.discountCents === undefined ? undefined : order.discountCents,
+    // Landing tags (src / utm_*). Missing tags are omitted; a bad tag is dropped.
+    attribution: order.attribution,
     paidAt: order.paidAt || new Date().toISOString(),
   });
 

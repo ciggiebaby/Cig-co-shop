@@ -3,7 +3,7 @@
 //   * applies a variant from the link (?color=Red&size=1-Hole, what the Google
 //     feed and the color/size links use) to the photo, price, stock and buy link,
 //   * keeps ?src= / utm_* tags on the buy and option links (checkout-attribution.js
-//     also saves them for the tab, so the sale is credited either way),
+//     also saves the first set for 30 days, so the sale is credited either way),
 //   * swaps in live mask stock when /.netlify/functions/stock answers.
 // "Add to bag" hands off to the shop's own pop-up (/?product=ID&color=..), so
 // cart, stock checks and checkout are exactly the homepage's.

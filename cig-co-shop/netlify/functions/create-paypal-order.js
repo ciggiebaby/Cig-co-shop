@@ -16,7 +16,6 @@ const { assertDropOpen, dropTestCodeValid } = require("../lib/drop-lock.js");
 const { normalizePccc } = require("../../shipping-rates.js");
 const { resolvePromo } = require("../lib/promo-codes.js");
 const { requireKoreaCustomsCode, resolveCheckoutShipping } = require("../lib/checkout-shipping.js");
-const { normalizeAttribution } = require("../lib/attribution.js");
 const { assertPodAllowedWithoutCard } = require("../lib/pod-payment.js");
 const { LiveStockUnavailableError, assertLiveStock, createStockStore } = require("../lib/live-stock.js");
 
@@ -58,7 +57,7 @@ function createHandler({
           shipping,
           pccc: shipping.country === "KR" ? normalizePccc(body.customer && body.customer.pccc) : null,
           dropTest: dropTestCodeValid(body.dropTestCode, environment),
-          src: normalizeAttribution(body.attribution).src || null,
+          attribution: body.attribution,
         }),
       );
 
