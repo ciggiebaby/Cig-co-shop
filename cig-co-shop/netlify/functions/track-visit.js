@@ -4,7 +4,7 @@
 // event, product id, referring site, utm/src tags, mobile/desktop, a random
 // per-tab session id and the visitor's country (from Netlify's geo header).
 // Bots are dropped. Always answers 204 so the browser never retries or errors.
-const { campaignTag } = require("../lib/attribution.js");
+const { campaignTag, clickIds, hasClickParam, CLICK_ID_KEYS } = require("../lib/attribution.js");
 const { createSupabaseClient } = require("../lib/supabase.js");
 
 const MAX_BODY_BYTES = 2048;
@@ -75,6 +75,9 @@ function validatePayload(input) {
   const referrer = optionalTag(input.referrer_host, /^[a-z0-9.\-_]+$/i, 120);
   const device = DEVICES.has(input.device) ? input.device : null;
   const detail = optionalTag(input.detail, /^[A-Za-z0-9_-]+$/, 40);
+  const clicks = clickIds(input);
+  let src = campaignTag(input.src);
+  if (!src && hasClickParam(input)) src = "google-ads";
   const row = {
     session_id: optionalTag(input.session_id, /^[a-z0-9]{8,40}$/, 40),
     path,
@@ -84,9 +87,12 @@ function validatePayload(input) {
     utm_source: campaignTag(input.utm_source),
     utm_medium: campaignTag(input.utm_medium),
     utm_campaign: campaignTag(input.utm_campaign),
-    src: campaignTag(input.src),
+    src,
     device,
   };
+  for (const key of CLICK_ID_KEYS) {
+    if (clicks[key]) row[key] = clicks[key];
+  }
   // Omit detail when empty so inserts keep working until the column exists.
   if (detail) row.detail = detail;
   return row;
@@ -123,7 +129,19 @@ function createHandler({ clientFactory = () => createSupabaseClient(), logger = 
         return noContent; // bad or oversized payload: drop silently
       }
       row.country = countryFrom(event, context);
-      await clientFactory().insert("site_visits", row);
+      const client = clientFactory();
+      try {
+        await client.insert("site_visits", row);
+      } catch (insertError) {
+        // Click-id columns are optional. If the migration has not been applied,
+        // PostgREST rejects the unknown column; store the visit without them.
+        const hasClick = CLICK_ID_KEYS.some((key) => row[key]);
+        const code = insertError && insertError.code;
+        if (!hasClick || (code !== "PGRST204" && code !== "42703")) throw insertError;
+        const plain = { ...row };
+        for (const key of CLICK_ID_KEYS) delete plain[key];
+        await client.insert("site_visits", plain);
+      }
     } catch (error) {
       logger.error("Site visit not recorded.", { error: error && (error.code || error.status || error.name) });
     }

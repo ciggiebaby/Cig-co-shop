@@ -65,10 +65,17 @@ function lineKey(item) {
   return [item.productId, item.color || "", item.size || "", itemStyleKey(item)].join("::");
 }
 
-// Site-visit events (site-visits.js). Never throws, so tracking can't break the bag.
+// Site-visit events (site-visits.js) and the Google Ads add-to-bag conversion
+// (google-ads.js). Never throws, so tracking can't break the bag.
 function trackSiteEvent(event, productId, detail) {
   try {
     if (typeof cigTrack === "function") cigTrack(event, productId, detail);
+  } catch {}
+  if (event !== "add_to_bag") return;
+  try {
+    var ads = typeof CIGGoogleAds !== "undefined" ? CIGGoogleAds : null;
+    if (!ads && typeof window !== "undefined") ads = window.CIGGoogleAds;
+    if (ads && typeof ads.addToCart === "function") ads.addToCart();
   } catch {}
 }
 

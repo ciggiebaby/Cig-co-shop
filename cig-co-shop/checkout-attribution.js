@@ -1,8 +1,12 @@
 // Marketing attribution for checkout (which link sold it).
-// Captures ?src= (ig, tiktok, x, arcade, qr, fani...) and utm_* tags from the
-// landing URL. The first valid set is kept for 30 days in localStorage (first
-// touch). A later link in that window does not replace it. The slug rule
-// matches track-visit.js. app.js sends the tags to create-stripe-session and
+// Captures ?src= (ig, tiktok, x, arcade, qr, fani, google-ads...) and utm_*
+// tags from the landing URL. A landing with gclid, gbraid, or wbraid and no
+// src is saved as src=google-ads. An existing src is left as-is. The click id
+// is kept in full when it matches the click-id rule; it is not forced through
+// the 80-character src/utm slug (a cut-off click id would not match the ad).
+// The first valid set is kept for 30 days in localStorage (first touch). A
+// later link in that window does not replace it. The slug rule matches
+// track-visit.js. app.js sends the tags to create-stripe-session and
 // create-paypal-order as `attribution`. The server checks them again
 // (netlify/lib/attribution.js). A missing or broken store never throws.
 (function (root, factory) {
@@ -11,15 +15,26 @@
   if (root) root.CIGAttribution = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   var KEYS = ["src", "utm_source", "utm_medium", "utm_campaign", "utm_content"];
+  var CLICK_KEYS = ["gclid", "gbraid", "wbraid"];
   var STORAGE_KEY = "cig_checkout_attribution";
   var TTL_MS = 30 * 24 * 60 * 60 * 1000;
   var SLUG = /^[A-Za-z0-9._~+\- ]+$/;
   var MAX = 80;
+  var CLICK_MAX = 200;
+  var CLICK_ID = /^[A-Za-z0-9._~-]+$/;
 
   function clean(value) {
     if (typeof value !== "string") return null;
     var v = value.trim().slice(0, MAX);
     return v && SLUG.test(v) ? v : null;
+  }
+
+  // Full click id, or null. Never sliced to MAX: a shortened gclid is useless.
+  function cleanClickId(value) {
+    if (typeof value !== "string") return null;
+    var v = value.trim();
+    if (!v || v.length > CLICK_MAX || !CLICK_ID.test(v)) return null;
+    return v;
   }
 
   function cleanTags(input) {
@@ -28,6 +43,10 @@
     KEYS.forEach(function (k) {
       var v = clean(input[k]);
       if (v) out[k] = v;
+    });
+    CLICK_KEYS.forEach(function (k) {
+      var id = cleanClickId(input[k]);
+      if (id) out[k] = id;
     });
     return out;
   }
@@ -40,6 +59,14 @@
         var v = clean(params.get(k));
         if (v) out[k] = v;
       });
+      var sawClick = false;
+      CLICK_KEYS.forEach(function (k) {
+        var raw = params.get(k);
+        if (typeof raw === "string" && raw.trim()) sawClick = true;
+        var id = cleanClickId(raw);
+        if (id) out[k] = id;
+      });
+      if (sawClick && !out.src) out.src = "google-ads";
     } catch (e) {}
     return out;
   }
@@ -129,9 +156,11 @@
 
   return {
     KEYS: KEYS,
+    CLICK_KEYS: CLICK_KEYS,
     STORAGE_KEY: STORAGE_KEY,
     TTL_MS: TTL_MS,
     clean: clean,
+    cleanClickId: cleanClickId,
     fromUrl: fromUrl,
     capture: capture,
     current: current,

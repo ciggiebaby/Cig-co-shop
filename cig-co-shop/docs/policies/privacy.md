@@ -39,15 +39,15 @@ We do not collect payment card numbers through our intake form or by email.
 
 ## 3. Website analytics, cookies, and similar technologies
 
-We do not use third-party advertising or analytics pixels on cigcompany.com. A scan of the live site and the site source found no Meta (Facebook) Pixel, TikTok Pixel, Google Analytics, gtag, Vercel Analytics, or Speed Insights.
+We use the Google tag (gtag.js) on cigcompany.com to measure Cig & Co. Google Ads. The tag loads on each page. Adding an item to the bag sends an add-to-bag conversion. The page you see after checkout does not send a purchase conversion, because payment confirmation is still pending there. A purchase conversion is sent only after a payment is confirmed. When it is sent, it includes the order value, US dollars, and a transaction id. A visit from a Google ad can include a click id (gclid, gbraid, or wbraid). We keep that click id with the visit when our database has a column for it, and we pass it to Stripe or PayPal with the order when it fits, so the sale can be matched to the ad. Google may set a cookie to measure those ads. We do not use a Meta (Facebook) Pixel, TikTok Pixel, Google Analytics, Vercel Analytics, or Speed Insights.
 
 The homepage includes a Pinterest p:domain_verify meta tag. That tag is only for domain verification. It is not a Pinterest tracking pixel, and we do not load Pinterest's pintrk script.
 
-We do use a **first-party visit log** on cigcompany.com to understand how the shop is used (for example, which pages are viewed, which products are added to the bag, and where checkout starts or stops). On each event, our site sends a small record to our own hosting function, which stores it in our database. That record can include the page path, the event type, a product id, the referring site, campaign tags from the URL (src and utm tags), whether the device appears to be a phone or a desktop, a random per-tab session id, and the visitor's country as provided by our host. It does not use cookies. It does not store an IP address, a user-agent string, an email address, or a shipping address.
+We do use a **first-party visit log** on cigcompany.com to understand how the shop is used (for example, which pages are viewed, which products are added to the bag, and where checkout starts or stops). On each event, our site sends a small record to our own hosting function, which stores it in our database. That record can include the page path, the event type, a product id, the referring site, campaign tags from the URL (src and utm tags), a Google click id when the link had one, whether the device appears to be a phone or a desktop, a random per-tab session id, and the visitor's country as provided by our host. It does not use cookies. It does not store an IP address, a user-agent string, an email address, or a shipping address.
 
-The per-tab session id and campaign tags are kept in the browser's session storage (not a cookie) so we can count visits in the same tab and keep a landing campaign with later events in that tab. We also keep the first landing src and utm tags in the browser's local storage for about 30 days (not a cookie) and pass them with an order to Stripe or PayPal, which we then store on the order, so we can see which link led to a sale. A checkout "fingerprint" is a hash of the cart contents used to keep the payment session consistent; it is not a device identifier and is not used for advertising.
+The per-tab session id and campaign tags are kept in the browser's session storage (not a cookie) so we can count visits in the same tab and keep a landing campaign with later events in that tab. We also keep the first landing src and utm tags in the browser's local storage for about 30 days (not a cookie), and a Google click id from that same landing when the ad link included one, and pass them with an order to Stripe or PayPal. We store the src and utm tags on the order. We store the click id on the Stripe payment, and on a PayPal order when the full id fits. A checkout "fingerprint" is a hash of the cart contents used to keep the payment session consistent; it is not a device identifier and is not used for advertising.
 
-If your browser sends a **Do Not Track (DNT)** or **Global Privacy Control (GPC)** signal, we do not send the first-party visit record. If we later add advertising tools, we will honor GPC for those tools as the law requires.
+If your browser sends a **Do Not Track (DNT)** or **Global Privacy Control (GPC)** signal, we do not send the first-party visit record and we do not load the Google tag.
 
 The site loads fonts from Google Fonts. Google may receive your IP address when your browser requests those fonts. Stripe and PayPal may also set their own cookies on their hosted checkout pages, which are covered by their privacy policies.
 
@@ -64,12 +64,13 @@ We use the information above to:
 - Send marketing texts or make marketing calls only as described in section 5.
 - Contact a business about Advisory services using public business contact information, with a way to opt out.
 - Understand how the shop is used, using the first-party visit log described in section 3.
+- Measure Cig & Co. Google Ads, using the Google tag described in section 3.
 
 We use Advisory intake answers only to fulfill the paid report or subscription you ordered. We do not put one client's answers into another client's report.
 
 ## 5. How we share information
 
-We do not sell your personal information. We do not share personal information for cross-context behavioral advertising.
+We do not sell your personal information. We do not share personal information so other companies can market their own products. Google receives the Google Ads events described in section 3 to measure ads for Cig & Co.
 
 We share information only as needed to run the business:
 
@@ -77,6 +78,7 @@ We share information only as needed to run the business:
 - **Fulfillment:** Printful, to produce and ship Cig & Co. products.
 - **Email and communications:** Zoho Mail, to operate our inboxes (including info@cigcompany.com and ventures@cigcompany.com); Resend, to send transactional and list email (such as order, shipment, and Arcade prize messages); and Kit, to send promotional email to people who have opted in.
 - **Website host and database:** Netlify hosts cigcompany.com and related functions. Supabase stores order, sign-up, and first-party visit records.
+- **Advertising measurement:** Google, to measure Cig & Co. Google Ads as described in section 3.
 - **Marketplaces:** Etsy and TikTok Shop operate under their own privacy policies when you buy or sell there. We do not control those services.
 - **Professional helpers** who need the information to do work for us (for example, bookkeeping or, if retained, legal counsel), under a duty to keep it confidential.
 - **Legal and safety:** if we are required by law, or to protect our rights, customers, or the public.

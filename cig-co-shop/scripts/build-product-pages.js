@@ -177,6 +177,7 @@ ${arcadeStrip}
 ${footer}
 
 <script src="/site-visits.js"></script>
+<script src="/google-ads.js"></script>
 <script src="/checkout-attribution.js"></script>
 <script src="/products.js"></script>
 <script src="/product-links.js"></script>

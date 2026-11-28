@@ -122,6 +122,7 @@ def page(slug, md_file, title_tag, description):
 
 {checkout_modal}
 <script src="site-visits.js"></script>
+<script src="google-ads.js"></script>
 <script src="checkout-attribution.js"></script>
 <script src="products.js"></script>
 <script src="promo.js"></script>

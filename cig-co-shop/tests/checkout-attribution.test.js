@@ -6,7 +6,7 @@ require("./legacy-fixture.js");
 require("./promo-fixture.js");
 
 const attr = require("../checkout-attribution.js");
-const { campaignTag, orderAttributionParams } = require("../netlify/lib/attribution.js");
+const { campaignTag, clickId, orderAttributionParams } = require("../netlify/lib/attribution.js");
 const { validatePayload } = require("../netlify/functions/track-visit.js");
 const { buildPayPalOrder, paidPayPalOrder, parseCustomId } = require("../netlify/lib/paypal.js");
 const { createHandler: createPayPalOrder } = require("../netlify/functions/create-paypal-order.js");
@@ -79,6 +79,30 @@ test("adopts the old flat sessionStorage shape and promotes it into localStorage
   }
 });
 
+test("gclid without src is google-ads, and a real src is not replaced", () => {
+  const gclid = `Cjw${"C".repeat(90)}`;
+  assert.equal(gclid.length > 80, true);
+  assert.deepEqual(attr.fromUrl(`https://cigcompany.com/?gclid=${gclid}`), { src: "google-ads", gclid });
+  assert.deepEqual(attr.fromUrl(`https://cigcompany.com/?src=ig&gclid=${gclid}&utm_campaign=fw26`), {
+    src: "ig", utm_campaign: "fw26", gclid,
+  });
+  assert.deepEqual(attr.fromUrl("https://cigcompany.com/?gbraid=WB_1"), { src: "google-ads", gbraid: "WB_1" });
+  assert.deepEqual(attr.fromUrl("https://cigcompany.com/?gclid="), {});
+  assert.deepEqual(attr.fromUrl(`https://cigcompany.com/?wbraid=${"x".repeat(201)}`), { src: "google-ads" });
+  assert.deepEqual(attr.fromUrl("https://cigcompany.com/?gclid=%3Cscript%3E"), { src: "google-ads" });
+  assert.equal(attr.cleanClickId(gclid), clickId(gclid));
+  assert.equal(attr.cleanClickId("a".repeat(201)), null);
+  assert.equal(clickId("a".repeat(90)), "a".repeat(90));
+
+  const s = memStorage();
+  const t0 = Date.parse("2026-11-01T00:00:00Z");
+  assert.deepEqual(attr.capture(`https://cigcompany.com/?gclid=${gclid}`, s, t0), { src: "google-ads", gclid });
+  assert.deepEqual(attr.capture("https://cigcompany.com/?src=tiktok", s, t0 + DAY), { src: "google-ads", gclid });
+  assert.deepEqual(orderAttributionParams({ src: "google-ads", gclid, utm_campaign: "fw26" }), {
+    p_src: "google-ads", p_utm_campaign: "fw26",
+  });
+});
+
 test("drops junk values and uses the same slug rule as track-visit", () => {
   assert.deepEqual(attr.fromUrl("https://x.test/?src=%3Cb%3E&utm_source=ok"), { utm_source: "ok" });
   const base = { event: "pageview", path: "/", session_id: "abc123def456", device: "mobile" };
@@ -97,6 +121,41 @@ test("drops junk values and uses the same slug rule as track-visit", () => {
   assert.equal(campaignTag("a".repeat(81)), "a".repeat(80));
   assert.equal(campaignTag("  IG  "), "IG");
   assert.equal(campaignTag("<b>"), null);
+});
+
+test("PayPal keeps a click id only when the full value fits in custom_id", () => {
+  const shortId = "CjwKCAjwshort";
+  const fit = buildPayPalOrder(
+    { lineItems: [], totalCents: 1000, promoCode: null, stockLines: [] },
+    { siteUrl: "https://x.test", attribution: { src: "google-ads", gclid: shortId, utm_content: "reel" } },
+  );
+  const parsed = parseCustomId(fit.purchase_units[0].custom_id);
+  assert.equal(parsed.src, "google-ads");
+  assert.equal(parsed.attribution.gclid, shortId);
+  assert.equal(parsed.attribution.utm_content, undefined);
+  assert.ok(fit.purchase_units[0].custom_id.length <= 127);
+
+  const longId = "C".repeat(120);
+  const tight = buildPayPalOrder(
+    { lineItems: [], totalCents: 1000, promoCode: "CIG15-ABCDEFGH", discountCents: 9999999, stockLines: [] },
+    {
+      siteUrl: "https://x.test",
+      marketingConsent: true,
+      shipping: { country: "KR", shippingCents: 4000 },
+      pccc: "P123456789012",
+      attribution: { src: "google-ads", gclid: longId, utm_campaign: "fw26" },
+    },
+  );
+  const raw = tight.purchase_units[0].custom_id;
+  assert.ok(raw.length <= 127, String(raw.length));
+  const custom = JSON.parse(raw);
+  assert.equal(custom.p, "CIG15-ABCDEFGH");
+  assert.equal(custom.d, 9999999);
+  assert.equal(custom.k, "P123456789012");
+  assert.equal(custom.s, "google-ads");
+  assert.equal(custom.uc, "fw26");
+  assert.equal(custom.gl, undefined);
+  assert.equal(parseCustomId(raw).attribution.gclid, undefined);
 });
 
 test("PayPal custom_id carries src and utm tags and parses them back", () => {

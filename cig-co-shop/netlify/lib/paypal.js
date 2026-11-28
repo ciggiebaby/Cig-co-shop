@@ -5,7 +5,7 @@ const { commitOrderStock, payPalStockLines, payPalStockSku } = require("./live-s
 const { recordPaidOrder } = require("./order-recording.js");
 const { autoConfirmEnabled, createPrintfulClient, printfulItemsForLine } = require("./printful.js");
 const { normalizePccc } = require("../../shipping-rates.js");
-const { normalizeAttribution } = require("./attribution.js");
+const { clickIds, normalizeAttribution } = require("./attribution.js");
 const { recordedDiscountCents } = require("./stripe-pricing.js");
 
 // Made-to-order (Printful) lines carry their catalog selection in the PayPal
@@ -139,12 +139,26 @@ const PAYPAL_ATTR_FIELDS = [
   ["uc", "utm_campaign"],
 ];
 
+const PAYPAL_CLICK_FIELDS = [
+  ["gl", "gclid"],
+  ["gb", "gbraid"],
+  ["wb", "wbraid"],
+];
+
 function customIdWithAttribution(base, attribution) {
   const tags = normalizeAttribution(attribution);
   const packed = { ...base };
   for (const [short, key] of PAYPAL_ATTR_FIELDS) {
     if (!tags[key]) continue;
     packed[short] = tags[key];
+    if (JSON.stringify(packed).length > PAYPAL_CUSTOM_ID_MAX) delete packed[short];
+  }
+  // Full click id only. If it does not fit, leave it off. Never cut it, and
+  // never drop a sale field or a tag that already fit to make room.
+  const clicks = clickIds(attribution);
+  for (const [short, key] of PAYPAL_CLICK_FIELDS) {
+    if (!clicks[key]) continue;
+    packed[short] = clicks[key];
     if (JSON.stringify(packed).length > PAYPAL_CUSTOM_ID_MAX) delete packed[short];
   }
   return JSON.stringify(packed);
@@ -224,6 +238,12 @@ function parseCustomId(value) {
       utm_medium: typeof parsed.um === "string" ? parsed.um : undefined,
       utm_campaign: typeof parsed.uc === "string" ? parsed.uc : undefined,
     });
+    const clicks = clickIds({
+      gclid: typeof parsed.gl === "string" ? parsed.gl : undefined,
+      gbraid: typeof parsed.gb === "string" ? parsed.gb : undefined,
+      wbraid: typeof parsed.wb === "string" ? parsed.wb : undefined,
+    });
+    Object.assign(attribution, clicks);
     return {
       promoCode: parsed.p || null,
       discountCents: recordedDiscountCents(parsed.d, parsed.p || null),
