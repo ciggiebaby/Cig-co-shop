@@ -2,7 +2,7 @@
 // The static HTML already shows the product's default pick. This script:
 //   * applies a variant from the link (?color=Red&size=1-Hole, what the Google
 //     feed and the color/size links use) to the photo, price, stock and buy link,
-//   * keeps ?src= / utm_* tags on the buy and option links (checkout-attribution.js
+//   * keeps ?src= / utm_* / gclid tags on the buy and option links (checkout-attribution.js
 //     also saves the first set for 30 days, so the sale is credited either way),
 //   * swaps in live mask stock when /.netlify/functions/stock answers.
 // "Add to bag" hands off to the shop's own pop-up (/?product=ID&color=..), so
@@ -12,7 +12,7 @@
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (root && root.document) api.init(root);
 })(typeof window !== "undefined" ? window : null, function () {
-  var ATTRIBUTION_KEYS = ["src", "utm_source", "utm_medium", "utm_campaign", "utm_content"];
+  var ATTRIBUTION_KEYS = ["src", "utm_source", "utm_medium", "utm_campaign", "utm_content", "gclid", "gbraid", "wbraid"];
 
   function attributionParams(search) {
     var out = {};

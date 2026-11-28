@@ -6,6 +6,7 @@ const path = require("node:path");
 const test = require("node:test");
 const beacon = require("../site-visits.js");
 const { EVENTS, createHandler, validatePayload, isBot, countryFrom, MAX_BODY_BYTES } = require("../netlify/functions/track-visit.js");
+const { SupabaseRequestError } = require("../netlify/lib/supabase.js");
 const { formatSummary } = require("../scripts/weekly-visits.js");
 
 const root = path.join(__dirname, "..");
@@ -33,11 +34,38 @@ test("every HTML page loads site-visits.js once, before the other scripts", () =
   assert.ok(read("scripts/build-policy-pages.py").includes('<script src="site-visits.js"></script>'));
 });
 
-test("no third-party trackers or cookies", () => {
-  for (const f of fs.readdirSync(root).filter((x) => x.endsWith(".html"))) {
-    assert.doesNotMatch(read(f), /googletagmanager|gtag\(|google-analytics|plausible|segment\.com|hotjar|fbq\(|clarity\.ms/i, f);
+function walkHtml(dir) {
+  const out = [];
+  for (const name of fs.readdirSync(dir)) {
+    if (name === "node_modules" || name === "tests") continue;
+    const abs = path.join(dir, name);
+    if (fs.statSync(abs).isDirectory()) out.push(...walkHtml(abs));
+    else if (name.endsWith(".html")) out.push(path.relative(root, abs));
   }
+  return out;
+}
+
+test("Google Ads tag is the next script after site-visits, and no other third-party trackers", () => {
+  const pages = walkHtml(root);
+  assert.ok(pages.length >= 15);
+  for (const f of pages) {
+    const html = read(f);
+    const rooted = html.includes('src="/site-visits.js"');
+    const visits = rooted ? '<script src="/site-visits.js"></script>' : '<script src="site-visits.js"></script>';
+    const ads = rooted ? '<script src="/google-ads.js"></script>' : '<script src="google-ads.js"></script>';
+    assert.equal(html.split(visits).length - 1, 1, f);
+    assert.ok(html.includes(`${visits}\n${ads}`), f);
+    assert.doesNotMatch(html, /googletagmanager|gtag\(|google-analytics|plausible|segment\.com|hotjar|fbq\(|clarity\.ms/i, f);
+  }
+  assert.ok(read("scripts/build-policy-pages.py").includes('<script src="google-ads.js"></script>'));
+  assert.ok(read("scripts/build-product-pages.js").includes('<script src="/google-ads.js"></script>'));
+  const tag = read("google-ads.js");
+  assert.match(tag, /https:\/\/www\.googletagmanager\.com\/gtag\/js\?id=AW-18545350125/);
+  assert.match(tag, /AW-18545350125\/a3w3CNuOir8dEO2rjotF/);
+  assert.match(tag, /AW-18545350125\/XPrBCMrq-cAdEO2rjotF/);
+  assert.doesNotMatch(read("app.js"), /CIGGoogleAds|AW-18545350125|gtag\(/);
   assert.doesNotMatch(read("site-visits.js"), /document\.cookie|localStorage/);
+  assert.match(read("cart.js"), /event !== "add_to_bag"[\s\S]*?ads\.addToCart\(\)/);
 });
 
 test("Do Not Track and Global Privacy Control skip tracking", () => {
@@ -71,6 +99,40 @@ test("beacon payload: path, outside referrer only, utm/src kept for the tab, dev
   assert.equal(later.device, "desktop");
   assert.equal(beacon.referrerHost("https://cigcompany.com/x", "cigcompany.com"), null);
   assert.equal(beacon.referrerHost("not a url", "cigcompany.com"), null);
+});
+
+test("a gclid landing with no src is google-ads, and an existing src is kept", () => {
+  const store = {};
+  const storage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
+  const gclid = `Cjw${"A".repeat(86)}`;
+  assert.ok(gclid.length > 80);
+  const p = beacon.buildPayload("pageview", null, {
+    location: { href: `https://cigcompany.com/?gclid=${gclid}`, pathname: "/", hostname: "cigcompany.com" },
+    referrer: "https://www.google.com/", width: 390, storage,
+  });
+  assert.equal(p.src, "google-ads");
+  assert.equal(p.gclid, gclid);
+  assert.equal(p.gbraid, undefined);
+  const later = beacon.buildPayload("add_to_bag", "0013", {
+    location: { href: "https://cigcompany.com/", pathname: "/", hostname: "cigcompany.com" },
+    referrer: "", width: 1440, storage,
+  });
+  assert.equal(later.src, "google-ads");
+  assert.equal(later.gclid, gclid);
+  const fresh = {};
+  const freshStorage = { getItem: (k) => (k in fresh ? fresh[k] : null), setItem: (k, v) => { fresh[k] = String(v); } };
+  const kept = beacon.buildPayload("pageview", null, {
+    location: { href: "https://cigcompany.com/?src=ig&wbraid=WB123", pathname: "/", hostname: "cigcompany.com" },
+    referrer: "", width: 390, storage: freshStorage,
+  });
+  assert.equal(kept.src, "ig");
+  assert.equal(kept.wbraid, "WB123");
+  const junk = beacon.buildPayload("pageview", null, {
+    location: { href: `https://cigcompany.com/?gclid=${"x".repeat(201)}`, pathname: "/", hostname: "cigcompany.com" },
+    referrer: "", width: 390, storage: { getItem: () => null, setItem() {} },
+  });
+  assert.equal(junk.src, "google-ads");
+  assert.equal(junk.gclid, undefined);
 });
 
 test("cigTrack never throws, and does nothing outside a browser", () => {
@@ -150,6 +212,16 @@ test("payload validation keeps known fields only and rejects bad input", () => {
   assert.equal(click.address, undefined);
   assert.equal(validatePayload({ ...good, event: "checkout_validation_error", detail: "email" }).detail, "email");
   assert.equal(validatePayload({ ...good, event: "bag_upsell_shown", product_id: "FW26-BUNDLE", detail: "bag" }).detail, "bag");
+  const gclid = `Cjw${"B".repeat(90)}`;
+  const ads = validatePayload({ ...good, src: null, gclid, gbraid: "not a click id" });
+  assert.equal(ads.src, "google-ads");
+  assert.equal(ads.gclid, gclid);
+  assert.equal(ads.gbraid, undefined);
+  const both = validatePayload({ ...good, src: "qr", gclid });
+  assert.equal(both.src, "qr");
+  assert.equal(both.gclid, gclid);
+  assert.equal(validatePayload({ ...good, gclid: "x".repeat(201) }).gclid, undefined);
+  assert.equal(validatePayload({ ...good, src: "", gclid: "x".repeat(201) }).src, "google-ads");
 });
 
 test("stores a valid visit with country from Netlify geo and no IP or user agent", async () => {
@@ -187,6 +259,25 @@ test("drops bots, oversized and bad payloads silently", async () => {
   assert.equal((await handler(post({ ...good, event: "nope" }))).statusCode, 204);
   assert.equal((await handler({ httpMethod: "GET", headers: {} })).statusCode, 405);
   assert.equal(rows.length, 0);
+});
+
+test("a missing click-id column still records the visit without it", async () => {
+  const rows = [];
+  const handler = createHandler({
+    logger: { error() {} },
+    clientFactory: () => ({
+      insert: async (table, row) => {
+        if (row.gclid) throw new SupabaseRequestError("missing column", { status: 400, code: "PGRST204" });
+        rows.push([table, row]);
+      },
+    }),
+  });
+  const res = await handler(post({ ...good, src: null, gclid: "CjwKCAjwtest" }));
+  assert.equal(res.statusCode, 204);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0][1].src, "google-ads");
+  assert.equal(rows[0][1].gclid, undefined);
+  assert.equal(rows[0][1].event, "pageview");
 });
 
 test("a Supabase failure still answers 204", async () => {

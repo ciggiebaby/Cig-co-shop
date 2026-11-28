@@ -268,6 +268,37 @@ test("passes ?src= / utm attribution into Stripe session metadata", async () => 
   }
 });
 
+test("stores a full Google click id on the Stripe session without cutting it to 80", async () => {
+  const gclid = `Cjw${"D".repeat(90)}`;
+  assert.ok(gclid.length > 80 && gclid.length <= 200);
+  const stripe = createStripeStub();
+  const response = await testHandler(stripe.stripeFactory)(
+    checkoutEvent({
+      cart: [{ productId: "TEST-PILLOW", color: "Red", size: null, style: null, qty: 1 }],
+      attribution: { src: "google-ads", gclid, utm_campaign: "fw26", evil: "x" },
+    }),
+  );
+  assert.equal(response.statusCode, 200);
+  const md = stripe.getSessionRequest().metadata;
+  assert.equal(md.src, "google-ads");
+  assert.equal(md.gclid, gclid);
+  assert.equal(md.utm_campaign, "fw26");
+  assert.equal(md.evil, undefined);
+  assert.equal(stripe.getSessionRequest().payment_intent_data.metadata.gclid, gclid);
+  assert.equal(stripe.getSessionRequest().line_items[0].price_data.unit_amount, 1000);
+
+  const dropped = createStripeStub();
+  const tooLong = await testHandler(dropped.stripeFactory)(
+    checkoutEvent({
+      cart: [{ productId: "TEST-PILLOW", color: "Red", size: null, style: null, qty: 1 }],
+      attribution: { src: "ig", gclid: "x".repeat(201) },
+    }),
+  );
+  assert.equal(tooLong.statusCode, 200);
+  assert.equal(dropped.getSessionRequest().metadata.src, "ig");
+  assert.equal(dropped.getSessionRequest().metadata.gclid, undefined);
+});
+
 test("malformed attribution does not block Stripe checkout", async () => {
   for (const attribution of [null, "ig", ["ig"], { src: "<script>", utm_source: 5 }, { src: "" }]) {
     const stripe = createStripeStub();

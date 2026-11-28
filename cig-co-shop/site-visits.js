@@ -1,4 +1,7 @@
 // First-party site-visit tracking (CIG 10/30). No cookies, no third parties.
+// A landing with gclid, gbraid, or wbraid and no src is stored as src=google-ads.
+// The click id itself is sent only when it fits the click-id rule (not the
+// 80-character src/utm slug). Google Ads conversions are google-ads.js.
 // On page load it sends one small "pageview" to /.netlify/functions/track-visit
 // with the path, the referring site, utm_* tags, the ?src= tag (qr, fani, street,
 // shop...), mobile/desktop and a random per-tab id (sessionStorage) for counting
@@ -38,6 +41,25 @@
     return v || null;
   }
 
+  // Same rule as checkout-attribution.js / netlify/lib/attribution.js clickId.
+  // Reject a too-long id instead of cutting it to 80: a cut gclid will not match.
+  var CLICK_KEYS = ["gclid", "gbraid", "wbraid"];
+  var CLICK_MAX = 200;
+  function cleanClickId(value) {
+    if (typeof value !== "string") return null;
+    var v = value.trim();
+    if (!v || v.length > CLICK_MAX || !/^[A-Za-z0-9._~-]+$/.test(v)) return null;
+    return v;
+  }
+
+  function sawClickParam(params) {
+    for (var i = 0; i < CLICK_KEYS.length; i++) {
+      var raw = params.get(CLICK_KEYS[i]);
+      if (typeof raw === "string" && raw.trim()) return true;
+    }
+    return false;
+  }
+
   function referrerHost(referrer, ownHost) {
     try {
       if (!referrer) return null;
@@ -74,12 +96,23 @@
         out[k] = clip(params.get(k), 80);
         if (out[k]) fromUrl = true;
       });
+      CLICK_KEYS.forEach(function (k) {
+        out[k] = cleanClickId(params.get(k));
+        if (out[k]) fromUrl = true;
+      });
+      if (!out.src && sawClickParam(params)) {
+        out.src = "google-ads";
+        fromUrl = true;
+      }
     } catch (e) {}
     try {
       if (fromUrl) storage.setItem("cig_visit_campaign", JSON.stringify(out));
       else {
         var saved = JSON.parse(storage.getItem("cig_visit_campaign") || "null");
-        if (saved) keys.forEach(function (k) { out[k] = clip(saved[k], 80); });
+        if (saved) {
+          keys.forEach(function (k) { out[k] = clip(saved[k], 80); });
+          CLICK_KEYS.forEach(function (k) { out[k] = cleanClickId(saved[k]); });
+        }
       }
     } catch (e) {}
     return out;
@@ -118,6 +151,9 @@
       device: deviceClass(env.width),
       session_id: sessionId(env.storage),
     };
+    CLICK_KEYS.forEach(function (k) {
+      if (c[k]) row[k] = c[k];
+    });
     var token = detailToken(detail);
     if (token) row.detail = token;
     return row;

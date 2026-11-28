@@ -8,7 +8,7 @@ const {
   RequestValidationError,
   normalizeEmail,
 } = require("../lib/customer-utils.js");
-const { normalizeAttribution } = require("../lib/attribution.js");
+const { clickIds, normalizeAttribution } = require("../lib/attribution.js");
 const { assertDropOpen, dropTestCodeValid } = require("../lib/drop-lock.js");
 const {
   LiveStockUnavailableError,
@@ -181,6 +181,10 @@ function createHandler({
       }
 
       const attribution = normalizeAttribution(body.attribution);
+      // Google click ids are not slug tags and are not order columns. Stripe
+      // metadata keeps the full id (up to the click-id limit). A bad id is
+      // dropped and checkout still starts.
+      const adClicks = clickIds(body.attribution);
       const sessionRequest = {
         mode: "payment",
         line_items: pricing.lineItems,
@@ -195,8 +199,10 @@ function createHandler({
           // Read back by stripe-webhook to decrement live stock once paid.
           ...encodeStockMetadata(pricing.stockLines),
           // Marketing attribution (?src= / utm_*), only keys that were present.
-          // stripe-webhook copies these onto public.orders.
+          // stripe-webhook copies the slug tags onto public.orders. Click ids
+          // stay on this session (and the PaymentIntent) only.
           ...attribution,
+          ...adClicks,
         },
         shipping_address_collection: { allowed_countries: [shipping.country] },
         success_url: `${resolvedSiteUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
@@ -211,7 +217,7 @@ function createHandler({
         paymentMetadata.promo_code = pricing.promoCode;
         paymentMetadata.discount_cents = String(pricing.discountCents);
       }
-      Object.assign(paymentMetadata, attribution);
+      Object.assign(paymentMetadata, attribution, adClicks);
       if (Object.keys(paymentMetadata).length) {
         sessionRequest.payment_intent_data = { metadata: paymentMetadata };
       }
